@@ -1,102 +1,64 @@
-# Comparison: MLX Qwen3-ASR Implementations
+# Comparison: Qwen3-ASR Mac Implementations
 
-Feature comparison across available implementations for running Qwen3-ASR.
+Snapshot comparison for practitioners choosing a Qwen3-ASR path on Apple
+Silicon. This is an implementation-focused view, not a model-quality ranking.
+
+## Scope and Date
+
+- Snapshot date: 2026-02-14
+- Primary references: `docs/RESEARCH.md` and project benchmark artifacts under
+  `docs/benchmarks/`
 
 ## Feature Matrix
 
 | Feature | mlx-qwen3-asr | mlx-audio | qwen3-asr-swift | Official (PyTorch) |
-|---------|---------------|-----------|-----------------|-------------------|
-| MRoPE correct? | Yes (interleaved) | **No** (standard RoPE) | Yes | Yes |
-| Streaming? | Experimental rolling mode (bounded context) | No | Yes | Yes |
-| Forced aligner? | Yes (optional PyTorch backend via `qwen-asr`) | No | No | Yes |
-| Long audio (>20min)? | Yes (energy split) | **No** (truncation bug) | Yes | Yes |
-| Quantization? | Yes (4/8-bit) | Yes | No | No |
-| 1.7B config parity with official HF? | Yes (audio 24 layers; text GQA 16/8) | Version-dependent, verify before use | Yes | Yes |
-| Install method | pip install | pip install | Build from source | pip install |
-| Platform | macOS (Apple Silicon) | macOS (Apple Silicon) | macOS (Apple Silicon) | Linux (CUDA) |
-| Compute backend | MLX (Metal) | MLX (Metal) | MLX (Metal) | PyTorch (CUDA) |
+|---|---|---|---|---|
+| Installation UX | `pip install mlx-qwen3-asr` | `pip install mlx-audio` | source/build workflow | `pip install qwen-asr` (CUDA-focused runtime stack) |
+| Qwen3-ASR focus | Single-model focused | Multi-model toolkit | Single-model focused | Single-model focused |
+| Core backend | MLX (Metal) | MLX (Metal) | MLX (Metal) | PyTorch |
+| Streaming status | Experimental rolling mode | Varies by revision | Streaming supported | Streaming supported |
+| Timestamp alignment | `qwen_asr` default + native MLX experimental backend | Not a primary surfaced lane | No public forced-aligner API in cited snapshot | Official forced aligner |
+| Quantized path | Yes (4/8-bit workflows documented) | Yes | Varies | Varies |
 
-## Detailed Comparison
+## Measured Position of This Repo
+
+From committed artifacts in this repo:
+
+- Quantized long-clip speedup (`0.6B`, 10s lane): `4bit-g64` at `4.68x` vs fp16
+  (`docs/benchmarks/2026-02-14-quant-matrix-speaker100.md`)
+- Timestamp backend parity snapshot (`test-clean`, English, `n=50`):
+  - text match rate: `1.0000`
+  - timing MAE: `5.6909 ms`
+  - relative speed (`qwen_asr / mlx`): `2.64x`
+  (`docs/benchmarks/2026-02-14-aligner-parity-50.md`)
+
+## Practical Trade-Offs
 
 ### mlx-qwen3-asr (this project)
 
-- **Pros:**
-  - Correct interleaved MRoPE implementation
-  - Long-audio chunking
-  - Experimental rolling streaming API with bounded decode context
-  - Word-level timestamps via optional official forced-aligner backend
-  - Standalone package with minimal dependencies
-  - Proper 1.7B config parity with official HF artifacts
-  - Energy-based audio chunking for long files
+- Best when you want a Python-first, pip-installable, Mac-native Qwen3-ASR path
+  with explicit quality gates and benchmark artifacts.
+- Keeps streaming/speculative lanes explicitly experimental to avoid over-claiming.
 
-- **Cons:**
-  - New project, less battle-tested
-  - Single-model focus (only Qwen3-ASR)
-  - Timestamp path currently depends on optional PyTorch-based `qwen-asr`
+### mlx-audio
 
-### mlx-audio (Blaizzy/mlx-audio)
+- Best when you need one package covering many speech models.
+- Verify Qwen3-ASR behavior against the exact revision you deploy, because
+  priorities are broader than single-model parity.
 
-- **Pros:**
-  - Multi-model support (Whisper, MMS, Qwen, etc.)
-  - Established project with community
-  - pip-installable
+### qwen3-asr-swift
 
-- **Cons:**
-  - Uses standard nn.RoPE instead of interleaved MRoPE -- incorrect for Qwen3-ASR
-  - Issue #459: Long audio truncation
-  - Historical reports of Qwen3-ASR config drift across revisions
-  - Depends on bleeding-edge: transformers==5.0.0rc3, mlx-lm==0.30.5
-  - No forced aligner support
-  - No streaming support
+- Best when your product surface is Swift/macOS-native and you want app-level
+  integration directly in Swift.
+- Python library and packaging ergonomics are intentionally not its target.
 
-### qwen3-asr-swift (ivan-digital/qwen3-asr-swift)
+### Official PyTorch stack
 
-- **Pros:**
-  - Full Swift + MLX implementation
-  - Correct MRoPE
-  - Fast: ~0.6s for 10s audio on M2 Max
-  - Streaming support
+- Best reference for feature semantics and upstream correctness behavior.
+- Usually the first source of truth for model updates and alignment behavior.
 
-- **Cons:**
-  - No pip install -- must build from source
-  - Swift-only (no Python API)
-  - No forced aligner
-  - Smaller community
+## Policy for This File
 
-### Official PyTorch (QwenLM/Qwen3-ASR)
-
-- **Pros:**
-  - Reference implementation (source of truth)
-  - Full feature set
-  - Best tested
-
-- **Cons:**
-  - CUDA only -- no Mac support
-  - Requires PyTorch + GPU
-  - Heavy dependencies (vllm==0.14.0)
-  - Code quality issues (bare except, stale references)
-
-## Performance Estimates
-
-| Implementation | Hardware | Audio Length | Time |
-|---------------|----------|-------------|------|
-| qwen3-asr-swift | M2 Max | 10s | ~0.6s |
-| mlx-qwen3-asr (est.) | M2 Max | 10s | ~1-2s |
-| Official PyTorch | A100 | 10s | ~0.3s |
-
-*Note: mlx-qwen3-asr estimates are preliminary. Actual performance depends on model size, quantization, and audio length.*
-
-## Key Bugs in mlx-audio's Qwen3-ASR Implementation
-
-1. **Standard RoPE instead of interleaved MRoPE:**
-   - Uses `nn.RoPE` which doesn't support 3D frequency interleaving
-   - Sections [24,20,20] with stride-3 pattern are not implemented
-   - Results in degraded transcription quality
-
-2. **Historical config drift risk:**
-   - Some revisions have been reported to mismatch upstream Qwen3-ASR configs.
-   - Always verify against current HF `config.json` for the exact version in use.
-
-3. **Long audio truncation (Issue #459):**
-   - Audio longer than a threshold gets truncated instead of chunked
-   - No energy-based splitting or overlap handling
+- Prefer implementation status facts over marketing language.
+- When a comparison point is revision-sensitive, state it as such.
+- Keep hard performance/quality claims tied to committed artifact files.

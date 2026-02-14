@@ -20,7 +20,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - Whisper-parity custom log-mel frontend (default path for `do_not_pad`)
 - Supports both 1.7B and 0.6B model sizes
 - Long audio chunking (up to 20 minutes per chunk) with no 30s feature truncation
-- Word-level timestamps via native MLX forced aligner (experimental) or official Qwen backend
+- Word-level timestamps via official Qwen backend (default) or native MLX backend (experimental)
 - Experimental rolling streaming ASR with bounded decode context
 - Native fast-path WAV loader (PCM/float WAV) with ffmpeg fallback for other formats
 - Multiple output formats: txt, json, srt, vtt, tsv
@@ -37,13 +37,14 @@ Install from PyPI:
 pip install mlx-qwen3-asr
 ```
 
-Install with optional forced aligner support (timestamps via official backend):
+Install with optional forced aligner support:
 
 ```bash
 pip install "mlx-qwen3-asr[aligner]"
 ```
 
-This extra installs `qwen-asr`, `nagisa`, and `soynlp`.
+This extra installs `qwen-asr` (official timestamp backend) plus `nagisa` and
+`soynlp` (JA/KO tokenization parity helpers for forced alignment).
 
 For development:
 
@@ -111,6 +112,12 @@ Specify model, language, and output format:
 mlx-qwen3-asr recording.mp3 --model Qwen/Qwen3-ASR-0.6B --language English -f srt -o output/
 ```
 
+Word-level timestamps (default backend is `qwen_asr`):
+
+```bash
+mlx-qwen3-asr audio.wav --timestamps
+```
+
 Experimental speculative decoding (opt-in):
 
 ```bash
@@ -135,6 +142,7 @@ Run `mlx-qwen3-asr --help` for the full list of options.
 
 Measured on the 0.6B model. Numbers below reflect the latest speaker-balanced
 matrix run (`docs/benchmarks/2026-02-14-quant-matrix-speaker100.md`).
+Machine used for this run: Apple M4 Pro, macOS 26.2.
 
 | Configuration | Short clip latency | 10s clip latency | Real-time factor | vs fp16 |
 |---|---|---|---|---|
@@ -154,7 +162,7 @@ Quality on speaker-balanced LibriSpeech samples is reported below with `n` and s
 
 ## Model quality
 
-Word error rates from the [Qwen3-ASR technical report](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) (lower is better):
+Official word error rates from the [Qwen3-ASR technical report](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) (lower is better):
 
 | Benchmark | Qwen3-ASR 1.7B | Whisper-large-v3 |
 |---|---|---|
@@ -171,7 +179,10 @@ Word error rates from the [Qwen3-ASR technical report](https://huggingface.co/Qw
 | 8-bit (g64) | 2.33% | 0.59% | 0.34s | 0.038 |
 | 4-bit (g64) | 2.72% | 0.88% | 0.30s | 0.034 |
 
-On this larger and more speaker-diverse set, 8-bit is near-fp16 quality (+0.04 absolute WER points) while 4-bit is fastest but shows measurable degradation (+0.43 absolute WER points). All benchmark JSON artifacts are committed to `docs/benchmarks/` for reproducibility.
+On this speaker-balanced subset (`n=100`), 8-bit is near-fp16 quality
+(+0.04 absolute WER points) while 4-bit is fastest but shows measurable
+degradation (+0.43 absolute WER points). Benchmark artifacts are committed under
+`docs/benchmarks/` for reproducibility.
 
 ## Model variants
 
@@ -211,7 +222,14 @@ mlx-qwen3-asr audio.wav --timestamps --aligner-backend qwen_asr
 mlx-qwen3-asr audio.wav --timestamps --aligner-backend auto
 ```
 
-The native MLX backend is 2.6x faster than the PyTorch-backed official aligner with matching text output and <6ms timing deviation on 50 LibriSpeech test-clean samples.
+Default backend is `qwen_asr` (official reference path). Use `mlx` or `auto`
+explicitly if you want to avoid mandatory PyTorch runtime dependency.
+
+Current measured parity snapshot (`test-clean`, English, `n=50`):
+- text match rate (`mlx` vs `qwen_asr`): `1.0000`
+- timing MAE (all boundaries): `5.6909 ms`
+- mean latency: `mlx=0.2113s`, `qwen_asr=0.5570s` (`2.64x` relative speed)
+- artifacts: `docs/benchmarks/2026-02-14-aligner-parity-50.{json,md}`
 
 For Japanese/Korean timestamp alignment with the native MLX backend, install the `[aligner]` extra so `nagisa`/`soynlp` tokenization matches the official path.
 
@@ -223,6 +241,14 @@ The streaming API is currently a **rolling decode** implementation:
 - It applies prefix rollback controls (`unfixed_chunk_num`, `unfixed_token_num`) so only trailing units remain unstable.
 
 It is not yet a full incremental decoder with persistent KV cache reuse across chunks.
+
+## Current limitations
+
+- Streaming is intentionally experimental and currently uses rolling re-decode.
+- Speculative decoding is parity-safe but still experimental and currently slower
+  on the tested short/10s lanes.
+- Native MLX timestamp backend is validated on deterministic LibriSpeech
+  subsets; multilingual parity coverage is still expanding.
 
 ## Quantization
 
@@ -269,7 +295,7 @@ Supported: `txt`, `json`, `srt`, `vtt`, `tsv`.
 
 ## Supported languages
 
-Qwen3-ASR supports 52 languages and dialects in total:
+Qwen3-ASR officially lists 30 core languages:
 
 | Language | Language | Language | Language |
 |----------|----------|----------|----------|
@@ -282,7 +308,8 @@ Qwen3-ASR supports 52 languages and dialects in total:
 | Russian | Spanish | Swedish | Thai |
 | Turkish | Vietnamese | | |
 
-Plus 22 Chinese dialects (Sichuan, Shanghai, Cantonese, and others).
+Plus 22 Chinese dialects (Sichuan, Shanghai, Cantonese, and others),
+for 52 total language/dialect variants in the official release.
 
 ## API reference
 
@@ -316,6 +343,10 @@ python scripts/quality_gate.py --mode fast
 # Release gate (token-level parity with official PyTorch)
 RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
 
+# Optional native-aligner parity lane
+RUN_REFERENCE_PARITY=1 RUN_ALIGNER_PARITY=1 ALIGNER_PARITY_SAMPLES=10 \
+python scripts/quality_gate.py --mode release
+
 # Golden evaluation on LibriSpeech
 python scripts/eval_librispeech.py --subset test-clean --samples 100 --sampling speaker_round_robin
 ```
@@ -341,7 +372,8 @@ python scripts/benchmark_asr.py tests/fixtures/test_speech.wav \
   --json-output docs/benchmarks/latest.json
 ```
 
-Every performance optimization is committed with before/after benchmark JSON artifacts so regressions are caught and claims are verifiable.
+Every performance optimization should include benchmark artifacts and pass
+quality gates so claims remain auditable and reproducible.
 
 ## Development
 

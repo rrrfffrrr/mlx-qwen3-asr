@@ -48,7 +48,10 @@ def main():
     parser.add_argument(
         "--timestamps",
         action="store_true",
-        help="Request word-level timestamps (requires optional qwen-asr dependency)",
+        help=(
+            "Request word-level timestamps. With --aligner-backend qwen_asr "
+            "(default), requires optional dependency qwen-asr."
+        ),
     )
     parser.add_argument(
         "--forced-aligner",
@@ -102,7 +105,8 @@ def main():
         if importlib.util.find_spec("qwen_asr") is None:
             print(
                 "Error: --timestamps requires optional dependency `qwen-asr`. "
-                "Install with: pip install \"mlx-qwen3-asr[aligner]\"",
+                "Install with: pip install \"mlx-qwen3-asr[aligner]\" "
+                "or switch to --aligner-backend mlx",
                 file=sys.stderr,
             )
             raise SystemExit(1)

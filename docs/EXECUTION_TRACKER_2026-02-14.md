@@ -197,6 +197,23 @@ Post-change validation:
 - Fast gate: PASS (`285 passed, 1 skipped`).
 - Release gate (with parity lane): PASS (`286 passed` + `reference parity passed`).
 
+### 17) End-to-end docs/truth alignment + CLI timestamp UX clarity
+
+- README was refreshed for stricter claim honesty:
+  - benchmark scope and machine context are explicit,
+  - timestamp parity claims now include dataset/scope + artifact pointers,
+  - limitations section now states streaming/speculative/native-aligner status.
+- Comparison/decision docs were updated to match current implementation state:
+  - dual timestamp backend policy (`qwen_asr` default, `mlx` experimental),
+  - implementation comparison now avoids stale hard claims and emphasizes
+    artifact-backed evidence.
+- CLI timestamp help/error messaging now clarifies backend dependency behavior:
+  - `qwen_asr` backend requires optional `qwen-asr`,
+  - users can choose `--aligner-backend mlx` to avoid that dependency.
+- Post-change validation:
+  - fast gate: PASS (`286 passed, 1 skipped`)
+  - release gate: PASS (`287 passed` + reference parity lane pass)
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch

@@ -13,6 +13,15 @@ Important: this file is a time-capsule of exploratory notes from a single
 session. Several items below were hypotheses at the time and may now be
 resolved. Treat `docs/RESEARCH.md` + `docs/ROADMAP.md` as current truth.
 
+Resolved-status notes (to avoid stale interpretation):
+- Earlier MRoPE mismatch hypothesis is resolved in the current codebase and
+  covered by parity gates/tests.
+- Earlier "forced aligner path is WIP" note is partially outdated:
+  - native MLX aligner backend now exists as experimental,
+  - `qwen_asr` remains the conservative default backend.
+- Quantization quality statements based on small-sample runs in this file have
+  been superseded by speaker-balanced `n=100` artifacts in `docs/benchmarks/`.
+
 Implemented optimization finding on 2026-02-14:
 
 - Tokenizer caching across repeated `transcribe()` calls reduced measured

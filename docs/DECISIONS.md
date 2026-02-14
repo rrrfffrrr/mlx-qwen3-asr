@@ -28,22 +28,28 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Qwen3-ASR deserves dedicated focus -- it's SOTA and complex enough to warrant its own package
 - Standalone allows us to optimize specifically for this model without compromise
 
-## Decision 3: Use Official Forced Aligner as a Temporary Bridge
+## Decision 3: Dual Timestamp Backends with Conservative Default
 
-**Choice:** Enable timestamps via optional `qwen-asr` forced aligner backend
-**Alternative:** Keep timestamps disabled until a native MLX aligner is finished
+**Choice:** Keep `qwen_asr` as default timestamp backend while exposing native
+MLX backend (`mlx`) and fallback mode (`auto`)
+**Alternative:** Switch default immediately to native MLX aligner
 
 **Rationale:**
-- Users get working timestamps now without waiting for a full native aligner
-- Keeps core ASR path lean; extra dependency is only needed for timestamps
-- Reuses the official reference implementation for alignment quality
-- Keeps forward path open to replace backend with native MLX aligner
+- `qwen_asr` remains the official reference implementation path for timestamp quality.
+- Native MLX backend is now available and benchmarked, but parity coverage is still
+  narrower than core transcription parity lanes.
+- Dual-backend design lets users choose:
+  - maximum conservatism (`qwen_asr`),
+  - no PyTorch runtime (`mlx`),
+  - pragmatic fallback (`auto`).
+- This keeps forward path open to flip the default once native parity gates are
+  sufficiently broad.
 
 **Policy (important):**
 - This is a transition state, not the end-state architecture.
 - Project north star remains full native MLX for core + timestamps.
-- `qwen-asr` should be removed from the timestamp path once native MLX aligner
-  meets acceptance gates (timing quality + reliability + performance envelope).
+- Default should move to native MLX only after explicit acceptance gates are met
+  (timing quality + reliability + multilingual coverage + performance envelope).
 
 ## Decision 4: HuggingFace Tokenizer
 
