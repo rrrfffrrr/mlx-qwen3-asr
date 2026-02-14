@@ -20,7 +20,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - Supports both 1.7B and 0.6B model sizes
 - Long audio chunking (up to 20 minutes per chunk) with no 30s feature truncation
 - Word-level timestamps via native MLX forced aligner (experimental) or official Qwen backend
-- Streaming ASR support
+- Experimental rolling streaming ASR with bounded decode context
 - Native fast-path WAV loader (PCM/float WAV) with ffmpeg fallback for other formats
 - Multiple output formats: txt, json, srt, vtt, tsv
 - Cached model/tokenizer instances for low repeated-call latency
@@ -190,6 +190,15 @@ mlx-qwen3-asr audio.wav --timestamps --aligner-backend auto
 The native MLX backend is 2.6x faster than the PyTorch-backed official aligner with matching text output and <6ms timing deviation on 50 LibriSpeech test-clean samples.
 
 For Japanese/Korean timestamp alignment with the native MLX backend, install the `[aligner]` extra so `nagisa`/`soynlp` tokenization matches the official path.
+
+## Streaming (experimental)
+
+The streaming API is currently a **rolling decode** implementation:
+- It ingests small PCM chunks (default 2s).
+- It decodes with a bounded context window (default 30s) to keep per-chunk runtime stable.
+- It applies prefix rollback so only the trailing unstable region can change.
+
+It is not yet a full incremental decoder with persistent KV cache reuse across chunks.
 
 ## Quantization
 

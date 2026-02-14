@@ -464,3 +464,27 @@ class TestQwen3ASRModelInstantiation:
         model = Qwen3ASRModel(cfg)
         assert model.lm_head.weight.shape[0] == 64
         assert model.model.embed_tokens.weight.shape[0] == cfg.text_config.vocab_size
+
+    def test_inject_audio_features_raises_on_out_of_bounds_placeholders(self):
+        cfg = _tiny_asr_config()
+        cfg.text_config.head_dim = 128
+        model = Qwen3ASRModel(cfg)
+
+        embeds = mx.random.normal((1, 6, cfg.text_config.hidden_size))
+        audio_features = mx.random.normal((1, 2, cfg.text_config.hidden_size))
+        audio_mask = mx.array([[False, True, True, True, False, False]])
+
+        with pytest.raises(ValueError, match="Audio injection out of bounds"):
+            model._inject_audio_features(embeds, audio_features, audio_mask)
+
+    def test_inject_audio_features_raises_on_dimension_mismatch(self):
+        cfg = _tiny_asr_config()
+        cfg.text_config.head_dim = 128
+        model = Qwen3ASRModel(cfg)
+
+        embeds = mx.random.normal((1, 4, cfg.text_config.hidden_size))
+        audio_features = mx.random.normal((1, 2, cfg.text_config.hidden_size + 1))
+        audio_mask = mx.array([[False, True, True, False]])
+
+        with pytest.raises(ValueError, match="Audio injection channel mismatch"):
+            model._inject_audio_features(embeds, audio_features, audio_mask)

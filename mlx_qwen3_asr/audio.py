@@ -344,11 +344,14 @@ def compute_features(
         return_tensors="np",
         padding=padding,
         truncation=False,
-        return_attention_mask=True,
+        return_attention_mask=padding != "do_not_pad",
     )
     mel = result["input_features"][0]  # (128, n_frames)
-    attn_mask = result["attention_mask"][0]  # (n_frames,)
-    actual_frames = int(attn_mask.sum())
+    if padding == "do_not_pad":
+        actual_frames = int(mel.shape[-1])
+    else:
+        attn_mask = result["attention_mask"][0]  # (n_frames,)
+        actual_frames = int(attn_mask.sum())
 
     mel_mx = mx.array(mel[None, :, :].astype(np.float32))  # (1, 128, n_frames)
     feature_lens = mx.array([actual_frames])

@@ -55,7 +55,7 @@ def _scaled_dot_product_attention(
             return mx.fast.scaled_dot_product_attention(
                 q, k, v, scale=scale, mask=mask
             )
-        except Exception:
+        except (TypeError, ValueError, RuntimeError):
             # Fall through to a compatibility path below.
             pass
 
@@ -1027,6 +1027,34 @@ class Qwen3ASRModel(nn.Module):
         Returns:
             Embeddings with audio features injected, shape (B, L, D).
         """
+        if (
+            embeds.shape[0] != audio_features.shape[0]
+            or embeds.shape[0] != audio_mask.shape[0]
+            or embeds.shape[1] != audio_mask.shape[1]
+        ):
+            raise ValueError(
+                "Audio injection shape mismatch: "
+                f"embeds={embeds.shape}, "
+                f"audio_features={audio_features.shape}, "
+                f"audio_mask={audio_mask.shape}"
+            )
+        if embeds.shape[2] != audio_features.shape[2]:
+            raise ValueError(
+                "Audio injection channel mismatch: "
+                f"embed_dim={embeds.shape[2]}, "
+                f"audio_feature_dim={audio_features.shape[2]}"
+            )
+
+        audio_counts = mx.sum(audio_mask.astype(mx.int32), axis=1)
+        max_count = int(mx.max(audio_counts).item())
+        max_audio_tokens = int(audio_features.shape[1])
+        if max_count > max_audio_tokens:
+            raise ValueError(
+                "Audio injection out of bounds: "
+                f"max_audio_placeholders={max_count}, "
+                f"audio_features_tokens={max_audio_tokens}"
+            )
+
         # Build a cumulative index that maps each position to an audio feature index.
         # For positions where audio_mask is True, cum_idx increases by 1.
         # For non-audio positions, cum_idx stays the same (pointing to the last

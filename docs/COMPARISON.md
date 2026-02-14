@@ -7,7 +7,7 @@ Feature comparison across available implementations for running Qwen3-ASR.
 | Feature | mlx-qwen3-asr | mlx-audio | qwen3-asr-swift | Official (PyTorch) |
 |---------|---------------|-----------|-----------------|-------------------|
 | MRoPE correct? | Yes (interleaved) | **No** (standard RoPE) | Yes | Yes |
-| Streaming? | Yes | No | Yes | Yes |
+| Streaming? | Experimental rolling mode (bounded context) | No | Yes | Yes |
 | Forced aligner? | Yes (optional PyTorch backend via `qwen-asr`) | No | No | Yes |
 | Long audio (>20min)? | Yes (energy split) | **No** (truncation bug) | Yes | Yes |
 | Quantization? | Yes (4/8-bit) | Yes | No | No |
@@ -22,7 +22,8 @@ Feature comparison across available implementations for running Qwen3-ASR.
 
 - **Pros:**
   - Correct interleaved MRoPE implementation
-  - Streaming and long-audio chunking
+  - Long-audio chunking
+  - Experimental rolling streaming API with bounded decode context
   - Word-level timestamps via optional official forced-aligner backend
   - Standalone package with minimal dependencies
   - Proper 1.7B config parity with official HF artifacts

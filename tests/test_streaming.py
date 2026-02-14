@@ -1,5 +1,8 @@
 """Tests for mlx_qwen3_asr/streaming.py."""
 
+import importlib
+from types import SimpleNamespace
+
 import numpy as np
 
 from mlx_qwen3_asr.config import DEFAULT_MODEL_ID
@@ -7,6 +10,7 @@ from mlx_qwen3_asr.streaming import (
     UNFIXED_TOKEN_NUM,
     StreamingState,
     _split_stable_unstable,
+    feed_audio,
     init_streaming,
 )
 
@@ -22,6 +26,7 @@ class TestInitStreaming:
         state = init_streaming()
         assert isinstance(state, StreamingState)
         assert state.chunk_size_samples == 32000  # 2.0 * 16000
+        assert state.max_context_samples == 480000  # 30.0 * 16000
         assert state._model_path == DEFAULT_MODEL_ID
         assert state.text == ""
         assert state.language == "unknown"
@@ -38,6 +43,10 @@ class TestInitStreaming:
     def test_custom_sample_rate(self):
         state = init_streaming(chunk_size_sec=2.0, sample_rate=8000)
         assert state.chunk_size_samples == 16000  # 2.0 * 8000
+
+    def test_custom_context_window(self):
+        state = init_streaming(max_context_sec=5.0, sample_rate=8000)
+        assert state.max_context_samples == 40000
 
     def test_custom_model(self):
         state = init_streaming(model="my/custom-model")
@@ -78,6 +87,10 @@ class TestStreamingStateDefaults:
     def test_default_chunk_size_samples(self):
         state = StreamingState()
         assert state.chunk_size_samples == 32000
+
+    def test_default_max_context_samples(self):
+        state = StreamingState()
+        assert state.max_context_samples == 480000
 
     def test_default_previous_tokens(self):
         state = StreamingState()
@@ -145,6 +158,12 @@ class TestSplitStableUnstable:
         assert stable == "a b c d e"
         assert unstable == "f g h"
 
+    def test_cjk_without_spaces_splits_by_character(self):
+        text = "こんにちは世界ありがとう"
+        stable, unstable = _split_stable_unstable("", text, unfixed_tokens=3)
+        assert stable == text[:-3]
+        assert unstable == text[-3:]
+
     def test_stable_grows_monotonically(self):
         """Stable text should only grow, never shrink."""
         prev_stable = "one two three"
@@ -152,3 +171,40 @@ class TestSplitStableUnstable:
         text = "one two three four five six seven eight nine ten"
         stable, unstable = _split_stable_unstable(prev_stable, text)
         assert len(stable) >= len(prev_stable)
+
+
+class TestFeedAudio:
+    """Test rolling streaming decode behavior."""
+
+    def test_feed_audio_reuses_same_state_object(self, monkeypatch):
+        calls = []
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            calls.append((len(audio), model, verbose))
+            return SimpleNamespace(text="hello world", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        out = feed_audio(np.ones(10, dtype=np.float32), state)
+        assert out is state
+        assert state.chunk_id == 1
+        assert calls[0][0] == 10
+
+    def test_feed_audio_caps_decode_context_window(self, monkeypatch):
+        call_lengths = []
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            call_lengths.append(len(audio))
+            return SimpleNamespace(text="a b c d e f g", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, max_context_sec=2.0, sample_rate=10)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+
+        assert call_lengths == [10, 20, 20]

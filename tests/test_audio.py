@@ -358,3 +358,39 @@ class TestComputeFeatures:
         mel, feature_lens = compute_features(audio, padding="max_length")
         assert mel.shape == (1, 128, 3000)
         assert int(feature_lens.item()) == 200
+
+    def test_do_not_pad_path_skips_attention_mask(self, monkeypatch):
+        seen = {}
+
+        def fake_extractor(audio_np, **kwargs):  # noqa: ANN001
+            seen.update(kwargs)
+            return {"input_features": np.zeros((1, 128, 123), dtype=np.float32)}
+
+        monkeypatch.setattr(audio_mod, "_get_feature_extractor", lambda _sr: fake_extractor)
+
+        mel, feature_lens = compute_features(np.zeros(1600, dtype=np.float32))
+        assert seen["return_attention_mask"] is False
+        assert mel.shape == (1, 128, 123)
+        assert int(feature_lens.item()) == 123
+
+    def test_padded_path_uses_attention_mask_for_true_length(self, monkeypatch):
+        seen = {}
+
+        def fake_extractor(audio_np, **kwargs):  # noqa: ANN001
+            seen.update(kwargs)
+            attn = np.zeros((1, 3000), dtype=np.int64)
+            attn[0, :200] = 1
+            return {
+                "input_features": np.zeros((1, 128, 3000), dtype=np.float32),
+                "attention_mask": attn,
+            }
+
+        monkeypatch.setattr(audio_mod, "_get_feature_extractor", lambda _sr: fake_extractor)
+
+        mel, feature_lens = compute_features(
+            np.zeros(1600, dtype=np.float32),
+            padding="max_length",
+        )
+        assert seen["return_attention_mask"] is True
+        assert mel.shape == (1, 128, 3000)
+        assert int(feature_lens.item()) == 200

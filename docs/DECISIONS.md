@@ -136,3 +136,16 @@ once the model is already resolved by `_ModelHolder`.
 - Repo-ID tokenizer loading may still perform Hub metadata checks in short-lived processes.
 - Resolved local path removes that network overhead when weights/tokenizer files are already cached.
 - This complements Decision 10 and further reduces first-transcribe latency without affecting quality.
+
+## Decision 12: Streaming Uses Bounded Rolling Context Until True Incremental Decode Lands
+
+**Choice:** Keep streaming as a rolling decode mode with a fixed max context window
+(default 30s), explicitly marked experimental.
+**Alternative:** Market current streaming as full incremental realtime ASR.
+
+**Rationale:**
+- Rolling context keeps per-chunk runtime bounded instead of growing with total session length.
+- Prefix-rollback behavior remains useful for partial-output stability.
+- This avoids over-claiming while preserving a usable API for live transcription workflows.
+- A true production incremental mode still requires decoder cache lifecycle + chunk-level
+  audio encoder state strategy; that remains on the roadmap.

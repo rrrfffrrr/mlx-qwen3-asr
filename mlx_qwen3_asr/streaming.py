@@ -1,4 +1,9 @@
-"""Streaming ASR with prefix rollback for real-time transcription."""
+"""Experimental rolling streaming ASR with prefix rollback.
+
+This module currently re-transcribes accumulated audio context to improve
+stability of partial output. It is not a true incremental decoder with KV
+cache reuse across chunks.
+"""
 
 from __future__ import annotations
 
@@ -26,6 +31,7 @@ class StreamingState:
         language: Detected language
         chunk_id: Number of chunks processed
         chunk_size_samples: Samples per chunk
+        max_context_samples: Max samples used for rolling decode window
         previous_tokens: Tokens from previous transcription
         stable_text: Text considered stable (won't change)
     """
@@ -35,6 +41,7 @@ class StreamingState:
     language: str = "unknown"
     chunk_id: int = 0
     chunk_size_samples: int = 32000  # 2 seconds at 16kHz
+    max_context_samples: int = 480000  # 30 seconds at 16kHz
     previous_tokens: list[int] = field(default_factory=list)
     stable_text: str = ""
     _model_path: str = DEFAULT_MODEL_ID
@@ -43,6 +50,7 @@ class StreamingState:
 def init_streaming(
     model: str = DEFAULT_MODEL_ID,
     chunk_size_sec: float = 2.0,
+    max_context_sec: float = 30.0,
     sample_rate: int = 16000,
 ) -> StreamingState:
     """Initialize a streaming ASR session.
@@ -50,6 +58,7 @@ def init_streaming(
     Args:
         model: Model name or path
         chunk_size_sec: Audio chunk size in seconds
+        max_context_sec: Max rolling decode context in seconds
         sample_rate: Audio sample rate
 
     Returns:
@@ -57,6 +66,7 @@ def init_streaming(
     """
     return StreamingState(
         chunk_size_samples=int(chunk_size_sec * sample_rate),
+        max_context_samples=int(max_context_sec * sample_rate),
         _model_path=model,
     )
 
@@ -66,12 +76,12 @@ def feed_audio(
     state: StreamingState,
     model: Optional[Qwen3ASRModel] = None,
 ) -> StreamingState:
-    """Feed audio chunk to streaming ASR.
+    """Feed audio chunk to rolling streaming ASR.
 
     Each chunk of audio:
     1. Accumulate in buffer
     2. When buffer >= chunk_size, process
-    3. Transcribe accumulated audio
+    3. Re-transcribe accumulated audio context
     4. Compare with previous transcription
     5. Apply prefix rollback for stability
 
@@ -86,17 +96,8 @@ def feed_audio(
     from .transcribe import transcribe
 
     # Accumulate audio
-    state = StreamingState(
-        buffer=np.concatenate([state.buffer, pcm]),
-        audio_accum=np.concatenate([state.audio_accum, pcm]),
-        text=state.text,
-        language=state.language,
-        chunk_id=state.chunk_id,
-        chunk_size_samples=state.chunk_size_samples,
-        previous_tokens=state.previous_tokens,
-        stable_text=state.stable_text,
-        _model_path=state._model_path,
-    )
+    state.buffer = np.concatenate([state.buffer, pcm])
+    state.audio_accum = np.concatenate([state.audio_accum, pcm])
 
     # Check if we have enough audio for a new chunk
     if len(state.buffer) < state.chunk_size_samples:
@@ -106,8 +107,12 @@ def feed_audio(
     leftover = state.buffer[state.chunk_size_samples:]
 
     # Process: transcribe all accumulated audio
+    decode_audio = state.audio_accum
+    if len(decode_audio) > state.max_context_samples:
+        decode_audio = decode_audio[-state.max_context_samples:]
+
     result = transcribe(
-        audio=state.audio_accum,
+        audio=decode_audio,
         model=state._model_path if model is None else model,
         verbose=False,
     )
@@ -122,17 +127,13 @@ def feed_audio(
         unfixed_tokens=UNFIXED_TOKEN_NUM,
     )
 
-    return StreamingState(
-        buffer=leftover,
-        audio_accum=state.audio_accum,
-        text=new_text,
-        language=new_language,
-        chunk_id=state.chunk_id + 1,
-        chunk_size_samples=state.chunk_size_samples,
-        previous_tokens=state.previous_tokens,
-        stable_text=stable,
-        _model_path=state._model_path,
-    )
+    state.buffer = leftover
+    state.text = new_text
+    state.language = new_language
+    state.chunk_id += 1
+    state.stable_text = stable
+    _ = unstable  # Reserved for future APIs exposing unstable tails.
+    return state
 
 
 def finish_streaming(
@@ -160,17 +161,24 @@ def finish_streaming(
         verbose=False,
     )
 
-    return StreamingState(
-        buffer=np.array([], dtype=np.float32),
-        audio_accum=state.audio_accum,
-        text=result.text,
-        language=result.language,
-        chunk_id=state.chunk_id,
-        chunk_size_samples=state.chunk_size_samples,
-        previous_tokens=[],
-        stable_text=result.text,
-        _model_path=state._model_path,
-    )
+    state.buffer = np.array([], dtype=np.float32)
+    state.text = result.text
+    state.language = result.language
+    state.previous_tokens = []
+    state.stable_text = result.text
+    return state
+
+
+def _split_text_units(text: str) -> tuple[list[str], str]:
+    """Split text into rollback units and return the join delimiter.
+
+    For whitespace-delimited languages, units are words and the delimiter is
+    a single space. For languages without spaces (CJK), units are Unicode
+    codepoints and the delimiter is empty.
+    """
+    if any(ch.isspace() for ch in text):
+        return text.split(), " "
+    return list(text), ""
 
 
 def _split_stable_unstable(
@@ -191,16 +199,16 @@ def _split_stable_unstable(
     Returns:
         Tuple of (stable_text, unstable_text)
     """
-    words = new_text.split()
+    units, joiner = _split_text_units(new_text)
 
-    if len(words) <= unfixed_tokens:
+    if len(units) <= unfixed_tokens:
         return prev_stable, new_text
 
-    stable_words = words[:-unfixed_tokens]
-    unstable_words = words[-unfixed_tokens:]
+    stable_units = units[:-unfixed_tokens]
+    unstable_units = units[-unfixed_tokens:]
 
-    stable = " ".join(stable_words)
-    unstable = " ".join(unstable_words)
+    stable = joiner.join(stable_units)
+    unstable = joiner.join(unstable_units)
 
     # Ensure new stable text is at least as long as previous
     if len(stable) < len(prev_stable):
