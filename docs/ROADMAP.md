@@ -37,6 +37,8 @@ Qwen3-ASR on Apple Silicon.
   - 10s clip: mean `0.2831s`, RTF `0.0283`
 - Quantization sweep complete (`fp16`, `4bit-g64`, `4bit-g32`, `8bit-g64`):
   - selected `4bit-g64` as current recommended default profile.
+- Added reproducible experiment workflow:
+  - `.github/workflows/quantization-matrix.yml` (manual CI matrix runs).
 
 Performance progress:
 - Done (low-risk optimization): tokenizer caching in `transcribe()` hot path.

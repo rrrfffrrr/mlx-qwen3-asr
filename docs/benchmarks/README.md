@@ -51,6 +51,9 @@ Quantization matrix sweep artifacts (2026-02-14):
 
 - `docs/benchmarks/2026-02-14-quant-matrix.json`
 - `docs/benchmarks/2026-02-14-quant-matrix.md`
+- CI/manual workflow output names:
+  - `docs/benchmarks/ci-quant-matrix.json`
+  - `docs/benchmarks/ci-quant-matrix.md`
 
 Generate with:
 

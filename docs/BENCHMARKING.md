@@ -100,6 +100,7 @@ python scripts/benchmark_quantization_matrix.py
 Artifacts:
 - `docs/benchmarks/2026-02-14-quant-matrix.json`
 - `docs/benchmarks/2026-02-14-quant-matrix.md`
+- CI/manual workflow: `.github/workflows/quantization-matrix.yml`
 
 Current recommended operating point for `Qwen/Qwen3-ASR-0.6B` on Apple Silicon:
 - `4bit-g64` (best speed with no sampled WER regression vs fp16 in this run).

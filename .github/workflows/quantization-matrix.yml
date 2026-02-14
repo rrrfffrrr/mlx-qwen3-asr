@@ -1,0 +1,67 @@
+name: Quantization Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Base model ID for quantization sweep"
+        required: true
+        default: "Qwen/Qwen3-ASR-0.6B"
+      configs:
+        description: "Comma-separated configs (fp16,bits:group)"
+        required: true
+        default: "fp16,4:64,4:32,8:64"
+      eval_samples:
+        description: "LibriSpeech sample count"
+        required: true
+        default: "20"
+      benchmark_runs:
+        description: "Benchmark runs per scenario"
+        required: true
+        default: "7"
+
+jobs:
+  quant-matrix:
+    runs-on: macos-14
+    timeout-minutes: 360
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache HuggingFace artifacts
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-${{ inputs.model }}
+
+      - name: Cache matrix workspace
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mlx-qwen3-asr
+          key: ${{ runner.os }}-quant-matrix-v1
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,eval]"
+
+      - name: Run quantization matrix
+        run: |
+          python scripts/benchmark_quantization_matrix.py \
+            --model "${{ inputs.model }}" \
+            --configs "${{ inputs.configs }}" \
+            --eval-samples "${{ inputs.eval_samples }}" \
+            --benchmark-runs "${{ inputs.benchmark_runs }}" \
+            --json-output docs/benchmarks/ci-quant-matrix.json \
+            --md-output docs/benchmarks/ci-quant-matrix.md
+
+      - name: Upload matrix artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantization-matrix-${{ github.run_id }}
+          path: |
+            docs/benchmarks/ci-quant-matrix.json
+            docs/benchmarks/ci-quant-matrix.md
