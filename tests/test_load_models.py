@@ -96,6 +96,33 @@ class TestModelHolder:
 
         _ModelHolder.clear()
 
+    def test_caches_multiple_models_without_eviction(self, monkeypatch):
+        _ModelHolder.clear()
+        calls: list[tuple[str, mx.Dtype]] = []
+        store: dict[str, object] = {}
+
+        def fake_loader(path_or_hf_repo, dtype):  # noqa: ANN001
+            calls.append((path_or_hf_repo, dtype))
+            model = store.setdefault(f"m:{path_or_hf_repo}", object())
+            cfg = store.setdefault(f"c:{path_or_hf_repo}", object())
+            return model, cfg, Path(f"/tmp/{path_or_hf_repo.replace('/', '_')}")
+
+        monkeypatch.setattr(
+            "mlx_qwen3_asr.load_models._load_model_with_resolved_path",
+            fake_loader,
+        )
+
+        m_a_1, _ = _ModelHolder.get("Qwen/A", dtype=mx.float16)
+        m_b_1, _ = _ModelHolder.get("Qwen/B", dtype=mx.float16)
+        m_a_2, _ = _ModelHolder.get("Qwen/A", dtype=mx.float16)
+
+        assert m_a_1 is m_a_2
+        assert m_a_1 is not m_b_1
+        assert calls == [("Qwen/A", mx.float16), ("Qwen/B", mx.float16)]
+        assert _ModelHolder.get_resolved_path("Qwen/B", dtype=mx.float16) == "/tmp/Qwen_B"
+
+        _ModelHolder.clear()
+
 
 class _FakeModel:
     def __init__(self):

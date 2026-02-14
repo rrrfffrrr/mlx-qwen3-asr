@@ -37,6 +37,11 @@ Focused review of paper-backed inference algorithms that can materially improve
   - forced language parse path,
   - consistent special-token stripping.
 
+3. Multi-model residency cache for speculative path
+- `_ModelHolder` now caches by `(path, dtype)` instead of a single global slot.
+- This removes repeated target/draft reload churn across repeated speculative
+  calls and is a required foundation for any serious speculative benchmarking.
+
 ## High-Value Next Algorithms (Paper-Backed)
 
 1. Speculative decoding for 1.7B using 0.6B draft model
@@ -77,6 +82,12 @@ Status update:
 - Prototype path implemented with strict parity checks.
 - Current benchmark evidence on tested short/10s workloads shows no speed win yet,
   so it remains experimental.
+
+Final review note:
+- Research was refreshed against recent ASR speculative papers. None provided a
+  drop-in change that beats our current baseline without adding substantial
+  complexity/risk. The correct next step is stronger throughput evaluation on
+  larger decode-heavy workloads before deeper speculative algorithm work.
 
 ## Not Prioritized (Current Policy)
 

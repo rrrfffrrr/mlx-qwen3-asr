@@ -20,13 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 class _ModelHolder:
-    """Singleton cache so repeated transcribe() calls don't reload the model."""
+    """Process-local cache so repeated transcribe() calls reuse loaded models.
 
-    _model: Optional[Qwen3ASRModel] = None
-    _config: Optional[Qwen3ASRConfig] = None
-    _path: Optional[str] = None
-    _resolved_path: Optional[str] = None
-    _dtype: Optional[mx.Dtype] = None
+    Cache key is `(path_or_hf_repo, dtype)` so separate target/draft models can
+    stay resident simultaneously for speculative decoding.
+    """
+
+    _cache: dict[
+        tuple[str, str],
+        tuple[Qwen3ASRModel, Qwen3ASRConfig, str],
+    ] = {}
+
+    @staticmethod
+    def _cache_key(path_or_hf_repo: str, dtype: mx.Dtype) -> tuple[str, str]:
+        return path_or_hf_repo, str(dtype)
 
     @classmethod
     def get(
@@ -34,15 +41,14 @@ class _ModelHolder:
         path_or_hf_repo: str,
         dtype: mx.Dtype = mx.float16,
     ) -> tuple[Qwen3ASRModel, Qwen3ASRConfig]:
-        if cls._model is not None and cls._path == path_or_hf_repo and cls._dtype == dtype:
-            return cls._model, cls._config
+        key = cls._cache_key(path_or_hf_repo, dtype)
+        cached = cls._cache.get(key)
+        if cached is not None:
+            model, config, _ = cached
+            return model, config
 
         model, config, resolved_path = _load_model_with_resolved_path(path_or_hf_repo, dtype=dtype)
-        cls._model = model
-        cls._config = config
-        cls._path = path_or_hf_repo
-        cls._resolved_path = str(resolved_path)
-        cls._dtype = dtype
+        cls._cache[key] = (model, config, str(resolved_path))
         return model, config
 
     @classmethod
@@ -52,18 +58,18 @@ class _ModelHolder:
         dtype: mx.Dtype = mx.float16,
     ) -> str:
         """Return a local resolved model path for the cached model key."""
-        cls.get(path_or_hf_repo, dtype=dtype)
-        if cls._resolved_path is None:
+        key = cls._cache_key(path_or_hf_repo, dtype)
+        cached = cls._cache.get(key)
+        if cached is None:
+            cls.get(path_or_hf_repo, dtype=dtype)
+            cached = cls._cache.get(key)
+        if cached is None:
             return path_or_hf_repo
-        return cls._resolved_path
+        return cached[2]
 
     @classmethod
     def clear(cls):
-        cls._model = None
-        cls._config = None
-        cls._path = None
-        cls._resolved_path = None
-        cls._dtype = None
+        cls._cache.clear()
 
 
 def load_model(

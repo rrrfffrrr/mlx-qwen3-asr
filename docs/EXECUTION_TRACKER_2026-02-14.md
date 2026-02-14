@@ -108,6 +108,27 @@ bounded-context behavior for stable per-chunk cost.
   - performance: slower on tested short/10s workloads vs baseline.
   - therefore remains experimental and non-default.
 
+### 8) Multi-model cache residency hardening
+
+- `_ModelHolder` cache now keys by `(model_path, dtype)` instead of storing
+  only one global model instance.
+- Why this matters:
+  - speculative runs often use both target and draft models,
+  - single-entry cache caused avoidable reload thrash across repeated calls.
+- Added regression coverage to ensure two model IDs remain cached without
+  evicting each other in steady-state usage.
+
+### 9) Final paper/repo review synthesis (actionability)
+
+Primary-source refresh across Qwen3-ASR, Swift ports, and ASR decoding papers:
+
+- Lossless speculative decoding papers remain directionally relevant, but local
+  evidence still shows no win on current short/10s workloads; keep experimental.
+- Whisper/WhisperX-style long-form segmentation + alignment remains the highest
+  practical algorithmic lane for post-recording quality stability.
+- No paper-backed shortcut was found that can safely replace the current
+  correctness-first gates for MRoPE/audio injection/long-context handling.
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch
