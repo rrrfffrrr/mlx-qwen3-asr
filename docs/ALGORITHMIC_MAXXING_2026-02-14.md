@@ -10,6 +10,9 @@ Focused review of paper-backed inference algorithms that can materially improve
 - Whisper paper (robust long-form ASR context): https://arxiv.org/abs/2212.04356
 - WhisperX (long-form + alignment pipeline): https://arxiv.org/abs/2303.00747
 - Speculative decoding (lossless acceleration): https://arxiv.org/abs/2211.17192
+- SpecASR (ASR-specialized speculative decoding): https://arxiv.org/abs/2507.18181
+- Token Map Drafting (model-free speculative ASR): https://arxiv.org/abs/2507.21522
+- Distil-Whisper (distilled ASR baseline): https://arxiv.org/abs/2311.00430
 - MLX compile docs (implementation guidance): https://ml-explore.github.io/mlx/build/html/usage/compile.html
 
 ## Changes Applied This Session
@@ -57,8 +60,18 @@ Focused review of paper-backed inference algorithms that can materially improve
   decode-time confidence heuristics and bounded retries.
 - Fit here: can be implemented as optional conservative mode for enterprise use.
 - Practical gate:
-  - reduces pathological repetition incidents,
-  - no measurable average quality regression.
+- reduces pathological repetition incidents,
+- no measurable average quality regression.
+
+4. ASR-specialized speculative decoding variants
+- Why: 2025 papers show stronger ASR-specific speedups than generic speculative
+  decoding baselines in some settings.
+- Fit here:
+  - `SpecASR` ideas map onto our existing `prefill/step` API and cache ownership.
+  - Token-map drafting may be useful for enterprise domain-specific deployments.
+- Practical gate:
+  - must preserve exact greedy token parity vs baseline on release lane,
+  - must beat current 1.7B latency on short and 10s clips.
 
 ## Not Prioritized (Current Policy)
 

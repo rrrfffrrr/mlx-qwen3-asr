@@ -9,7 +9,7 @@ Verified notes for this repo, based on official artifacts as of **2026-02-14**.
 - Official Python package (`qwen-asr`): https://github.com/QwenLM/Qwen3-ASR/tree/main/qwen_asr
 - Apple MLX examples: https://github.com/ml-explore/mlx-examples
 - Apple MLX-LM cache implementation: https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/models/cache.py
-- MLX-Audio (existing MLX Qwen3-ASR path): https://github.com/ml-explore/mlx-audio
+- MLX-Audio (existing community MLX Qwen3-ASR path): https://github.com/Blaizzy/mlx-audio
 - Swift MLX implementation: https://github.com/ivan-digital/qwen3-asr-swift
 - HF model cards/configs:
   - https://huggingface.co/Qwen/Qwen3-ASR-1.7B
@@ -91,8 +91,8 @@ This means exact multiples of 100 frames map to `13 * n_chunks` tokens
 
 ## Mac/MLX Implementation Landscape (2026-02-14)
 
-- `ml-explore/mlx-audio` includes a Qwen3-ASR path and remains the most visible
-  upstream MLX code path.
+- `Blaizzy/mlx-audio` includes a Qwen3-ASR path and remains a visible
+  community MLX baseline.
 - `ivan-digital/qwen3-asr-swift` is a native Swift+MLX ASR/TTS implementation
   with packaged quantized ASR models and published ASR latency claims.
   - Repo: https://github.com/ivan-digital/qwen3-asr-swift
@@ -255,6 +255,11 @@ This pass re-checked upstream repos and paper artifacts to confirm roadmap prior
 - Streaming should remain explicit experimental scope, not a production-critical
   investment lane until core offline quality and performance goals are saturated.
 
+### Source snapshot commits used in this audit
+
+- `QwenLM/Qwen3-ASR`: `c17a131`
+- `ivan-digital/qwen3-asr-swift`: `7dd6029`
+
 ## Encoder Long-Context Optimization (2026-02-14)
 
 We validated a hybrid encoder-window strategy for long audio:
@@ -282,3 +287,21 @@ Observed:
 
 See also:
 - `docs/ALGORITHMIC_MAXXING_2026-02-14.md` for paper-backed next-step algorithm candidates.
+
+## Algorithmic Literature Refresh (2026-02-14)
+
+Recent ASR speculative-decoding papers with practical relevance:
+
+- SpecASR (arXiv:2507.18181): task-specialized speculative decoding for LLM-based ASR
+  with reported `3.04x-3.79x` speedup over vanilla AR decode (paper claim).
+- Token Map Drafting (arXiv:2507.21522): model-free speculative drafting for
+  transformer ASR with reported `1.27x-1.37x` speedup in structured domains.
+- Distil-Whisper (arXiv:2311.00430): high-quality distillation baseline for
+  reduced-latency ASR deployments.
+
+Implication for this repo:
+
+- Highest-value next algorithmic path is still a strict-parity speculative decode
+  experiment using `0.6B` as draft for `1.7B` with release-gate parity checks.
+- Model-free/token-map drafting is promising for domain-constrained workloads,
+  but not the default general-purpose path yet.

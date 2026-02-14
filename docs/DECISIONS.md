@@ -185,3 +185,16 @@ aligned with official Qwen inference utility behavior.
 - Repetition collapse directly reduces pathological decode tails in real-world audio.
 - Handling `language None` and forced-language parse paths improves robustness.
 - This is a low-risk, high-value inference-time quality safeguard.
+
+## Decision 16: Harden Experimental Streaming Input Contracts and Remove Dead State
+
+**Choice:** Validate streaming init params, normalize incoming PCM in `feed_audio(...)`,
+and remove unused `previous_tokens` state.
+**Alternative:** Keep permissive/unvalidated inputs and retain unused state fields.
+
+**Rationale:**
+- Upstream streaming path normalizes int16/shape behavior explicitly; matching that
+  reduces avoidable runtime surprises.
+- Strong input contracts (`chunk_size_sec/max_context_sec/sample_rate > 0`) fail fast
+  with clear errors instead of silent undefined behavior.
+- Removing dead state simplifies the module and makes future incremental refactors clearer.

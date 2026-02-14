@@ -126,7 +126,16 @@ Near-term work should remain correctness-gated and benchmark-driven:
   to support maintainability and future low-risk optimizations.
 - Gate: no parity regression and no additional hidden global state.
 
-5. Streaming policy (deprioritized)
+5. Speculative decoding prototype for 1.7B (paper-backed)
+- Goal: evaluate strict-parity speculative decoding (`0.6B` draft, `1.7B` target)
+  against baseline greedy decode.
+- Gate: exact greedy token parity + measurable latency win on short and 10s clips.
+- Sources:
+  - https://arxiv.org/abs/2211.17192
+  - https://arxiv.org/abs/2507.18181
+  - https://arxiv.org/abs/2507.21522
+
+6. Streaming policy (deprioritized)
 - Keep streaming explicitly experimental and avoid major roadmap allocation
   until the core offline quality/speed/timestamp track is fully production-grade.
 

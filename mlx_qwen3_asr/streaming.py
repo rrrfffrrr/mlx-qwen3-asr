@@ -34,7 +34,6 @@ class StreamingState:
         unfixed_token_num: Number of trailing units to keep unstable
         chunk_size_samples: Samples per chunk
         max_context_samples: Max samples used for rolling decode window
-        previous_tokens: Tokens from previous transcription
         stable_text: Text considered stable (won't change)
     """
     buffer: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
@@ -46,7 +45,6 @@ class StreamingState:
     unfixed_token_num: int = UNFIXED_TOKEN_NUM
     chunk_size_samples: int = 32000  # 2 seconds at 16kHz
     max_context_samples: int = 480000  # 30 seconds at 16kHz
-    previous_tokens: list[int] = field(default_factory=list)
     stable_text: str = ""
     _model_path: str = DEFAULT_MODEL_ID
 
@@ -72,6 +70,13 @@ def init_streaming(
     Returns:
         Initial streaming state
     """
+    if chunk_size_sec <= 0:
+        raise ValueError(f"chunk_size_sec must be > 0, got: {chunk_size_sec}")
+    if max_context_sec <= 0:
+        raise ValueError(f"max_context_sec must be > 0, got: {max_context_sec}")
+    if sample_rate <= 0:
+        raise ValueError(f"sample_rate must be > 0, got: {sample_rate}")
+
     return StreamingState(
         unfixed_chunk_num=int(unfixed_chunk_num),
         unfixed_token_num=int(unfixed_token_num),
@@ -105,9 +110,20 @@ def feed_audio(
     """
     from .transcribe import transcribe
 
+    if pcm is None:
+        raise ValueError("pcm must not be None")
+
+    x = np.asarray(pcm)
+    if x.ndim != 1:
+        x = x.reshape(-1)
+    if x.dtype == np.int16:
+        x = x.astype(np.float32) / 32768.0
+    else:
+        x = x.astype(np.float32, copy=False)
+
     # Accumulate audio
-    state.buffer = np.concatenate([state.buffer, pcm])
-    state.audio_accum = np.concatenate([state.audio_accum, pcm])
+    state.buffer = np.concatenate([state.buffer, x])
+    state.audio_accum = np.concatenate([state.audio_accum, x])
 
     # Check if we have enough audio for a new chunk
     if len(state.buffer) < state.chunk_size_samples:
@@ -177,7 +193,6 @@ def finish_streaming(
     state.buffer = np.array([], dtype=np.float32)
     state.text = result.text
     state.language = result.language
-    state.previous_tokens = []
     state.stable_text = result.text
     return state
 

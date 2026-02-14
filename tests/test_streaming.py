@@ -35,7 +35,6 @@ class TestInitStreaming:
         assert state.chunk_id == 0
         assert len(state.buffer) == 0
         assert len(state.audio_accum) == 0
-        assert state.previous_tokens == []
         assert state.stable_text == ""
 
     def test_custom_chunk_size(self):
@@ -58,6 +57,18 @@ class TestInitStreaming:
     def test_custom_model(self):
         state = init_streaming(model="my/custom-model")
         assert state._model_path == "my/custom-model"
+
+    def test_invalid_chunk_size_raises(self):
+        with np.testing.assert_raises(ValueError):
+            init_streaming(chunk_size_sec=0.0)
+
+    def test_invalid_context_window_raises(self):
+        with np.testing.assert_raises(ValueError):
+            init_streaming(max_context_sec=0.0)
+
+    def test_invalid_sample_rate_raises(self):
+        with np.testing.assert_raises(ValueError):
+            init_streaming(sample_rate=0)
 
 
 # ---------------------------------------------------------------------------
@@ -103,10 +114,6 @@ class TestStreamingStateDefaults:
     def test_default_max_context_samples(self):
         state = StreamingState()
         assert state.max_context_samples == 480000
-
-    def test_default_previous_tokens(self):
-        state = StreamingState()
-        assert state.previous_tokens == []
 
     def test_default_stable_text(self):
         state = StreamingState()
@@ -242,3 +249,40 @@ class TestFeedAudio:
         feed_audio(np.ones(10, dtype=np.float32), state)
         # After warmup, keep trailing 2 words unstable.
         assert state.stable_text == "one two three four"
+
+    def test_feed_audio_accepts_int16_pcm(self, monkeypatch):
+        captured = {}
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            captured["dtype"] = np.asarray(audio).dtype
+            captured["max_abs"] = float(np.max(np.abs(np.asarray(audio))))
+            return SimpleNamespace(text="hello", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        feed_audio(np.full((10,), 16384, dtype=np.int16), state)
+
+        assert captured["dtype"] == np.float32
+        assert np.isclose(captured["max_abs"], 0.5)
+
+    def test_feed_audio_flattens_non_1d_input(self, monkeypatch):
+        call_lengths = []
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            call_lengths.append(len(audio))
+            return SimpleNamespace(text="hello", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        feed_audio(np.ones((2, 5), dtype=np.float32), state)
+
+        assert call_lengths == [10]
+
+    def test_feed_audio_none_raises(self):
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        with np.testing.assert_raises(ValueError):
+            feed_audio(None, state)  # type: ignore[arg-type]

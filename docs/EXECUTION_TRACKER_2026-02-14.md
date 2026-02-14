@@ -82,6 +82,16 @@ bounded-context behavior for stable per-chunk cost.
   - consistent trailing special-token cleanup.
 - Added regression tests in tokenizer/transcribe lanes.
 
+### 6) Streaming input hardening and dead-state cleanup
+
+- Removed unused `previous_tokens` field from `StreamingState`.
+- Added explicit input normalization in `feed_audio(...)`:
+  - accepts non-1D arrays (flattens),
+  - converts `int16` PCM to `float32` in `[-1, 1]`.
+- Added init-time validation for streaming parameters:
+  - `chunk_size_sec > 0`, `max_context_sec > 0`, `sample_rate > 0`.
+- Added regression tests for these behaviors.
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch
