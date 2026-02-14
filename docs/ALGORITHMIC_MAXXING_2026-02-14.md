@@ -94,8 +94,19 @@ Related algorithmic references:
   - `SpecASR` ideas map onto our existing `prefill/step` API and cache ownership.
   - Token-map drafting may be useful for enterprise domain-specific deployments.
 - Practical gate:
-  - must preserve exact greedy token parity vs baseline on release lane,
-  - must beat current 1.7B latency on short and 10s clips.
+- must preserve exact greedy token parity vs baseline on release lane,
+- must beat current 1.7B latency on short and 10s clips.
+
+5. Isotonic regression (PAVA) for monotonic timestamp projection (deferred)
+- Why: PAVA gives an O(n) projection onto monotonic sequences and can minimize
+  squared error against raw timestamp logits.
+- Reference lineage:
+  - Ayer et al. 1955 (classic isotonic formulation):
+    https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-26/issue-4/An-Empirical-Distribution-Function-for-Sampling-with-Incomplete-Information/10.1214/aoms/1177728423.full
+- Why deferred:
+  - current production behavior is intentionally aligned to legacy LIS repair;
+    changing objective from LIS-anchor interpolation to isotonic projection is
+    likely to shift timestamps and would require a new parity-quality gate.
 
 Status update:
 - Prototype path implemented with strict parity checks.
