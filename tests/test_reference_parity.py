@@ -13,6 +13,7 @@ import mlx.core as mx
 import numpy as np
 import pytest
 
+from mlx_qwen3_asr.audio import load_audio
 from mlx_qwen3_asr.generate import GenerationConfig, generate
 from mlx_qwen3_asr.load_models import load_model
 
@@ -30,6 +31,7 @@ def test_greedy_token_parity_with_official_reference():
     model_id = os.getenv("REFERENCE_PARITY_MODEL", "Qwen/Qwen3-ASR-0.6B")
     max_new_tokens = int(os.getenv("REFERENCE_PARITY_MAX_NEW_TOKENS", "64"))
     fixture = Path("tests/fixtures/test_speech.wav")
+    audio_np = np.array(load_audio(str(fixture))).astype(np.float32)
 
     # --- Official reference path (PyTorch) ---
     ref = qwen_asr.Qwen3ASRModel.from_pretrained(
@@ -41,7 +43,8 @@ def test_greedy_token_parity_with_official_reference():
     prompt = ref._build_text_prompt(context="", force_language=None)  # noqa: SLF001
     inputs = ref.processor(
         text=[prompt],
-        audio=[str(fixture)],
+        audio=[audio_np],
+        sampling_rate=16000,
         return_tensors="pt",
         padding=True,
     )
