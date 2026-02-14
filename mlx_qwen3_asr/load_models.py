@@ -171,7 +171,8 @@ def _read_quantization_config(model_path: Path) -> Optional[dict]:
         return None
     try:
         return json.loads(qconf.read_text(encoding="utf-8"))
-    except Exception:
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning(f"Failed to parse quantization metadata at {qconf}: {exc}")
         return None
 
 

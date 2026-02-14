@@ -136,3 +136,13 @@ class TestQuantizationHelpers:
         cfg_path.write_text('{"bits": 4, "group_size": 64}', encoding="utf-8")
         cfg = _read_quantization_config(model_dir)
         assert cfg == {"bits": 4, "group_size": 64}
+
+    def test_read_quantization_config_returns_none_on_invalid_json(self, tmp_path: Path, caplog):
+        model_dir = tmp_path / "model"
+        model_dir.mkdir()
+        cfg_path = model_dir / "quantization_config.json"
+        cfg_path.write_text("{not-json", encoding="utf-8")
+
+        cfg = _read_quantization_config(model_dir)
+        assert cfg is None
+        assert "Failed to parse quantization metadata" in caplog.text

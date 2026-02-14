@@ -35,3 +35,15 @@ def test_parse_configs_rejects_empty_list():
     mod = _load_module()
     with pytest.raises(ValueError, match="No configs specified"):
         mod._parse_configs("")
+
+
+def test_parse_configs_rejects_missing_separator():
+    mod = _load_module()
+    with pytest.raises(ValueError, match="Expected 'fp16' or '<bits>:<group_size>'"):
+        mod._parse_configs("fp16,4")
+
+
+def test_parse_configs_rejects_invalid_bits():
+    mod = _load_module()
+    with pytest.raises(ValueError, match="Unsupported bit-width"):
+        mod._parse_configs("2:64")

@@ -248,6 +248,21 @@ This pass re-checked upstream repos and paper artifacts to confirm roadmap prior
   - https://ml-explore.github.io/mlx/build/html/usage/lazy_evaluation.html
   - https://ml-explore.github.io/mlx/build/html/usage/using_streams.html
 
+### 6) MLX fused-attention and compile caveats (follow-up audit)
+
+- MLX maintainer guidance indicates `mx.fast.scaled_dot_product_attention(...)`
+  can regress if mask dtype does not match the attention tensor dtype.
+  - Source: https://github.com/ml-explore/mlx/issues/1193
+- MLX maintainer guidance also indicates `mx.compile` is not universally a speed
+  win and can regress workloads with highly dynamic shapes.
+  - Source: https://github.com/ml-explore/mlx/issues/1248
+
+Implication for this repo:
+- Keep additive attention masks dtype-aligned with active tensor dtype in both
+  encoder and decoder paths.
+- Prefer targeted compile usage only where shape stability is proven by
+  benchmark, rather than enabling compile broadly in the decode loop.
+
 ### Practical Implication
 
 - Near-term highest ROI remains: correctness parity, native aligner quality gates,

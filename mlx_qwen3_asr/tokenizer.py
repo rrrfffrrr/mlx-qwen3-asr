@@ -32,7 +32,7 @@ def _load_hf_tokenizer(model_path: str):
     # heavier AutoTokenizer dynamic import path and improves cold-start latency.
     try:
         from transformers.models.qwen2.tokenization_qwen2 import Qwen2Tokenizer
-    except Exception:
+    except ImportError:
         Qwen2Tokenizer = None
 
     if Qwen2Tokenizer is not None:

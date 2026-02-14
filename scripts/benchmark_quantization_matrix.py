@@ -64,9 +64,26 @@ def _parse_configs(raw: str) -> list[QuantConfig]:
         if item == "fp16":
             out.append(QuantConfig(label="fp16", bits=None, group_size=None))
             continue
-        bits_str, group_str = item.split(":")
-        bits = int(bits_str)
-        group = int(group_str)
+        if ":" not in item:
+            raise ValueError(
+                f"Invalid quant config '{item}'. Expected 'fp16' or '<bits>:<group_size>'."
+            )
+        bits_str, group_str = item.split(":", 1)
+        try:
+            bits = int(bits_str)
+            group = int(group_str)
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid quant config '{item}'. bits/group_size must be integers."
+            ) from exc
+        if bits not in {4, 8}:
+            raise ValueError(
+                f"Unsupported bit-width '{bits}' in config '{item}'. Expected one of: 4, 8."
+            )
+        if group <= 0:
+            raise ValueError(
+                f"Invalid group_size '{group}' in config '{item}'. Must be > 0."
+            )
         out.append(QuantConfig(label=f"{bits}bit-g{group}", bits=bits, group_size=group))
     if not out:
         raise ValueError("No configs specified.")
