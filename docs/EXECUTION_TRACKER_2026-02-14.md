@@ -229,6 +229,22 @@ Post-change validation:
 - fast gate: PASS (`288 passed, 1 skipped`)
 - release gate: PASS (`289 passed` + reference parity lane pass)
 
+### 19) Release gate + native aligner parity lane checkpoint
+
+- Ran full release gate with aligner parity lane enabled:
+
+```bash
+RUN_REFERENCE_PARITY=1 RUN_ALIGNER_PARITY=1 ALIGNER_PARITY_SAMPLES=10 \
+python scripts/quality_gate.py --mode release
+```
+
+- Result: PASS.
+- Aligner parity snapshot (`test-clean`, `n=10`, English):
+  - text match rate: `1.0000`
+  - timing MAE all: `1.6667 ms`
+  - mean latency: `mlx=0.2972s`, `qwen_asr=0.9129s`
+  - relative speed (`qwen_asr / mlx`): `3.07x`
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch
