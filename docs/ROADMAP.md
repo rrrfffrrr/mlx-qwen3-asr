@@ -63,6 +63,10 @@ Performance progress:
 - In progress.
 - Timestamps are enabled through optional `qwen-asr` backend integration
   as a temporary bridge.
+- Native aligner groundwork now landed:
+  - ported official text-unit preprocessing and LIS-based timestamp correction
+    utilities into `mlx_qwen3_asr/forced_aligner.py`,
+  - added regression coverage in `tests/test_forced_aligner.py`.
 - Native MLX aligner remains a future optimization.
 
 5. Discoverability (README polish + PyPI)
