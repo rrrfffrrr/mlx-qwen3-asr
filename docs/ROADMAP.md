@@ -32,9 +32,9 @@ Qwen3-ASR on Apple Silicon.
   - detects quantized tensors,
   - quantizes model modules before loading weights,
   - supports optional `quantization_config.json` metadata.
-- Local validated benchmark point (4-bit, 0.6B, Apple M4 Pro):
-  - short fixture: mean `0.1591s`, RTF `0.0628`
-  - 10s clip: mean `0.2831s`, RTF `0.0283`
+- Latest validated benchmark point from refreshed matrix run (4-bit, 0.6B, Apple M4 Pro):
+  - short fixture: mean `0.1187s`, RTF `0.0469`
+  - 10s clip: mean `0.2286s`, RTF `0.0229`
 - Quantization sweep complete (`fp16`, `4bit-g64`, `4bit-g32`, `8bit-g64`):
   - selected `4bit-g64` as current recommended default profile.
 - Added reproducible experiment workflow:
@@ -54,9 +54,10 @@ Performance progress:
 - Done (I/O startup optimization):
   - native fast-path WAV loader for PCM/float `.wav` inputs, with ffmpeg
     fallback for unsupported formats, reducing short-clip overhead.
-- Current measured point (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, float16):
-  - short fixture: mean `0.5303s`, RTF `0.2093`
-  - 10s clip: mean `0.9420s`, RTF `0.0942`
+- Current measured fp16 point from refreshed matrix run
+  (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, float16):
+  - short fixture: mean `0.4996s`, RTF `0.1972`
+  - 10s clip: mean `0.9088s`, RTF `0.0909`
 
 4. Forced aligner timestamps
 - In progress.
@@ -69,6 +70,22 @@ Performance progress:
 - Benchmark process documented (`scripts/benchmark_asr.py`, `docs/BENCHMARKING.md`).
 - Default model for `transcribe()`/CLI is now `Qwen/Qwen3-ASR-0.6B` to keep
   one-line install/run fast and reliable on typical Apple Silicon machines.
+
+## Next Exploration Queue
+
+Near-term work should remain correctness-gated and benchmark-driven:
+
+1. Native MLX forced aligner (timestamps) prototype
+- Goal: remove optional PyTorch runtime dependency for timestamp alignment.
+- Gate: word-level timing quality must be competitive with current `qwen-asr` backend.
+
+2. Quantized model publication lane
+- Goal: publish vetted `4bit-g64` and `8bit-g64` artifacts to HuggingFace.
+- Gate: published artifacts must reproduce current local WER/RTF envelope.
+
+3. Long-form robustness benchmark expansion
+- Goal: extend golden eval + latency coverage beyond the current short fixture and 10s clip.
+- Gate: no quality regressions on >30s and multi-minute real-world clips.
 
 ## Acceptance Gates
 

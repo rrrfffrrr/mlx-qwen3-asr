@@ -100,10 +100,19 @@ python scripts/benchmark_quantization_matrix.py
 Artifacts:
 - `docs/benchmarks/2026-02-14-quant-matrix.json`
 - `docs/benchmarks/2026-02-14-quant-matrix.md`
+- Refreshed run after WAV fast-path:
+  - `docs/benchmarks/2026-02-14-quant-matrix-post-wavfast.json`
+  - `docs/benchmarks/2026-02-14-quant-matrix-post-wavfast.md`
 - CI/manual workflow: `.github/workflows/quantization-matrix.yml`
 
 Current recommended operating point for `Qwen/Qwen3-ASR-0.6B` on Apple Silicon:
 - `4bit-g64` (best speed with no sampled WER regression vs fp16 in this run).
+
+Latest refreshed matrix highlights (`2026-02-14-quant-matrix-post-wavfast.md`):
+- fp16 long 10s: mean `0.9088s`, RTF `0.0909`
+- 4bit-g64 long 10s: mean `0.2286s`, RTF `0.0229`
+- 4bit-g64 long speedup vs fp16: `3.98x`
+- WER delta vs fp16 on sampled LibriSpeech: `+0.000000`
 
 ## KV Cache Write-Path Follow-up (2026-02-14)
 
@@ -138,3 +147,17 @@ Measured impact (same-session A/B):
 
 Short-clip latency benefits are strongest for fast quantized profiles where
 audio loading overhead is a larger fraction of total runtime.
+
+## Rejected/Neutral Experiments (2026-02-14)
+
+To avoid rediscovering low-signal paths, these were tested and not kept:
+
+- Decode-loop `eval_interval` default changes (`0`, `4`):
+  - No consistent net gain across fp16/q4 short+long scenarios.
+  - Final decision: keep `eval_interval=1`.
+- One-step-ahead async decode scheduling (mlx-lm style adaptation):
+  - Regressed in end-to-end A/B on this repo's benchmark scenarios.
+  - Final decision: reverted.
+- `compute_features()` attention-mask skip for `padding="do_not_pad"`:
+  - Microbench results were mixed and within noise for practical E2E impact.
+  - Final decision: reverted to the simpler, explicit attention-mask path.

@@ -350,3 +350,11 @@ class TestComputeFeatures:
         mel, feature_lens = compute_features(audio, padding="max_length")
         assert mel.shape == (1, 128, 3100)
         assert int(feature_lens.item()) == 3100
+
+    def test_max_length_padding_tracks_true_length_for_short_audio(self):
+        # For short inputs, max_length pads mel width but feature_lens should
+        # still report the true unpadded frame count.
+        audio = np.random.randn(2 * SAMPLE_RATE).astype(np.float32)
+        mel, feature_lens = compute_features(audio, padding="max_length")
+        assert mel.shape == (1, 128, 3000)
+        assert int(feature_lens.item()) == 200
