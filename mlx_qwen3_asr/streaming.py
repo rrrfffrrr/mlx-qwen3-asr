@@ -30,6 +30,8 @@ class StreamingState:
         text: Current best transcription
         language: Detected language
         chunk_id: Number of chunks processed
+        unfixed_chunk_num: Number of initial chunks to keep fully unstable
+        unfixed_token_num: Number of trailing units to keep unstable
         chunk_size_samples: Samples per chunk
         max_context_samples: Max samples used for rolling decode window
         previous_tokens: Tokens from previous transcription
@@ -40,6 +42,8 @@ class StreamingState:
     text: str = ""
     language: str = "unknown"
     chunk_id: int = 0
+    unfixed_chunk_num: int = UNFIXED_CHUNK_NUM
+    unfixed_token_num: int = UNFIXED_TOKEN_NUM
     chunk_size_samples: int = 32000  # 2 seconds at 16kHz
     max_context_samples: int = 480000  # 30 seconds at 16kHz
     previous_tokens: list[int] = field(default_factory=list)
@@ -49,6 +53,8 @@ class StreamingState:
 
 def init_streaming(
     model: str = DEFAULT_MODEL_ID,
+    unfixed_chunk_num: int = UNFIXED_CHUNK_NUM,
+    unfixed_token_num: int = UNFIXED_TOKEN_NUM,
     chunk_size_sec: float = 2.0,
     max_context_sec: float = 30.0,
     sample_rate: int = 16000,
@@ -57,6 +63,8 @@ def init_streaming(
 
     Args:
         model: Model name or path
+        unfixed_chunk_num: Number of initial chunks to keep fully unstable
+        unfixed_token_num: Number of trailing units kept unstable afterwards
         chunk_size_sec: Audio chunk size in seconds
         max_context_sec: Max rolling decode context in seconds
         sample_rate: Audio sample rate
@@ -65,6 +73,8 @@ def init_streaming(
         Initial streaming state
     """
     return StreamingState(
+        unfixed_chunk_num=int(unfixed_chunk_num),
+        unfixed_token_num=int(unfixed_token_num),
         chunk_size_samples=int(chunk_size_sec * sample_rate),
         max_context_samples=int(max_context_sec * sample_rate),
         _model_path=model,
@@ -121,11 +131,14 @@ def feed_audio(
     new_language = result.language
 
     # Apply prefix rollback
-    stable, unstable = _split_stable_unstable(
-        state.stable_text,
-        new_text,
-        unfixed_tokens=UNFIXED_TOKEN_NUM,
-    )
+    if state.chunk_id < state.unfixed_chunk_num:
+        stable, unstable = state.stable_text, new_text
+    else:
+        stable, unstable = _split_stable_unstable(
+            state.stable_text,
+            new_text,
+            unfixed_tokens=state.unfixed_token_num,
+        )
 
     state.buffer = leftover
     state.text = new_text

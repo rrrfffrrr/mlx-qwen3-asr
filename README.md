@@ -196,7 +196,7 @@ For Japanese/Korean timestamp alignment with the native MLX backend, install the
 The streaming API is currently a **rolling decode** implementation:
 - It ingests small PCM chunks (default 2s).
 - It decodes with a bounded context window (default 30s) to keep per-chunk runtime stable.
-- It applies prefix rollback so only the trailing unstable region can change.
+- It applies prefix rollback controls (`unfixed_chunk_num`, `unfixed_token_num`) so only trailing units remain unstable.
 
 It is not yet a full incremental decoder with persistent KV cache reuse across chunks.
 

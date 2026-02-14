@@ -25,6 +25,8 @@ class TestInitStreaming:
     def test_default_state(self):
         state = init_streaming()
         assert isinstance(state, StreamingState)
+        assert state.unfixed_chunk_num == 2
+        assert state.unfixed_token_num == 5
         assert state.chunk_size_samples == 32000  # 2.0 * 16000
         assert state.max_context_samples == 480000  # 30.0 * 16000
         assert state._model_path == DEFAULT_MODEL_ID
@@ -47,6 +49,11 @@ class TestInitStreaming:
     def test_custom_context_window(self):
         state = init_streaming(max_context_sec=5.0, sample_rate=8000)
         assert state.max_context_samples == 40000
+
+    def test_custom_unfixed_controls(self):
+        state = init_streaming(unfixed_chunk_num=3, unfixed_token_num=7)
+        assert state.unfixed_chunk_num == 3
+        assert state.unfixed_token_num == 7
 
     def test_custom_model(self):
         state = init_streaming(model="my/custom-model")
@@ -83,6 +90,11 @@ class TestStreamingStateDefaults:
     def test_default_chunk_id(self):
         state = StreamingState()
         assert state.chunk_id == 0
+
+    def test_default_unfixed_controls(self):
+        state = StreamingState()
+        assert state.unfixed_chunk_num == 2
+        assert state.unfixed_token_num == 5
 
     def test_default_chunk_size_samples(self):
         state = StreamingState()
@@ -208,3 +220,25 @@ class TestFeedAudio:
         feed_audio(np.ones(10, dtype=np.float32), state)
 
         assert call_lengths == [10, 20, 20]
+
+    def test_feed_audio_honors_unfixed_chunk_warmup(self, monkeypatch):
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            return SimpleNamespace(text="one two three four five six", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(
+            chunk_size_sec=1.0,
+            sample_rate=10,
+            unfixed_chunk_num=1,
+            unfixed_token_num=2,
+        )
+
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        # First chunk is warmup: stable text should not advance.
+        assert state.stable_text == ""
+
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        # After warmup, keep trailing 2 words unstable.
+        assert state.stable_text == "one two three four"
