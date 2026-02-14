@@ -28,6 +28,10 @@ python scripts/benchmark_streaming.py tests/fixtures/test_speech.wav \
   --json-output docs/benchmarks/latest-streaming.json
 ```
 
+Latest streaming baseline artifact:
+- `docs/benchmarks/2026-02-14-streaming-rolling-baseline.json`
+- `docs/benchmarks/2026-02-14-streaming-rolling-baseline.md`
+
 ## Metrics
 
 - `latency_sec.mean`
