@@ -17,6 +17,17 @@ python scripts/benchmark_asr.py tests/fixtures/test_speech.wav \
   --json-output docs/benchmarks/latest.json
 ```
 
+Streaming benchmark:
+
+```bash
+python scripts/benchmark_streaming.py tests/fixtures/test_speech.wav \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --chunk-size-sec 2.0 \
+  --max-context-sec 30.0 \
+  --runs 3 \
+  --json-output docs/benchmarks/latest-streaming.json
+```
+
 ## Metrics
 
 - `latency_sec.mean`
@@ -158,9 +169,10 @@ To avoid rediscovering low-signal paths, these were tested and not kept:
 - One-step-ahead async decode scheduling (mlx-lm style adaptation):
   - Regressed in end-to-end A/B on this repo's benchmark scenarios.
   - Final decision: reverted.
-- `compute_features()` attention-mask skip for `padding="do_not_pad"`:
-  - Microbench results were mixed and within noise for practical E2E impact.
-  - Final decision: reverted to the simpler, explicit attention-mask path.
+- `compute_features()` attention-mask skip for `padding="do_not_pad"` (status update):
+  - Early microbench was mixed/noisy, so it was initially reverted.
+  - Current implementation now keeps this optimization with test coverage:
+    no-pad path skips mask creation; padded modes still use mask-derived true length.
 
 ## Forced Aligner Backend Smoke (2026-02-14)
 
