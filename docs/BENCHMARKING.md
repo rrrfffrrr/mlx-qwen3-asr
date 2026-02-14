@@ -120,11 +120,14 @@ Runtime:
 - FP16 10s clip: mean `0.9420s`, RTF `0.0942`.
 - 4-bit 10s clip: mean `0.2831s`, RTF `0.0283`.
 
-Quality (LibriSpeech test-clean sample, 20 utterances):
-- FP16: WER `0.007317`, CER `0.002195`, RTF `0.1384`.
-- 4-bit: WER `0.007317`, CER `0.001647`, RTF `0.0432`.
+Quality (LibriSpeech `test-clean`, 100 utterances, deterministic `speaker_round_robin`):
+- FP16: WER `0.022874`, CER `0.005865`, RTF `0.1270`.
+- 8-bit (`g64`): WER `0.023306`, CER `0.005865`, RTF `0.0381`.
+- 4-bit (`g64`): WER `0.027190`, CER `0.008798`, RTF `0.0315`.
 
-This sample indicates no measurable WER regression while achieving roughly 3x throughput improvement.
+Interpretation:
+- 8-bit is near-fp16 on this sample (`+0.000432` absolute WER) with ~`3.33x` faster eval throughput.
+- 4-bit is fastest (~`4.03x`) but has measurable quality loss on this larger sample (`+0.004316` absolute WER).
 
 ## Quantization Matrix Sweep (2026-02-14)
 
@@ -142,14 +145,18 @@ Artifacts:
   - `docs/benchmarks/2026-02-14-quant-matrix-post-wavfast.md`
 - CI/manual workflow: `.github/workflows/quantization-matrix.yml`
 
-Current recommended operating point for `Qwen/Qwen3-ASR-0.6B` on Apple Silicon:
-- `4bit-g64` (best speed with no sampled WER regression vs fp16 in this run).
+Current recommended operating points for `Qwen/Qwen3-ASR-0.6B` on Apple Silicon:
+- `4bit-g64` for speed-first workloads.
+- `8bit-g64` for quality-sensitive quantized workloads.
 
 Latest refreshed matrix highlights (`2026-02-14-quant-matrix-post-wavfast.md`):
 - fp16 long 10s: mean `0.9088s`, RTF `0.0909`
 - 4bit-g64 long 10s: mean `0.2286s`, RTF `0.0229`
 - 4bit-g64 long speedup vs fp16: `3.98x`
-- WER delta vs fp16 on sampled LibriSpeech: `+0.000000`
+- WER deltas should be interpreted with the larger speaker-balanced quality artifacts:
+  - `docs/benchmarks/2026-02-14-librispeech-fp16-100-speaker-round-robin.json`
+  - `docs/benchmarks/2026-02-14-librispeech-8bit-g64-100-speaker-round-robin.json`
+  - `docs/benchmarks/2026-02-14-librispeech-4bit-g64-100-speaker-round-robin.json`
 
 ## KV Cache Write-Path Follow-up (2026-02-14)
 

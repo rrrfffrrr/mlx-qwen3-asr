@@ -26,7 +26,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - Multiple output formats: txt, json, srt, vtt, tsv
 - Cached model/tokenizer instances for low repeated-call latency
 - Decoder optimizations: preallocated KV cache + direct grouped-query fused attention
-- 4-bit and 8-bit quantization — 4x speed gain with no quality loss
+- 4-bit and 8-bit quantization — up to 4x speedup with explicit quality trade-off reporting
 - Minimal dependencies: mlx, numpy, huggingface-hub, transformers
 
 ## Installation
@@ -141,7 +141,7 @@ Measured on the 0.6B model. All numbers from controlled single-machine runs with
 | **4-bit** (q4, group 64) | 0.12s | 0.23s | 0.02x | **3.98x faster** |
 | **8-bit** (q8, group 64) | 0.14s | 0.26s | 0.03x | 3.46x faster |
 
-4-bit quantization shows **zero measurable WER degradation** on LibriSpeech test-clean samples. Recommended for most use cases.
+Quality on speaker-balanced LibriSpeech samples is reported below with `n` and sampling strategy.
 
 ### Optimizations applied
 
@@ -149,7 +149,7 @@ Measured on the 0.6B model. All numbers from controlled single-machine runs with
 - **Direct grouped-query fused attention** (no explicit K/V head expansion)
 - **Native WAV fast-path** — bypasses ffmpeg process startup for PCM/float WAV files
 - **Cached model and tokenizer** — repeated `transcribe()` calls skip reload overhead
-- **4-bit / 8-bit quantization** — 4x speed gain with no quality loss
+- **4-bit / 8-bit quantization** — up to 4x speed gain (profile-dependent quality trade-off)
 
 ## Model quality
 
@@ -162,15 +162,15 @@ Word error rates from the [Qwen3-ASR technical report](https://huggingface.co/Qw
 | WenetSpeech test-net | **4.97** | 9.68 |
 | Fleurs (avg 30 langs) | **5.2** | 8.1 |
 
-### Our measured results (0.6B, LibriSpeech test-clean, 20 samples)
+### Our measured results (0.6B, LibriSpeech test-clean, 100 samples, speaker round-robin)
 
 | Configuration | WER | CER | Mean latency | RTF |
 |---|---|---|---|---|
-| fp16 | 0.73% | 0.22% | 1.13s | 0.14 |
-| 4-bit (g64) | 0.73% | 0.16% | 0.39s | 0.05 |
-| 8-bit (g64) | 0.73% | 0.22% | 0.45s | 0.06 |
+| fp16 | 2.29% | 0.59% | 1.14s | 0.127 |
+| 8-bit (g64) | 2.33% | 0.59% | 0.34s | 0.038 |
+| 4-bit (g64) | 2.72% | 0.88% | 0.28s | 0.032 |
 
-4-bit quantization matches fp16 quality at 2.9x faster evaluation throughput. All benchmark JSON artifacts are committed to `docs/benchmarks/` for reproducibility.
+On this larger and more speaker-diverse set, 8-bit is near-fp16 quality (+0.04 absolute WER points) while 4-bit is fastest but shows measurable degradation (+0.43 absolute WER points). All benchmark JSON artifacts are committed to `docs/benchmarks/` for reproducibility.
 
 ## Model variants
 
@@ -236,10 +236,15 @@ python scripts/convert.py \
 mlx-qwen3-asr audio.wav --model ./qwen3-asr-4bit
 ```
 
-Recommended quantization profile (current best on Apple Silicon):
-- `4-bit`, `group_size=64`
+Recommended quantization profiles (Apple Silicon):
+- Speed-first: `4-bit`, `group_size=64`
+- Quality-first quantized: `8-bit`, `group_size=64`
 - Latest matrix report: `docs/benchmarks/2026-02-14-quant-matrix-post-wavfast.md`
-- Measured long-clip speedup vs fp16: **3.98x** with zero sampled WER delta
+- Measured long-clip speedup vs fp16: **3.98x** (`4-bit`, `group_size=64`)
+- 100-sample quality artifacts:
+  - `docs/benchmarks/2026-02-14-librispeech-fp16-100-speaker-round-robin.json`
+  - `docs/benchmarks/2026-02-14-librispeech-8bit-g64-100-speaker-round-robin.json`
+  - `docs/benchmarks/2026-02-14-librispeech-4bit-g64-100-speaker-round-robin.json`
 
 Publish quantized models to HuggingFace:
 
@@ -311,7 +316,7 @@ python scripts/quality_gate.py --mode fast
 RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
 
 # Golden evaluation on LibriSpeech
-python scripts/eval_librispeech.py --subset test-clean --samples 100
+python scripts/eval_librispeech.py --subset test-clean --samples 100 --sampling speaker_round_robin
 ```
 
 Run unit tests directly:

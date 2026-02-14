@@ -47,6 +47,12 @@ Quantized comparison artifacts (2026-02-14):
   - `docs/benchmarks/2026-02-14-librispeech-fp16-20.json`
   - `docs/benchmarks/2026-02-14-librispeech-4bit-20.json`
 
+Speaker-balanced LibriSpeech quality artifacts (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-librispeech-fp16-100-speaker-round-robin.json`
+- `docs/benchmarks/2026-02-14-librispeech-8bit-g64-100-speaker-round-robin.json`
+- `docs/benchmarks/2026-02-14-librispeech-4bit-g64-100-speaker-round-robin.json`
+
 Quantization matrix sweep artifacts (2026-02-14):
 
 - `docs/benchmarks/2026-02-14-quant-matrix.json`

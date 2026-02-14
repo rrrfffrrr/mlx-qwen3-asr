@@ -28,6 +28,7 @@ SPLIT_ARCHIVES = {
 @dataclass(frozen=True)
 class LibriSample:
     sample_id: str
+    speaker_id: str
     audio_path: Path
     text: str
 
@@ -75,7 +76,12 @@ def _ensure_split(data_dir: Path, subset: str) -> Path:
     return split_root
 
 
-def _collect_samples(split_root: Path, max_samples: int) -> list[LibriSample]:
+def _speaker_id_from_sample_id(sample_id: str) -> str:
+    parts = sample_id.split("-", 1)
+    return parts[0] if parts else sample_id
+
+
+def _collect_all_samples(split_root: Path) -> list[LibriSample]:
     samples: list[LibriSample] = []
     for trans_path in sorted(split_root.rglob("*.trans.txt")):
         with trans_path.open("r", encoding="utf-8") as handle:
@@ -87,11 +93,50 @@ def _collect_samples(split_root: Path, max_samples: int) -> list[LibriSample]:
                 audio_path = trans_path.parent / f"{sample_id}.flac"
                 if audio_path.exists():
                     samples.append(
-                        LibriSample(sample_id=sample_id, audio_path=audio_path, text=text)
+                        LibriSample(
+                            sample_id=sample_id,
+                            speaker_id=_speaker_id_from_sample_id(sample_id),
+                            audio_path=audio_path,
+                            text=text,
+                        )
                     )
-                if len(samples) >= max_samples:
-                    return samples
     return samples
+
+
+def _collect_samples(
+    split_root: Path,
+    max_samples: int,
+    sampling: str,
+) -> list[LibriSample]:
+    all_samples = _collect_all_samples(split_root)
+    if sampling == "sequential":
+        return all_samples[:max_samples]
+    if sampling != "speaker_round_robin":
+        raise ValueError(
+            f"Unsupported sampling strategy '{sampling}'. "
+            "Supported: sequential, speaker_round_robin"
+        )
+
+    by_speaker: dict[str, list[LibriSample]] = {}
+    for sample in all_samples:
+        by_speaker.setdefault(sample.speaker_id, []).append(sample)
+
+    speakers = sorted(by_speaker)
+    selected: list[LibriSample] = []
+    idx = 0
+    while len(selected) < max_samples:
+        added_this_round = False
+        for speaker in speakers:
+            speaker_samples = by_speaker[speaker]
+            if idx < len(speaker_samples):
+                selected.append(speaker_samples[idx])
+                added_this_round = True
+                if len(selected) >= max_samples:
+                    break
+        if not added_this_round:
+            break
+        idx += 1
+    return selected
 
 
 def _read_audio(path: Path) -> tuple[np.ndarray, int]:
@@ -136,6 +181,15 @@ def main() -> int:
         help="Number of deterministic samples to evaluate.",
     )
     parser.add_argument(
+        "--sampling",
+        choices=["speaker_round_robin", "sequential"],
+        default="speaker_round_robin",
+        help=(
+            "Deterministic sampling strategy. "
+            "speaker_round_robin balances across speakers (default)."
+        ),
+    )
+    parser.add_argument(
         "--data-dir",
         default=str(Path.home() / ".cache" / "mlx-qwen3-asr" / "datasets"),
         help="Cache directory for downloaded LibriSpeech archives.",
@@ -163,7 +217,11 @@ def main() -> int:
 
     data_dir = Path(args.data_dir).expanduser().resolve()
     split_root = _ensure_split(data_dir, args.subset)
-    selected = _collect_samples(split_root, max_samples=max(1, args.samples))
+    selected = _collect_samples(
+        split_root,
+        max_samples=max(1, args.samples),
+        sampling=args.sampling,
+    )
     if not selected:
         raise RuntimeError(f"No samples found under {split_root}")
 
@@ -200,6 +258,7 @@ def main() -> int:
             {
                 "index": idx,
                 "sample_id": sample.sample_id,
+                "speaker_id": sample.speaker_id,
                 "audio_path": str(sample.audio_path),
                 "reference": reference,
                 "hypothesis": hypothesis,
@@ -212,10 +271,17 @@ def main() -> int:
     elapsed = time.perf_counter() - started
     mean_latency = float(np.mean(latencies)) if latencies else 0.0
 
+    speaker_counts: dict[str, int] = {}
+    for sample in selected:
+        speaker_counts[sample.speaker_id] = speaker_counts.get(sample.speaker_id, 0) + 1
+
     payload = {
         "suite": "librispeech-v1",
         "subset": args.subset,
+        "sampling": args.sampling,
         "samples": len(selected),
+        "unique_speakers": len(speaker_counts),
+        "speaker_counts": speaker_counts,
         "model": args.model,
         "dtype": args.dtype,
         "max_new_tokens": args.max_new_tokens,
