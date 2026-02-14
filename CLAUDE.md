@@ -9,7 +9,8 @@ This is an **MLX port of Qwen3-ASR** — the SOTA open-source ASR model — for 
 ### Key Constraints
 
 - **Python + MLX only** — all compute runs through MLX's Metal backend
-- **No PyTorch dependency at runtime** — weights are pre-converted or converted on-the-fly
+- **Core ASR path has no PyTorch dependency at runtime**
+- **Timestamps currently use optional `qwen-asr` (PyTorch) backend**
 - **Minimal dependencies** — mlx, numpy, huggingface-hub, transformers (tokenizer only)
 - **Correctness first** — proper MRoPE implementation (interleaved, not chunked)
 - **Single-model focus** — only Qwen3-ASR, not a multi-model toolkit
@@ -30,6 +31,8 @@ Qwen3-ASR is an encoder-decoder model:
 | `docs/ARCHITECTURE.md` | Qwen3-ASR architecture deep dive | Architecture understanding changes |
 | `docs/DECISIONS.md` | Key decisions and rationale | Major technical choices |
 | `docs/COMPARISON.md` | Comparison with alternatives | New competitors, feature changes |
+| `docs/QUALITY_GATE.md` | Merge/release quality gates | Test policy changes |
+| `docs/BENCHMARKING.md` | Runtime measurement protocol | Perf process changes |
 
 ## Code Conventions
 

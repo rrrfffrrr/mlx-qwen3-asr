@@ -11,6 +11,7 @@ import numpy as np
 
 from .audio import SAMPLE_RATE, compute_features, load_audio
 from .chunking import split_audio_into_chunks
+from .forced_aligner import ForcedAligner
 from .generate import GenerationConfig, generate
 from .load_models import _ModelHolder
 from .model import Qwen3ASRModel
@@ -37,7 +38,7 @@ def transcribe(
     model: Union[str, Qwen3ASRModel] = "Qwen/Qwen3-ASR-1.7B",
     language: Optional[str] = None,
     return_timestamps: bool = False,
-    forced_aligner: Optional[str] = None,
+    forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
     max_new_tokens: int = 1024,
     verbose: bool = False,
@@ -56,8 +57,7 @@ def transcribe(
         model: Model name/path or pre-loaded model instance
         language: Force language detection (e.g., "English", "Chinese")
         return_timestamps: Whether to return word-level timestamps.
-            Not yet implemented; raises NotImplementedError when True.
-        forced_aligner: Path/name of forced aligner model (reserved for future use)
+        forced_aligner: Path/name of forced aligner model or prebuilt aligner object.
         dtype: Model dtype
         max_new_tokens: Maximum tokens to generate per chunk
         verbose: Print progress information
@@ -65,10 +65,14 @@ def transcribe(
     Returns:
         TranscriptionResult with text, language, and optional segments
     """
+    aligner: Optional[ForcedAligner] = None
     if return_timestamps:
-        raise NotImplementedError(
-            "return_timestamps is not available yet: forced alignment is still WIP."
-        )
+        if forced_aligner is None:
+            aligner = ForcedAligner()
+        elif isinstance(forced_aligner, str):
+            aligner = ForcedAligner(forced_aligner)
+        else:
+            aligner = forced_aligner
 
     # Load model
     if isinstance(model, str):
@@ -103,6 +107,7 @@ def transcribe(
 
     # Transcribe each chunk
     all_texts = []
+    all_segments: list[dict] = []
     detected_language = language or "unknown"
 
     gen_config = GenerationConfig(
@@ -116,7 +121,7 @@ def transcribe(
                   f"(offset={offset:.1f}s, duration={len(chunk_audio)/SAMPLE_RATE:.1f}s)")
 
         # Compute mel spectrogram using HF WhisperFeatureExtractor
-        mel, feature_lens = compute_features(chunk_audio)  # (1, 128, 3000), (1,)
+        mel, feature_lens = compute_features(chunk_audio)  # (1, 128, n_frames), (1,)
 
         # Encode audio (encoder handles padding mask and trims to valid tokens)
         audio_features, output_lens = model_obj.audio_tower(
@@ -157,6 +162,19 @@ def transcribe(
 
         all_texts.append(text)
 
+        if return_timestamps and aligner is not None and text.strip():
+            align_lang = language or lang
+            if align_lang and align_lang != "unknown":
+                aligned = aligner.align(chunk_audio, text, align_lang)
+                for item in aligned:
+                    all_segments.append(
+                        {
+                            "text": item.text,
+                            "start": item.start_time + offset,
+                            "end": item.end_time + offset,
+                        }
+                    )
+
         if verbose:
             print(f"  [{lang}] {text[:100]}{'...' if len(text) > 100 else ''}")
 
@@ -166,5 +184,5 @@ def transcribe(
     return TranscriptionResult(
         text=full_text,
         language=detected_language,
-        segments=None,
+        segments=all_segments if return_timestamps else None,
     )

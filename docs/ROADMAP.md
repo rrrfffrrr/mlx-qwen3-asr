@@ -1,0 +1,42 @@
+# Roadmap to North Star
+
+Target: `pip install mlx-qwen3-asr` is the obvious/default way to run
+Qwen3-ASR on Apple Silicon.
+
+## Status by Priority
+
+1. Correctness validation vs official PyTorch (token parity, greedy)
+- In progress.
+- Added optional integration test scaffold:
+  - `tests/test_reference_parity.py`
+  - Enabled via `RUN_REFERENCE_PARITY=1`.
+- Added manual CI workflow: `.github/workflows/reference-parity.yml`.
+- Added explicit gate runner: `scripts/quality_gate.py` with fast/release modes.
+- Added policy doc: `docs/QUALITY_GATE.md`.
+
+2. Long audio preprocessing (no 30s feature truncation)
+- Done.
+- `compute_features()` now uses `truncation=False` and defaults to
+  `padding="do_not_pad"`.
+
+3. Quantized model artifacts on HuggingFace (4-bit / 8-bit)
+- In progress.
+- Code-level quantization utility exists (`mlx_qwen3_asr.convert.quantize_model`).
+- Added publishing script: `scripts/publish_quantized.py`.
+- Added manual CI workflow: `.github/workflows/publish-quantized.yml`.
+
+4. Forced aligner timestamps
+- In progress.
+- Timestamps are enabled through optional `qwen-asr` backend integration.
+- Native MLX aligner remains a future optimization.
+
+5. Discoverability (README polish + PyPI)
+- In progress.
+- README validation section added; package metadata links updated.
+- Benchmark process documented (`scripts/benchmark_asr.py`, `docs/BENCHMARKING.md`).
+
+## Acceptance Gates
+
+- Token parity: deterministic greedy parity test passes on reference fixtures.
+- Reliability: long audio regression tests pass (`>30s` mel lengths).
+- Packaging: reproducible release checklist (version bump, build, publish).

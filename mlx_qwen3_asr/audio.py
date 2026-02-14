@@ -10,7 +10,7 @@ Key parameters:
     - FFT size: 400 (25ms window at 16kHz)
     - Hop length: 160 (10ms stride at 16kHz)
     - Mel bins: 128 (Slaney-normalized)
-    - Chunk length: 30s (pads to 3000 mel frames)
+    - No forced 30s truncation in compute_features()
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ SAMPLE_RATE = 16000
 N_FFT = 400
 HOP_LENGTH = 160
 NUM_MEL_BINS = 128
-MAX_FRAMES = 3000  # 30s at 100 frames/s
 
 
 def load_audio(
@@ -194,18 +193,20 @@ def mel_filters(n_mels: int = NUM_MEL_BINS) -> mx.array:
 def compute_features(
     audio_np: np.ndarray,
     sr: int = SAMPLE_RATE,
-    padding: str = "max_length",
+    padding: str = "do_not_pad",
 ) -> tuple[mx.array, mx.array]:
     """Compute mel spectrogram features using HF WhisperFeatureExtractor.
 
-    This matches the official Qwen3-ASR preprocessing pipeline exactly:
-    128-bin Slaney mel filterbank, padded to 3000 frames, with attention mask.
+    This matches official preprocessing while keeping long-audio support:
+    128-bin Slaney mel filterbank, with truncation disabled so feature length
+    can exceed 3000 frames when input audio is longer than 30 seconds.
 
     Args:
         audio_np: Raw waveform as numpy array, shape (n_samples,).
         sr: Sample rate. Default 16000.
-        padding: Padding mode. "max_length" pads to 3000 frames (30s).
-            Use "do_not_pad" to skip padding.
+        padding: Padding mode passed to HF feature extractor. Default
+            "do_not_pad" avoids unnecessary compute for short clips while
+            preserving full length for long clips.
 
     Returns:
         Tuple of (mel_features, feature_lens):
@@ -219,6 +220,7 @@ def compute_features(
         sampling_rate=sr,
         return_tensors="np",
         padding=padding,
+        truncation=False,
         return_attention_mask=True,
     )
     mel = result["input_features"][0]  # (128, n_frames)

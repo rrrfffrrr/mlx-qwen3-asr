@@ -1,0 +1,42 @@
+name: Reference Parity
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Model ID for parity test"
+        required: true
+        default: "Qwen/Qwen3-ASR-0.6B"
+      max_new_tokens:
+        description: "Max new tokens for greedy parity test"
+        required: true
+        default: "64"
+
+jobs:
+  parity:
+    runs-on: macos-14
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache HuggingFace artifacts
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-${{ inputs.model }}
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,aligner]"
+
+      - name: Run parity test
+        env:
+          RUN_REFERENCE_PARITY: "1"
+          REFERENCE_PARITY_MODEL: ${{ inputs.model }}
+          REFERENCE_PARITY_MAX_NEW_TOKENS: ${{ inputs.max_new_tokens }}
+        run: pytest -q tests/test_reference_parity.py

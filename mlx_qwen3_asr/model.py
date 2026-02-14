@@ -313,9 +313,12 @@ class AudioEncoder(nn.Module):
         tail_tokens = mx.where(
             tail_frames > 0, tail_tokens, mx.zeros_like(tail_tokens)
         )
-        # Full chunks each produce 13 tokens
+        # Full chunks produce the conv-downsampled length of chunk_size.
+        full_after_conv1 = (chunk_size - 1) // 2 + 1
+        full_after_conv2 = (full_after_conv1 - 1) // 2 + 1
+        full_chunk_tokens = (full_after_conv2 - 1) // 2 + 1
         n_full_chunks = input_lengths // chunk_size
-        return tail_tokens + n_full_chunks * 13
+        return tail_tokens + n_full_chunks * full_chunk_tokens
 
     def __call__(
         self,

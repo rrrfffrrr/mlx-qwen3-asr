@@ -8,6 +8,7 @@ from mlx_qwen3_asr.audio import (
     N_FFT,
     SAMPLE_RATE,
     _reflect_pad,
+    compute_features,
     load_audio,
     log_mel_spectrogram,
     mel_filters,
@@ -198,3 +199,32 @@ class TestLogMelSpectrogram:
         audio = mx.array(np.random.randn(1600).astype(np.float32))
         result = log_mel_spectrogram(audio)
         assert result.dtype == mx.float32
+
+
+# ---------------------------------------------------------------------------
+# compute_features
+# ---------------------------------------------------------------------------
+
+
+class TestComputeFeatures:
+    """Test compute_features() shape/length behavior."""
+
+    def test_default_no_padding(self):
+        audio = np.random.randn(2 * SAMPLE_RATE).astype(np.float32)
+        mel, feature_lens = compute_features(audio)
+        assert mel.shape == (1, 128, 200)
+        assert int(feature_lens.item()) == 200
+
+    def test_long_audio_not_truncated(self):
+        # 31s should produce 3100 frames with 10ms hop, not 3000.
+        audio = np.random.randn(31 * SAMPLE_RATE).astype(np.float32)
+        mel, feature_lens = compute_features(audio)
+        assert mel.shape == (1, 128, 3100)
+        assert int(feature_lens.item()) == 3100
+
+    def test_max_length_padding_still_keeps_long_audio(self):
+        # With truncation disabled, padding="max_length" should not clamp >30s.
+        audio = np.random.randn(31 * SAMPLE_RATE).astype(np.float32)
+        mel, feature_lens = compute_features(audio, padding="max_length")
+        assert mel.shape == (1, 128, 3100)
+        assert int(feature_lens.item()) == 3100

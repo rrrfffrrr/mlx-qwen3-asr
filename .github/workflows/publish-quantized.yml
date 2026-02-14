@@ -1,0 +1,54 @@
+name: Publish Quantized
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_model:
+        description: "Source model ID"
+        required: true
+        default: "Qwen/Qwen3-ASR-0.6B"
+      repo_id:
+        description: "Target HuggingFace repo ID"
+        required: true
+        default: "moona3k/mlx-qwen3-asr-0.6b-4bit"
+      bits:
+        description: "Quantization bits (4 or 8)"
+        required: true
+        default: "4"
+      group_size:
+        description: "Quantization group size"
+        required: true
+        default: "64"
+      dtype:
+        description: "Intermediate dtype"
+        required: true
+        default: "float16"
+
+jobs:
+  publish:
+    runs-on: macos-14
+    timeout-minutes: 180
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install huggingface_hub
+
+      - name: Publish quantized model
+        run: |
+          python scripts/publish_quantized.py \
+            --source-model "${{ inputs.source_model }}" \
+            --repo-id "${{ inputs.repo_id }}" \
+            --bits "${{ inputs.bits }}" \
+            --group-size "${{ inputs.group_size }}" \
+            --dtype "${{ inputs.dtype }}"

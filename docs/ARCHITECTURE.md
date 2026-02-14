@@ -37,6 +37,20 @@ Each followed by GELU activation.
 **Reshape:** (batch, time', 480 x 16) = (batch, time', 7680)
 **Linear projection:** (batch, time', 7680) -> (batch, time', 1024)
 
+### Encoder Output Length Formula (Official)
+
+Qwen3-ASR computes output lengths per 100-frame chunk (not by applying
+3x stride-2 over the full sequence in one pass):
+
+```text
+input_lengths_leave = input_lengths % 100
+feat_lengths = (input_lengths_leave - 1) // 2 + 1
+output_lengths = ((feat_lengths - 1) // 2 + 1 - 1) // 2 + 1 + (input_lengths // 100) * 13
+```
+
+Implication: exact multiples of 100 frames produce 13 tokens per chunk
+(e.g., 400 -> 52, 1000 -> 130).
+
 ### Sinusoidal Position Embeddings
 
 Fixed (not learned) sinusoidal embeddings added after the conv stem:
@@ -150,10 +164,11 @@ The replacement uses cumulative indexing:
 
 ## Forced Aligner Architecture
 
-The aligner (Qwen3-ForcedAligner-0.6B) is a separate model:
+The aligner (Qwen3-ForcedAligner-0.6B) is a separate model. Current
+public HF config (`Qwen/Qwen3-ForcedAligner-0.6B`) specifies:
 
-- **Audio encoder:** 18 layers, 14 heads, d_model=896, output_dim=1024
-- **Text decoder:** Same core architecture as ASR-0.6B (28 layers, GQA 16/8)
+- **Audio encoder:** 24 layers, 16 heads, d_model=1024, output_dim=1024
+- **Text decoder:** 28 layers, hidden_size=1024, GQA 16/8
 - **Classification head:** Non-autoregressive, classify_num=5000 time bins
 - **Time resolution:** timestamp_segment_time=80ms per classification unit
 - **LIS correction:** Longest Increasing Subsequence for monotonic timestamps

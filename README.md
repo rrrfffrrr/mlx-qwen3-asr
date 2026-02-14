@@ -4,28 +4,25 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/mlx-qwen3-asr/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Qwen3-ASR speech recognition on Apple Silicon via [MLX](https://github.com/ml-explore/mlx).
+Run [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) on Apple Silicon. A pure [MLX](https://github.com/ml-explore/mlx) reimplementation of the official PyTorch model — same weights, same output, optimized for Mac GPUs via Metal.
 
 ## What is this?
 
-**mlx-qwen3-asr** is a standalone, correct MLX port of
-[Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B), the current
-state-of-the-art open-source ASR model released by the Alibaba Qwen team in
-January 2026. Qwen3-ASR beats Whisper-large-v3 across nearly every benchmark
-and supports 52 languages and dialects (30 languages + 22 Chinese dialects)
-per the official release docs.
+[Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) is the current state-of-the-art
+open-source speech recognition model by the Alibaba Qwen team, beating
+Whisper-large-v3 across nearly every benchmark. The official implementation runs
+on **PyTorch + NVIDIA CUDA** — it doesn't use Apple GPUs.
 
-**Why a separate port?** The existing mlx-audio port has known issues: no proper
-Multi-dimensional RoPE (MRoPE), long-audio truncation bugs, and incorrect config
-handling for the 1.7B model. This project provides the definitive way to run
-Qwen3-ASR natively on Mac.
+**mlx-qwen3-asr** is a ground-up reimplementation in Apple's MLX framework so
+the same model runs natively on Mac hardware (M1/M2/M3/M4). Not a wrapper — every
+layer is rewritten for MLX's Metal backend while producing identical transcriptions.
 
 ### Key features
 
 - Full audio encoder + text decoder with correct interleaved MRoPE
 - Supports both 1.7B and 0.6B model sizes
-- Long audio chunking (up to 20 minutes per chunk)
-- Forced alignment scaffolding for word-level timestamps (WIP)
+- Long audio chunking (up to 20 minutes per chunk) with no 30s feature truncation
+- Optional forced-alignment timestamps via official Qwen forced aligner backend (`qwen-asr`/PyTorch)
 - Streaming ASR support
 - Multiple output formats: txt, json, srt, vtt, tsv
 - 4-bit and 8-bit quantization
@@ -39,10 +36,16 @@ Install from PyPI:
 pip install mlx-qwen3-asr
 ```
 
+Install with optional forced aligner support (timestamps):
+
+```bash
+pip install "mlx-qwen3-asr[aligner]"
+```
+
 For development:
 
 ```bash
-git clone https://github.com/dmoon/mlx-qwen3-asr.git
+git clone https://github.com/moona3k/mlx-qwen3-asr.git
 cd mlx-qwen3-asr
 pip install -e ".[dev]"
 ```
@@ -103,8 +106,15 @@ mlx-qwen3-asr *.wav -f all -o transcripts/ --verbose
 
 Run `mlx-qwen3-asr --help` for the full list of options.
 
-`--timestamps` is currently unavailable and exits with a clear error until
-forced alignment is fully implemented.
+For word-level timestamps:
+
+```bash
+pip install qwen-asr
+mlx-qwen3-asr audio.wav --timestamps
+```
+
+Timestamps use the official forced-aligner backend (PyTorch) for now; core ASR
+inference remains native MLX.
 
 ## API Reference
 
@@ -112,8 +122,8 @@ forced alignment is fully implemented.
 
 Transcribe audio to text. Accepts a file path, numpy array, `mx.array`, or
 `(array, sample_rate)` tuple. Returns a `TranscriptionResult`.
-`return_timestamps=True` is currently not implemented and raises
-`NotImplementedError`.
+Set `return_timestamps=True` to request word-level timestamps. This requires
+the optional `qwen-asr` dependency (used as forced-aligner backend).
 
 ### `load_model(name_or_path, *, dtype)`
 
@@ -129,7 +139,7 @@ Load and resample audio to mono 16 kHz. Returns an `mx.array`.
 Frozen dataclass with fields:
 - `text` (str) -- transcribed text
 - `language` (str) -- detected or forced language
-- `segments` (list[dict] | None) -- `None` for now (word-level timestamps are WIP)
+- `segments` (list[dict] | None) -- optional timestamped segments when requested
 
 ## Supported Languages
 
@@ -180,6 +190,51 @@ Selected word error rates (WER, lower is better) on standard benchmarks:
 | Fleurs (avg 30 langs) | **5.2** | 8.1 |
 
 Numbers from the [Qwen3-ASR technical report](https://huggingface.co/Qwen/Qwen3-ASR-1.7B).
+
+## Validation
+
+Run the fast quality gate (what CI enforces on macOS):
+
+```bash
+python scripts/quality_gate.py --mode fast
+```
+
+Run release-quality gate (includes reference parity):
+
+```bash
+RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
+```
+
+Run unit tests directly:
+
+```bash
+pytest -q
+```
+
+Optional: run token-level greedy parity against the official PyTorch
+implementation (slow; downloads model weights):
+
+```bash
+RUN_REFERENCE_PARITY=1 REFERENCE_PARITY_MODEL=Qwen/Qwen3-ASR-0.6B pytest -q tests/test_reference_parity.py
+```
+
+Publish quantized models to HuggingFace:
+
+```bash
+HF_TOKEN=... python scripts/publish_quantized.py \
+  --source-model Qwen/Qwen3-ASR-0.6B \
+  --repo-id YOUR_USER/mlx-qwen3-asr-0.6b-4bit \
+  --bits 4
+```
+
+Benchmark latency + RTF (record JSON for before/after comparisons):
+
+```bash
+python scripts/benchmark_asr.py tests/fixtures/test_speech.wav \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --runs 5 \
+  --json-output docs/benchmarks/latest.json
+```
 
 ## Acknowledgments
 

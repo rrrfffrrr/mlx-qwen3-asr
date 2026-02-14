@@ -139,34 +139,47 @@ class TestAudioEncoderLayer:
 class TestAudioEncoderGetOutputLengths:
     """Test AudioEncoder.get_output_lengths with known lengths."""
 
+    @staticmethod
+    def _official_output_length(input_frames: int, chunk_size: int = 100) -> int:
+        """Match upstream _get_feat_extract_output_lengths behavior.
+
+        Formula from Qwen3-ASR upstream:
+        input_lengths_leave = input_lengths % 100
+        feat_lengths = (input_lengths_leave - 1) // 2 + 1
+        output_lengths = ((feat_lengths - 1) // 2 + 1 - 1) // 2 + 1 + (input_lengths // 100) * 13
+        """
+        tail_frames = input_frames % chunk_size
+        tail_after_conv1 = (tail_frames - 1) // 2 + 1
+        tail_after_conv2 = (tail_after_conv1 - 1) // 2 + 1
+        tail_tokens = (tail_after_conv2 - 1) // 2 + 1
+        if tail_frames == 0:
+            tail_tokens = 0
+        return tail_tokens + (input_frames // chunk_size) * 13
+
     def test_known_lengths(self):
         cfg = _tiny_audio_config()
         encoder = AudioEncoder(cfg)
 
-        # Formula: apply (L + 1) // 2 three times
-        # 100 -> 50 -> 25 -> 13 (actually (100+1)//2=50, (50+1)//2=25, (25+1)//2=13)
         lengths = mx.array([100])
         result = encoder.get_output_lengths(lengths)
         mx.eval(result)
-        assert result.item() == 13
+        assert result.item() == self._official_output_length(100)
 
     def test_400_frames(self):
         cfg = _tiny_audio_config()
         encoder = AudioEncoder(cfg)
-        # 400 -> 200 -> 100 -> 50  ((400+1)//2=200, (200+1)//2=100, (100+1)//2=50)
         lengths = mx.array([400])
         result = encoder.get_output_lengths(lengths)
         mx.eval(result)
-        assert result.item() == 50
+        assert result.item() == self._official_output_length(400)
 
     def test_1000_frames(self):
         cfg = _tiny_audio_config()
         encoder = AudioEncoder(cfg)
-        # 1000 -> 500 -> 250 -> 125 ((1000+1)//2=500, (500+1)//2=250, (250+1)//2=125)
         lengths = mx.array([1000])
         result = encoder.get_output_lengths(lengths)
         mx.eval(result)
-        assert result.item() == 125
+        assert result.item() == self._official_output_length(1000)
 
     def test_batch(self):
         cfg = _tiny_audio_config()
@@ -174,7 +187,11 @@ class TestAudioEncoderGetOutputLengths:
         lengths = mx.array([100, 400, 1000])
         result = encoder.get_output_lengths(lengths)
         mx.eval(result)
-        expected = [13, 50, 125]
+        expected = [
+            self._official_output_length(100),
+            self._official_output_length(400),
+            self._official_output_length(1000),
+        ]
         np.testing.assert_array_equal(np.array(result), expected)
 
     def test_small_input(self):
@@ -185,6 +202,31 @@ class TestAudioEncoderGetOutputLengths:
         result = encoder.get_output_lengths(lengths)
         mx.eval(result)
         assert result.item() == 1
+
+    def test_chunk_boundaries(self):
+        cfg = _tiny_audio_config()
+        encoder = AudioEncoder(cfg)
+        lengths = mx.array([99, 100, 101, 199, 200, 201])
+        result = encoder.get_output_lengths(lengths)
+        mx.eval(result)
+        expected = [self._official_output_length(int(x)) for x in [99, 100, 101, 199, 200, 201]]
+        np.testing.assert_array_equal(np.array(result), expected)
+
+    def test_matches_actual_encoder_output(self):
+        cfg = _tiny_audio_config()
+        encoder = AudioEncoder(cfg)
+        chunk_size = cfg.n_window * 2
+
+        for frames in [1, 2, 3, 10, 50, 99, 100, 101, 199, 200, 399, 400, 401]:
+            mel = mx.random.normal((cfg.num_mel_bins, frames))
+            encoded = encoder._encode_single(
+                mel,
+                chunk_size=chunk_size,
+                n_window_infer=cfg.n_window_infer,
+            )
+            predicted = encoder.get_output_lengths(mx.array([frames]))
+            mx.eval(encoded, predicted)
+            assert int(predicted.item()) == encoded.shape[0]
 
 
 # ---------------------------------------------------------------------------

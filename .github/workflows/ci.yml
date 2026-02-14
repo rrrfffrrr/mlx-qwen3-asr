@@ -36,5 +36,5 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev]"
 
-      - name: Run tests
-        run: pytest tests/ -v
+      - name: Run quality gate (fast)
+        run: python scripts/quality_gate.py --mode fast

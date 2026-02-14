@@ -46,7 +46,7 @@ def main():
     parser.add_argument(
         "--timestamps",
         action="store_true",
-        help="Request word-level timestamps (currently unavailable)",
+        help="Request word-level timestamps (requires optional qwen-asr dependency)",
     )
     parser.add_argument(
         "--forced-aligner",
@@ -78,11 +78,6 @@ def main():
 
     args = parser.parse_args()
 
-    if args.timestamps:
-        parser.error(
-            "--timestamps is not available yet: forced alignment is still WIP."
-        )
-
     # Lazy imports for faster --help
     import mlx.core as mx
 
@@ -106,10 +101,12 @@ def main():
     # Process each audio file
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    had_error = False
 
     for audio_path in args.audio:
         if not Path(audio_path).exists():
             print(f"Error: File not found: {audio_path}", file=sys.stderr)
+            had_error = True
             continue
 
         if args.verbose:
@@ -117,16 +114,21 @@ def main():
 
         start_time = time.time()
 
-        result = transcribe(
-            audio=audio_path,
-            model=args.model,
-            language=args.language,
-            return_timestamps=args.timestamps,
-            forced_aligner=args.forced_aligner if args.timestamps else None,
-            dtype=dtype,
-            max_new_tokens=args.max_new_tokens,
-            verbose=args.verbose,
-        )
+        try:
+            result = transcribe(
+                audio=audio_path,
+                model=args.model,
+                language=args.language,
+                return_timestamps=args.timestamps,
+                forced_aligner=args.forced_aligner if args.timestamps else None,
+                dtype=dtype,
+                max_new_tokens=args.max_new_tokens,
+                verbose=args.verbose,
+            )
+        except RuntimeError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            had_error = True
+            continue
 
         elapsed = time.time() - start_time
 
@@ -145,6 +147,9 @@ def main():
             writer(result, str(out_path))
             if args.verbose:
                 print(f"Written: {out_path}")
+
+    if had_error:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

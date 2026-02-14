@@ -28,15 +28,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-aligner = ["nagisa", "soynlp"]
+aligner = ["qwen-asr", "nagisa", "soynlp"]
 dev = ["pytest", "ruff", "mypy"]
 
 [project.scripts]
 mlx-qwen3-asr = "mlx_qwen3_asr.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/dmoon/mlx-qwen3-asr"
-Repository = "https://github.com/dmoon/mlx-qwen3-asr"
+Homepage = "https://github.com/moona3k/mlx-qwen3-asr"
+Repository = "https://github.com/moona3k/mlx-qwen3-asr"
 
 [tool.setuptools]
 packages = {find = {where = ["."], include = ["mlx_qwen3_asr*"]}}

@@ -28,16 +28,16 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Qwen3-ASR deserves dedicated focus -- it's SOTA and complex enough to warrant its own package
 - Standalone allows us to optimize specifically for this model without compromise
 
-## Decision 3: Stage Forced Aligner Behind a Guard
+## Decision 3: Use Official Forced Aligner as Optional Backend
 
-**Choice:** Ship ASR + streaming + quantization in v1; keep forced aligner as explicit WIP
-**Alternative:** Expose timestamps before the aligner implementation is complete
+**Choice:** Enable timestamps via optional `qwen-asr` forced aligner backend
+**Alternative:** Keep timestamps disabled until a native MLX aligner is finished
 
 **Rationale:**
-- Core ASR quality and model correctness matter more than partial timestamp support
-- A clear fail-fast guard is better UX than late runtime failures
-- The dedicated aligner architecture is still valuable and kept as scaffolding
-- This keeps the public surface honest while preserving implementation momentum
+- Users get working timestamps now without waiting for a full native aligner
+- Keeps core ASR path lean; extra dependency is only needed for timestamps
+- Reuses the official reference implementation for alignment quality
+- Leaves room to replace backend with native MLX aligner later
 
 ## Decision 4: HuggingFace Tokenizer
 
