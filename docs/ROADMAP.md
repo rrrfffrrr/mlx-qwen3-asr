@@ -29,6 +29,12 @@ Qwen3-ASR on Apple Silicon.
 - Added publishing script: `scripts/publish_quantized.py`.
 - Added manual CI workflow: `.github/workflows/publish-quantized.yml`.
 
+Performance progress:
+- Done (low-risk optimization): tokenizer caching in `transcribe()` hot path.
+- Measured local result (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, short fixture):
+  - mean latency `1.7217s` -> `0.5464s` (`-68.3%`)
+  - RTF `0.6796` -> `0.2157`
+
 4. Forced aligner timestamps
 - In progress.
 - Timestamps are enabled through optional `qwen-asr` backend integration.

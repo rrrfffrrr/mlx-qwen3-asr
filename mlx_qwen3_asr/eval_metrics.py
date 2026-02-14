@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Sequence
 
-
 _NON_ALNUM_RE = re.compile(r"[^a-z0-9' ]+")
 _SPACE_RE = re.compile(r"\s+")
 

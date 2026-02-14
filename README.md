@@ -25,6 +25,7 @@ layer is rewritten for MLX's Metal backend while producing identical transcripti
 - Optional forced-alignment timestamps via official Qwen forced aligner backend (`qwen-asr`/PyTorch)
 - Streaming ASR support
 - Multiple output formats: txt, json, srt, vtt, tsv
+- Cached model/tokenizer instances for low repeated-call latency in Python workflows
 - 4-bit and 8-bit quantization
 - Minimal dependencies: mlx, numpy, huggingface-hub, transformers
 

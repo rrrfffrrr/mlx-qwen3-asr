@@ -27,6 +27,10 @@ class Tokenizer:
         self.AUDIO_TOKEN_ID = vocab.get("<|audio_pad|>", 151676)
         self.AUDIO_START_TOKEN_ID = vocab.get("<|audio_start|>", 151669)
         self.AUDIO_END_TOKEN_ID = vocab.get("<|audio_end|>", 151670)
+        self._system_tokens = self.encode("system\nYou are a helpful assistant.")
+        self._user_tokens = self.encode("user\n")
+        self._assistant_tokens = self.encode("assistant\n")
+        self._newline_id = self.encode("\n")[0]
 
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
         return self._tokenizer.encode(text, add_special_tokens=add_special_tokens)
@@ -61,28 +65,46 @@ class Tokenizer:
         """
         # System message
         tokens = [self.IM_START_ID]
-        tokens.extend(self.encode("system\nYou are a helpful assistant."))
+        tokens.extend(self._system_tokens)
         tokens.append(self.IM_END_ID)
-        tokens.append(self.encode("\n")[0])
+        tokens.append(self._newline_id)
 
         # User message with audio
         tokens.append(self.IM_START_ID)
-        tokens.extend(self.encode("user\n"))
+        tokens.extend(self._user_tokens)
         tokens.append(self.AUDIO_START_TOKEN_ID)
         tokens.extend([self.AUDIO_TOKEN_ID] * n_audio_tokens)
         tokens.append(self.AUDIO_END_TOKEN_ID)
         tokens.append(self.IM_END_ID)
-        tokens.append(self.encode("\n")[0])
+        tokens.append(self._newline_id)
 
         # Assistant prefix
         tokens.append(self.IM_START_ID)
-        tokens.extend(self.encode("assistant\n"))
+        tokens.extend(self._assistant_tokens)
 
         # Optional language forcing
         if language:
             tokens.extend(self.encode(f"language {language}<asr_text>"))
 
         return tokens
+
+
+class _TokenizerHolder:
+    """Simple process-local cache for tokenizer instances."""
+
+    _cache: dict[str, Tokenizer] = {}
+
+    @classmethod
+    def get(cls, model_path: str) -> Tokenizer:
+        tok = cls._cache.get(model_path)
+        if tok is None:
+            tok = Tokenizer(model_path)
+            cls._cache[model_path] = tok
+        return tok
+
+    @classmethod
+    def clear(cls) -> None:
+        cls._cache.clear()
 
 
 def parse_asr_output(text: str) -> tuple[str, str]:

@@ -15,7 +15,7 @@ from .forced_aligner import ForcedAligner
 from .generate import GenerationConfig, generate
 from .load_models import _ModelHolder
 from .model import Qwen3ASRModel
-from .tokenizer import Tokenizer, parse_asr_output
+from .tokenizer import _TokenizerHolder, parse_asr_output
 
 
 @dataclass(frozen=True)
@@ -82,8 +82,8 @@ def transcribe(
         model_obj = model
         model_path = "Qwen/Qwen3-ASR-1.7B"
 
-    # Load tokenizer
-    tokenizer = Tokenizer(model_path)
+    # Load tokenizer (cached by model path)
+    tokenizer = _TokenizerHolder.get(model_path)
 
     # Load audio
     if isinstance(audio, mx.array):

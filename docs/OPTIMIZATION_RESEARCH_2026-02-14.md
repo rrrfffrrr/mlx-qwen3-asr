@@ -1,5 +1,20 @@
 # Qwen3-ASR Deep Research and MLX Optimization Plan (2026-02-14)
 
+## Status Update (2026-02-14)
+
+This document includes early-session research notes and should be read with
+the current gate docs:
+
+- `docs/QUALITY_GATE.md`
+- `docs/GOLDEN_DATASET.md`
+- `docs/BENCHMARKING.md`
+
+Implemented optimization finding on 2026-02-14:
+
+- Tokenizer caching across repeated `transcribe()` calls reduced measured
+  latency by about 68% on local M4 Pro benchmarks for
+  `Qwen/Qwen3-ASR-0.6B` + `tests/fixtures/test_speech.wav`.
+
 ## Scope
 
 This note focuses on how to make `mlx-qwen3-asr` both:

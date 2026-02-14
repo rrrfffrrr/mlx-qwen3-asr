@@ -11,6 +11,7 @@ import time
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+
 import mlx.core as mx
 import numpy as np
 

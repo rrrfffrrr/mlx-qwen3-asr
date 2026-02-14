@@ -32,6 +32,12 @@ class _DummyTokenizer:
         return "language English<asr_text>hello world"
 
 
+class _DummyTokenizerHolder:
+    @staticmethod
+    def get(model_path: str):
+        return _DummyTokenizer(model_path)
+
+
 class _DummyAligner:
     def align(self, audio: np.ndarray, text: str, language: str):
         return [AlignedWord(text="hello", start_time=0.1, end_time=0.4)]
@@ -40,7 +46,7 @@ class _DummyAligner:
 def test_transcribe_basic(monkeypatch):
     tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
 
-    monkeypatch.setattr(tmod, "Tokenizer", _DummyTokenizer)
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
     monkeypatch.setattr(tmod._ModelHolder, "get", lambda *a, **k: (_DummyModel(), None))
     monkeypatch.setattr(
         tmod,
@@ -58,7 +64,7 @@ def test_transcribe_basic(monkeypatch):
 def test_transcribe_with_timestamps(monkeypatch):
     tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
 
-    monkeypatch.setattr(tmod, "Tokenizer", _DummyTokenizer)
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
     monkeypatch.setattr(tmod._ModelHolder, "get", lambda *a, **k: (_DummyModel(), None))
     monkeypatch.setattr(
         tmod,

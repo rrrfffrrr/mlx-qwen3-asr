@@ -4,7 +4,8 @@ Only tests parse_asr_output() -- the Tokenizer class requires HF download.
 """
 
 
-from mlx_qwen3_asr.tokenizer import parse_asr_output
+import mlx_qwen3_asr.tokenizer as tokmod
+from mlx_qwen3_asr.tokenizer import _TokenizerHolder, parse_asr_output
 
 
 class TestParseASROutputStandard:
@@ -88,3 +89,23 @@ class TestParseASROutputEdgeCases:
         text = "language English<asr_text>  hello world  "
         lang, transcript = parse_asr_output(text)
         assert transcript == "hello world"
+
+
+def test_tokenizer_holder_caches_by_model_path(monkeypatch):
+    created = []
+
+    class _DummyTokenizer:
+        def __init__(self, model_path: str):
+            created.append(model_path)
+            self.model_path = model_path
+
+    monkeypatch.setattr(tokmod, "Tokenizer", _DummyTokenizer)
+    _TokenizerHolder.clear()
+
+    t1 = _TokenizerHolder.get("repo/a")
+    t2 = _TokenizerHolder.get("repo/a")
+    t3 = _TokenizerHolder.get("repo/b")
+
+    assert t1 is t2
+    assert t1 is not t3
+    assert created == ["repo/a", "repo/b"]

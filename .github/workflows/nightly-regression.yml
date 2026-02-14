@@ -12,7 +12,7 @@ on:
         required: true
         default: "0.12"
   schedule:
-    - cron: "0 8 * * *"
+    - cron: "0 8 * * 0"
 
 jobs:
   regression:

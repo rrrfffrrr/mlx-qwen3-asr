@@ -36,6 +36,7 @@ Checks:
 - Latency/RTF benchmark (`scripts/benchmark_asr.py`)
 
 This lane is intentionally separate from PR CI so day-to-day development stays fast.
+Current schedule cadence is weekly (plus manual `workflow_dispatch`) to keep operational overhead low.
 
 ## Pass Criteria
 

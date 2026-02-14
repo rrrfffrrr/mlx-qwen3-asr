@@ -48,3 +48,14 @@ Before: mean=<x>s median=<y>s rtf=<z>
 After:  mean=<x2>s median=<y2>s rtf=<z2>
 Quality Gate: fast=<pass/fail>, release=<pass/fail or not run>
 ```
+
+## Latest Local Finding (2026-02-14)
+
+- Change: tokenizer instance caching across repeated `transcribe()` calls.
+- Machine: Apple M4 Pro, macOS 26.2.
+- Workload: `tests/fixtures/test_speech.wav`, model `Qwen/Qwen3-ASR-0.6B`, dtype `float16`, warmup=1, runs=3.
+- Before: mean latency `1.7217s`, RTF `0.6796`.
+- After: mean latency `0.5464s`, RTF `0.2157`.
+- Delta: `-68.3%` mean latency, `-68.3%` RTF.
+
+Raw JSON artifacts are tracked under `docs/benchmarks/`.
