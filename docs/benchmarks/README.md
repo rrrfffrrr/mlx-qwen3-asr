@@ -24,6 +24,20 @@ Artifacts:
 - `docs/benchmarks/2026-02-14-tokenizer-cache-before.json`
 - `docs/benchmarks/2026-02-14-tokenizer-cache-after.json`
 
+Decode-path optimization benchmark (2026-02-14):
+
+- Changes:
+  - preallocated KV cache writes (`slice_update`) instead of repeated concatenation,
+  - GQA attention path no longer explicitly repeats K/V heads before fused SDPA.
+- Machine: Apple M4 Pro, macOS 26.2
+- Model: `Qwen/Qwen3-ASR-0.6B`, dtype `float16`
+
+Artifacts:
+
+- `docs/benchmarks/2026-02-14-gqa-kvcache-short.json`
+- `docs/benchmarks/2026-02-14-gqa-kvcache-10s.json`
+- `docs/benchmarks/2026-02-14-gqa-kvcache-10s-repeat.json`
+
 Generate with:
 
 ```bash

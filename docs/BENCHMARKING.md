@@ -59,3 +59,13 @@ Quality Gate: fast=<pass/fail>, release=<pass/fail or not run>
 - Delta: `-68.3%` mean latency, `-68.3%` RTF.
 
 Raw JSON artifacts are tracked under `docs/benchmarks/`.
+
+## Additional Local Finding (2026-02-14)
+
+- Change set:
+  - KV-cache preallocation via `slice_update` (remove per-step concat growth cost),
+  - direct grouped-query fused attention (remove explicit K/V head repetition).
+- Machine: Apple M4 Pro, macOS 26.2.
+- Model: `Qwen/Qwen3-ASR-0.6B`, dtype `float16`.
+- Short clip (`tests/fixtures/test_speech.wav`): mean latency `0.5303s`, RTF `0.2093`.
+- 10-second clip (`/tmp/test_10s.wav`): mean latency `0.9420s`, RTF `0.0942` (repeat run `0.9546s`, RTF `0.0955`).

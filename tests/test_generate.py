@@ -29,6 +29,10 @@ class TestGenerationConfig:
         cfg = GenerationConfig()
         assert cfg.eos_token_ids == [151643, 151645]
 
+    def test_default_eval_interval(self):
+        cfg = GenerationConfig()
+        assert cfg.eval_interval == 1
+
 
 # ---------------------------------------------------------------------------
 # _detect_repetition

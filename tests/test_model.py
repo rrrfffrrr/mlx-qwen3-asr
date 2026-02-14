@@ -363,6 +363,32 @@ class TestKVCache:
         cache.update(k2, v2, layer_idx=1)
         assert cache.offset == 6
 
+    def test_preallocated_mode(self):
+        cache = KVCache(num_layers=2, max_seq_len=8)
+        k1 = mx.random.normal((1, 2, 5, 16))
+        v1 = mx.random.normal((1, 2, 5, 16))
+        k2 = mx.random.normal((1, 2, 1, 16))
+        v2 = mx.random.normal((1, 2, 1, 16))
+
+        k_out, v_out = cache.update(k1, v1, layer_idx=0)
+        assert k_out.shape == (1, 2, 5, 16)
+        assert v_out.shape == (1, 2, 5, 16)
+        cache.update(k1, v1, layer_idx=1)
+        assert cache.offset == 5
+
+        k_out, v_out = cache.update(k2, v2, layer_idx=0)
+        assert k_out.shape == (1, 2, 6, 16)
+        assert v_out.shape == (1, 2, 6, 16)
+        cache.update(k2, v2, layer_idx=1)
+        assert cache.offset == 6
+
+    def test_preallocated_overflow_raises(self):
+        cache = KVCache(num_layers=1, max_seq_len=2)
+        k = mx.random.normal((1, 2, 3, 16))
+        v = mx.random.normal((1, 2, 3, 16))
+        with pytest.raises(ValueError, match="KV cache overflow"):
+            cache.update(k, v, layer_idx=0)
+
 
 # ---------------------------------------------------------------------------
 # _create_causal_mask

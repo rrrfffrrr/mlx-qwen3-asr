@@ -51,11 +51,24 @@ def _scaled_dot_product_attention(
         scale = 1.0 / math.sqrt(q.shape[-1])
 
     if hasattr(mx.fast, "scaled_dot_product_attention"):
-        return mx.fast.scaled_dot_product_attention(
-            q, k, v, scale=scale, mask=mask
-        )
+        try:
+            return mx.fast.scaled_dot_product_attention(
+                q, k, v, scale=scale, mask=mask
+            )
+        except Exception:
+            # Fall through to a compatibility path below.
+            pass
 
     # Manual fallback
+    if q.shape[1] != k.shape[1]:
+        if q.shape[1] % k.shape[1] != 0:
+            raise ValueError(
+                f"Incompatible attention heads: q={q.shape[1]}, k={k.shape[1]}"
+            )
+        groups = q.shape[1] // k.shape[1]
+        k = mx.repeat(k, groups, axis=1)
+        v = mx.repeat(v, groups, axis=1)
+
     scores = (q @ k.transpose(0, 1, 3, 2)) * scale
     if mask is not None:
         scores = scores + mask
@@ -609,11 +622,6 @@ class TextAttention(nn.Module):
         if cache is not None:
             k, v = cache.update(k, v, layer_idx)
 
-        # GQA: repeat K, V if num_kv_heads < num_heads
-        if self.num_kv_groups > 1:
-            k = mx.repeat(k, self.num_kv_groups, axis=1)
-            v = mx.repeat(v, self.num_kv_groups, axis=1)
-
         # Scaled dot-product attention
         out = _scaled_dot_product_attention(q, k, v, mask=mask)
 
@@ -802,10 +810,11 @@ class KVCache:
         num_layers: Number of decoder layers.
     """
 
-    def __init__(self, num_layers: int):
+    def __init__(self, num_layers: int, max_seq_len: Optional[int] = None):
         self.keys: list[Optional[mx.array]] = [None] * num_layers
         self.values: list[Optional[mx.array]] = [None] * num_layers
         self.offset: int = 0
+        self.max_seq_len = max_seq_len
 
     def update(
         self,
@@ -823,22 +832,54 @@ class KVCache:
         Returns:
             Tuple of (full_keys, full_values) including cached history.
         """
-        if self.keys[layer_idx] is not None:
-            self.keys[layer_idx] = mx.concatenate(
-                [self.keys[layer_idx], key], axis=2
-            )
-            self.values[layer_idx] = mx.concatenate(
-                [self.values[layer_idx], value], axis=2
-            )
+        if self.max_seq_len is None:
+            if self.keys[layer_idx] is not None:
+                self.keys[layer_idx] = mx.concatenate(
+                    [self.keys[layer_idx], key], axis=2
+                )
+                self.values[layer_idx] = mx.concatenate(
+                    [self.values[layer_idx], value], axis=2
+                )
+            else:
+                self.keys[layer_idx] = key
+                self.values[layer_idx] = value
+            full_k = self.keys[layer_idx]
+            full_v = self.values[layer_idx]
         else:
-            self.keys[layer_idx] = key
-            self.values[layer_idx] = value
+            # Preallocated cache mode: write new tokens into a fixed buffer.
+            B, H, L_new, D = key.shape
+            start = self.offset
+            end = start + L_new
+            if end > self.max_seq_len:
+                raise ValueError(
+                    f"KV cache overflow: end={end}, max_seq_len={self.max_seq_len}"
+                )
+
+            if self.keys[layer_idx] is None:
+                self.keys[layer_idx] = mx.zeros(
+                    (B, H, self.max_seq_len, D), dtype=key.dtype
+                )
+                self.values[layer_idx] = mx.zeros(
+                    (B, H, self.max_seq_len, D), dtype=value.dtype
+                )
+
+            start_indices = mx.array([0, 0, start, 0], dtype=mx.int32)
+            axes = [0, 1, 2, 3]
+            self.keys[layer_idx] = mx.slice_update(
+                self.keys[layer_idx], key, start_indices, axes
+            )
+            self.values[layer_idx] = mx.slice_update(
+                self.values[layer_idx], value, start_indices, axes
+            )
+
+            full_k = self.keys[layer_idx][:, :, :end, :]
+            full_v = self.values[layer_idx][:, :, :end, :]
 
         # Update offset after the last layer processes its step
         if layer_idx == len(self.keys) - 1:
             self.offset += key.shape[2]
 
-        return self.keys[layer_idx], self.values[layer_idx]
+        return full_k, full_v
 
     @property
     def seq_len(self) -> int:
@@ -864,9 +905,19 @@ def _create_causal_mask(seq_len: int, dtype: mx.Dtype = mx.float32) -> mx.array:
     Returns:
         Causal mask, shape (1, 1, seq_len, seq_len).
     """
+    cache_key = (seq_len, str(dtype))
+    cached = _CAUSAL_MASK_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
     mask = mx.full((seq_len, seq_len), -1e9, dtype=dtype)
     mask = mx.triu(mask, k=1)  # zero on and below diagonal, -1e9 above
-    return mask[None, None, :, :]  # (1, 1, L, L)
+    mask = mask[None, None, :, :]  # (1, 1, L, L)
+    _CAUSAL_MASK_CACHE[cache_key] = mask
+    return mask
+
+
+_CAUSAL_MASK_CACHE: dict[tuple[int, str], mx.array] = {}
 
 
 # ---------------------------------------------------------------------------

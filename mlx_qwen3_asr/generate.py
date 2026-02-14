@@ -18,6 +18,7 @@ class GenerationConfig:
     max_new_tokens: int = 1024
     temperature: float = 0.0  # greedy by default
     eos_token_ids: list[int] = field(default_factory=lambda: [151643, 151645])
+    eval_interval: int = 1
 
 
 def generate(
@@ -47,7 +48,8 @@ def generate(
         config = GenerationConfig()
 
     num_layers = len(model.model.layers)
-    cache = KVCache(num_layers)
+    max_seq_len = int(input_ids.shape[1] + config.max_new_tokens)
+    cache = KVCache(num_layers, max_seq_len=max_seq_len)
 
     # Phase 1: Prefill
     # Get embeddings and inject audio features
@@ -73,6 +75,17 @@ def generate(
 
     # Phase 2: Autoregressive decode
     seq_len = input_ids.shape[1]
+    if config.max_new_tokens > 1:
+        next_pos_base = mx.arange(
+            seq_len,
+            seq_len + (config.max_new_tokens - 1),
+            dtype=position_ids.dtype,
+        )  # (T,)
+        next_pos_3d = mx.stack([next_pos_base, next_pos_base, next_pos_base], axis=0)
+        next_pos_3d = next_pos_3d[None, :, :]  # (1, 3, T)
+    else:
+        next_pos_3d = None
+
     for step in range(1, config.max_new_tokens):
         # Check EOS
         if token in config.eos_token_ids:
@@ -85,9 +98,8 @@ def generate(
         # Next token input
         next_ids = mx.array([[token]])
 
-        # Update position_ids: increment all 3 dimensions
-        cur_pos = seq_len + step - 1
-        next_position_ids = mx.array([[[cur_pos], [cur_pos], [cur_pos]]])
+        # Reuse precomputed decode positions to avoid per-step allocation.
+        next_position_ids = next_pos_3d[:, :, step - 1 : step]
 
         # Forward with cache
         next_embeds = model.model.embed_tokens(next_ids)
@@ -102,11 +114,13 @@ def generate(
         token = _sample(logits, config.temperature)
         generated.append(token)
 
-        # Evaluate to avoid graph buildup
-        mx.eval(
-            [c for c in cache.keys if c is not None]
-            + [c for c in cache.values if c is not None]
-        )
+        # Materialize cache periodically to avoid graph buildup while
+        # reducing per-step synchronization overhead.
+        if config.eval_interval > 0 and (step % config.eval_interval == 0):
+            mx.eval(
+                [c for c in cache.keys if c is not None]
+                + [c for c in cache.values if c is not None]
+            )
 
     # Remove EOS token if present
     if generated and generated[-1] in config.eos_token_ids:

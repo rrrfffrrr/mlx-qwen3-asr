@@ -34,6 +34,12 @@ Performance progress:
 - Measured local result (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, short fixture):
   - mean latency `1.7217s` -> `0.5464s` (`-68.3%`)
   - RTF `0.6796` -> `0.2157`
+- Done (decoder-path optimization):
+  - preallocated KV cache updates,
+  - direct GQA fused attention path (no explicit K/V repeat).
+- Current measured point (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, float16):
+  - short fixture: mean `0.5303s`, RTF `0.2093`
+  - 10s clip: mean `0.9420s`, RTF `0.0942`
 
 4. Forced aligner timestamps
 - In progress.
