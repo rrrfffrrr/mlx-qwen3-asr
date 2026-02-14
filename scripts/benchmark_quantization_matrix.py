@@ -80,7 +80,13 @@ def main() -> int:
     parser.add_argument("--short-audio", default="tests/fixtures/test_speech.wav")
     parser.add_argument("--long-seconds", type=int, default=10)
     parser.add_argument("--benchmark-runs", type=int, default=7)
-    parser.add_argument("--eval-samples", type=int, default=20)
+    parser.add_argument("--eval-subset", default="test-clean")
+    parser.add_argument("--eval-samples", type=int, default=100)
+    parser.add_argument(
+        "--eval-sampling",
+        choices=["speaker_round_robin", "sequential"],
+        default="speaker_round_robin",
+    )
     parser.add_argument(
         "--work-dir",
         default=str(Path.home() / ".cache" / "mlx-qwen3-asr" / "quant-matrix"),
@@ -167,9 +173,11 @@ def main() -> int:
                 py,
                 eval_py,
                 "--subset",
-                "test-clean",
+                args.eval_subset,
                 "--samples",
                 str(args.eval_samples),
+                "--sampling",
+                args.eval_sampling,
                 "--model",
                 model_ref,
                 "--dtype",
@@ -194,7 +202,9 @@ def main() -> int:
         "model": args.model,
         "configs": [c.label for c in configs],
         "benchmark_runs": args.benchmark_runs,
+        "eval_subset": args.eval_subset,
         "eval_samples": args.eval_samples,
+        "eval_sampling": args.eval_sampling,
         "long_seconds": args.long_seconds,
         "elapsed_sec": elapsed,
         "results": results,
@@ -209,7 +219,9 @@ def main() -> int:
         "# Quantization Matrix",
         "",
         f"- Source model: `{args.model}`",
+        f"- Eval subset: `{args.eval_subset}`",
         f"- Eval samples: `{args.eval_samples}`",
+        f"- Eval sampling: `{args.eval_sampling}`",
         f"- Benchmark runs: `{args.benchmark_runs}`",
         f"- Long clip length: `{args.long_seconds}s`",
         "",

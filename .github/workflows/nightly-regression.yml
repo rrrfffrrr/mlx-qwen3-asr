@@ -6,11 +6,11 @@ on:
       samples:
         description: "LibriSpeech sample count"
         required: true
-        default: "25"
+        default: "100"
       wer_threshold:
         description: "Fail threshold for WER"
         required: true
-        default: "0.12"
+        default: "0.05"
   schedule:
     - cron: "0 8 * * 0"
 
@@ -43,11 +43,12 @@ jobs:
         run: |
           python scripts/eval_librispeech.py \
             --subset test-clean \
-            --samples ${{ github.event.inputs.samples || '25' }} \
+            --samples ${{ github.event.inputs.samples || '100' }} \
+            --sampling speaker_round_robin \
             --model Qwen/Qwen3-ASR-0.6B \
             --dtype float16 \
             --max-new-tokens 256 \
-            --fail-wer-above ${{ github.event.inputs.wer_threshold || '0.12' }} \
+            --fail-wer-above ${{ github.event.inputs.wer_threshold || '0.05' }} \
             --json-output docs/benchmarks/nightly-librispeech.json
 
       - name: Run latency benchmark

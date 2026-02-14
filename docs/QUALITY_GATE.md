@@ -35,7 +35,8 @@ Checks:
 
 `Nightly Regression` workflow runs on macOS and tracks:
 - Fast gate
-- Golden quality sample (`scripts/eval_librispeech.py`)
+- Golden quality sample (`scripts/eval_librispeech.py`, deterministic
+  `speaker_round_robin`, default `n=100`)
 - Latency/RTF benchmark (`scripts/benchmark_asr.py`)
 
 This lane is intentionally separate from PR CI so day-to-day development stays fast.

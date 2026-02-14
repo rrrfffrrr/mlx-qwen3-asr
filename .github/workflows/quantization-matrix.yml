@@ -14,7 +14,11 @@ on:
       eval_samples:
         description: "LibriSpeech sample count"
         required: true
-        default: "20"
+        default: "100"
+      eval_sampling:
+        description: "LibriSpeech sampling strategy"
+        required: true
+        default: "speaker_round_robin"
       benchmark_runs:
         description: "Benchmark runs per scenario"
         required: true
@@ -54,6 +58,7 @@ jobs:
             --model "${{ inputs.model }}" \
             --configs "${{ inputs.configs }}" \
             --eval-samples "${{ inputs.eval_samples }}" \
+            --eval-sampling "${{ inputs.eval_sampling }}" \
             --benchmark-runs "${{ inputs.benchmark_runs }}" \
             --json-output docs/benchmarks/ci-quant-matrix.json \
             --md-output docs/benchmarks/ci-quant-matrix.md

@@ -16,7 +16,8 @@ This repository uses a two-level quality evaluation strategy:
 Current default suite: **LibriSpeech test-clean** (OpenSLR 12), deterministic subset.
 
 - Source archive: `https://www.openslr.org/resources/12/test-clean.tar.gz`
-- Selection: first `N` utterances in stable lexical order from `*.trans.txt`
+- Selection: deterministic **speaker-balanced round-robin** over sorted speaker IDs
+  (fallback mode `sequential` retained for compatibility/testing)
 - Metric: corpus WER + CER
 - Intended model for gate: `Qwen/Qwen3-ASR-0.6B` (faster, stable CI runtime)
 
@@ -26,6 +27,7 @@ Current default suite: **LibriSpeech test-clean** (OpenSLR 12), deterministic su
 python scripts/eval_librispeech.py \
   --subset test-clean \
   --samples 100 \
+  --sampling speaker_round_robin \
   --model Qwen/Qwen3-ASR-0.6B \
   --dtype float16 \
   --json-output docs/benchmarks/golden-librispeech.json
@@ -37,8 +39,9 @@ Fail gate on quality regression:
 python scripts/eval_librispeech.py \
   --subset test-clean \
   --samples 100 \
+  --sampling speaker_round_robin \
   --model Qwen/Qwen3-ASR-0.6B \
-  --fail-wer-above 0.12
+  --fail-wer-above 0.05
 ```
 
 ## CI / Nightly policy
@@ -46,7 +49,7 @@ python scripts/eval_librispeech.py \
 - PR CI stays fast and required.
 - Nightly regression runs:
   - `scripts/quality_gate.py --mode fast`
-  - `scripts/eval_librispeech.py` on a smaller deterministic subset
+  - `scripts/eval_librispeech.py` on deterministic speaker-balanced subset
   - `scripts/benchmark_asr.py` for latency + RTF trend tracking
 - Artifacts are uploaded per run for historical comparison.
 

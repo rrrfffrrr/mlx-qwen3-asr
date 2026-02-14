@@ -137,6 +137,9 @@ A full sweep (`fp16`, `4bit-g64`, `4bit-g32`, `8bit-g64`) was run via:
 python scripts/benchmark_quantization_matrix.py
 ```
 
+Default evaluation lane now uses `test-clean`, `100` samples, and
+`speaker_round_robin` sampling to reduce single-speaker/sample-order bias.
+
 Artifacts:
 - `docs/benchmarks/2026-02-14-quant-matrix.json`
 - `docs/benchmarks/2026-02-14-quant-matrix.md`
