@@ -259,6 +259,22 @@ class TestMelFilters:
         filters = mel_filters()
         assert filters.dtype == mx.float32
 
+    def test_filterbank_load_is_cached(self, monkeypatch):
+        audio_mod._mel_filters_np.cache_clear()  # noqa: SLF001
+
+        load_calls = {"n": 0}
+        original_load = audio_mod.np.load
+
+        def counting_load(*args, **kwargs):  # noqa: ANN001
+            load_calls["n"] += 1
+            return original_load(*args, **kwargs)
+
+        monkeypatch.setattr(audio_mod.np, "load", counting_load)
+
+        _ = mel_filters(128)
+        _ = mel_filters(128)
+        assert load_calls["n"] == 1
+
 
 # ---------------------------------------------------------------------------
 # stft
@@ -287,6 +303,12 @@ class TestSTFT:
         # num_frames = 1 + (16400 - 400) // 160 = 1 + 16000//160 = 1 + 100 = 101
         assert result.shape[0] == 101
         assert result.shape[1] == 201
+
+    def test_hann_window_is_cached(self):
+        audio_mod._hann_window.cache_clear()  # noqa: SLF001
+        w1 = audio_mod._hann_window(N_FFT)  # noqa: SLF001
+        w2 = audio_mod._hann_window(N_FFT)  # noqa: SLF001
+        assert w1 is w2
 
 
 # ---------------------------------------------------------------------------

@@ -297,6 +297,12 @@ def mel_filters(n_mels: int = NUM_MEL_BINS) -> mx.array:
         FileNotFoundError: If mel_filters.npz is missing.
         KeyError: If the requested n_mels key is not in the file.
     """
+    return mx.array(_mel_filters_np(n_mels))
+
+
+@lru_cache(maxsize=4)
+def _mel_filters_np(n_mels: int) -> np.ndarray:
+    """Load and cache mel filterbank as numpy array by mel-bin count."""
     assets_dir = Path(__file__).parent / "assets"
     npz_path = assets_dir / "mel_filters.npz"
     if not npz_path.exists():
@@ -311,7 +317,13 @@ def mel_filters(n_mels: int = NUM_MEL_BINS) -> mx.array:
             f"Key '{key}' not found in {npz_path}. "
             f"Available keys: {list(filterbank.keys())}"
         )
-    return mx.array(filterbank[key])
+    return np.array(filterbank[key], dtype=np.float32, copy=False)
+
+
+@lru_cache(maxsize=2)
+def _hann_window(n_fft: int) -> mx.array:
+    """Create and cache Hann window used by STFT."""
+    return mx.array(np.hanning(n_fft + 1)[:-1].astype(np.float32))
 
 
 def compute_features(
@@ -488,8 +500,8 @@ def log_mel_spectrogram(
     if audio.size == 0:
         raise ValueError("Cannot compute mel spectrogram of empty audio.")
 
-    # Hann window (using numpy for generation, then convert to mx)
-    window = mx.array(np.hanning(N_FFT + 1)[:-1].astype(np.float32))
+    # Reuse cached Hann window to avoid per-call host allocation.
+    window = _hann_window(N_FFT)
 
     # STFT
     freqs = stft(audio, window, nperseg=N_FFT, noverlap=N_FFT - HOP_LENGTH)

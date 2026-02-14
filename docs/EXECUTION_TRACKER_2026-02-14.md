@@ -158,6 +158,13 @@ Primary-source refresh across Qwen3-ASR, Swift ports, and ASR decoding papers:
   - `4bit-g64` long speedup vs fp16: `4.68x`, WER delta `+0.004316`
   - `8bit-g64` long speedup vs fp16: `3.11x`, WER delta `+0.000432`
 
+### 13) Audio frontend cache cleanup (native path hot-loop)
+
+- Added cache for mel filterbank asset loading (`_mel_filters_np`) so repeated
+  chunk processing does not re-open/parse `mel_filters.npz`.
+- Added cache for Hann window creation (`_hann_window`) used by STFT.
+- Added regression tests to ensure cache behavior is active.
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch
