@@ -370,7 +370,20 @@ class TestComputeFeatures:
         assert mel.shape == (1, 128, 20)
         assert int(feature_lens.item()) == 20
 
-    def test_padded_path_uses_attention_mask_for_true_length(self, monkeypatch):
+    def test_max_length_native_path_skips_hf_extractor(self, monkeypatch):
+        def fail_extractor(_sr):  # noqa: ANN001
+            raise AssertionError("HF extractor should not be used for max_length")
+
+        monkeypatch.setattr(audio_mod, "_get_feature_extractor", fail_extractor)
+
+        mel, feature_lens = compute_features(
+            np.zeros(1600, dtype=np.float32),
+            padding="max_length",
+        )
+        assert mel.shape == (1, 128, 3000)
+        assert int(feature_lens.item()) == 10
+
+    def test_hf_fallback_path_uses_attention_mask_for_true_length(self, monkeypatch):
         seen = {}
 
         def fake_extractor(audio_np, **kwargs):  # noqa: ANN001
@@ -386,7 +399,7 @@ class TestComputeFeatures:
 
         mel, feature_lens = compute_features(
             np.zeros(1600, dtype=np.float32),
-            padding="max_length",
+            padding="longest",
         )
         assert seen["return_attention_mask"] is True
         assert mel.shape == (1, 128, 3000)

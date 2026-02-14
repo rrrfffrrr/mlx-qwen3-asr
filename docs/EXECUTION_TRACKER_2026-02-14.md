@@ -135,6 +135,16 @@ Primary-source refresh across Qwen3-ASR, Swift ports, and ASR decoding papers:
   - `RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release`
   - Result: PASS (full pytest + reference parity lane green).
 
+### 11) Native max_length mel path hardening
+
+- `compute_features(..., padding="max_length")` now uses the native custom mel
+  path (with deterministic zero-padding to 3000 frames for short clips), rather
+  than routing through HF extractor.
+- Compatibility fallback to HF remains for uncommon padding modes.
+- Result:
+  - reduced HF extractor dependency in common feature paths,
+  - preserved `feature_lens` behavior and existing tests.
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch

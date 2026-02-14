@@ -27,6 +27,7 @@ SAMPLE_RATE = 16000
 N_FFT = 400
 HOP_LENGTH = 160
 NUM_MEL_BINS = 128
+WHISPER_MAX_FRAMES = 3000  # 30s at 10ms hop
 
 
 def load_audio(
@@ -320,17 +321,19 @@ def compute_features(
 ) -> tuple[mx.array, mx.array]:
     """Compute mel spectrogram features.
 
-    Default (`padding="do_not_pad"`) uses the native custom mel path for
-    speed and minimal dependencies while matching Whisper preprocessing.
-    Padded modes route through HF WhisperFeatureExtractor so attention-mask-
-    derived frame lengths remain aligned with existing behavior.
+    Native custom mel path is used for:
+    - `padding="do_not_pad"` (default)
+    - `padding="max_length"` (pads short clips to 3000 frames)
+
+    Other padding modes route through HF WhisperFeatureExtractor as a
+    compatibility fallback.
 
     Args:
         audio_np: Raw waveform as numpy array, shape (n_samples,).
         sr: Sample rate. Default 16000.
-        padding: Padding mode passed to HF feature extractor. Default
-            "do_not_pad" avoids unnecessary compute for short clips while
-            preserving full length for long clips.
+        padding: Feature padding mode. `"do_not_pad"` avoids extra compute.
+            `"max_length"` pads short clips to 3000 frames while preserving
+            true `feature_lens`.
 
     Returns:
         Tuple of (mel_features, feature_lens):
@@ -339,17 +342,19 @@ def compute_features(
     """
     audio_np = np.asarray(audio_np, dtype=np.float32)
 
-    # Fast custom path for normal inference. This avoids HF feature-extractor
-    # overhead while matching Whisper preprocessing behavior.
-    if padding == "do_not_pad":
+    # Fast native path for normal inference and max_length compatibility.
+    # For non-16k sample rates or uncommon padding modes, use HF fallback.
+    if sr == SAMPLE_RATE and padding in {"do_not_pad", "max_length"}:
         mel = np.array(log_mel_spectrogram(mx.array(audio_np)))
         actual_frames = int(mel.shape[-1])
+        if padding == "max_length" and actual_frames < WHISPER_MAX_FRAMES:
+            pad = WHISPER_MAX_FRAMES - actual_frames
+            mel = np.pad(mel, ((0, 0), (0, pad)), mode="constant")
         mel_mx = mx.array(mel[None, :, :].astype(np.float32))
         feature_lens = mx.array([actual_frames])
         return mel_mx, feature_lens
 
-    # Padded modes still use HF extractor so attention-mask-derived frame
-    # lengths remain exactly aligned with existing behavior.
+    # Compatibility fallback for unsupported padding modes.
     return _compute_features_hf(audio_np, sr, padding)
 
 
