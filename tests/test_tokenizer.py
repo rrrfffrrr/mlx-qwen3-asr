@@ -124,6 +124,15 @@ def test_load_hf_tokenizer_uses_fix_mistral_regex(monkeypatch):
     class _DummyTransformersModule:
         AutoTokenizer = _DummyAutoTokenizer
 
+    # Ensure this test exercises the AutoTokenizer fallback path even if
+    # prior tests imported Qwen2 tokenizer modules.
+    monkeypatch.delitem(sys.modules, "transformers.models", raising=False)
+    monkeypatch.delitem(sys.modules, "transformers.models.qwen2", raising=False)
+    monkeypatch.delitem(
+        sys.modules,
+        "transformers.models.qwen2.tokenization_qwen2",
+        raising=False,
+    )
     monkeypatch.setitem(sys.modules, "transformers", _DummyTransformersModule)
 
     tok = tokmod._load_hf_tokenizer("repo/a")
@@ -181,6 +190,15 @@ def test_load_hf_tokenizer_falls_back_when_fix_flag_unsupported(monkeypatch):
     class _DummyTransformersModule:
         AutoTokenizer = _DummyAutoTokenizer
 
+    # Ensure this test exercises the AutoTokenizer fallback path even if
+    # prior tests imported Qwen2 tokenizer modules.
+    monkeypatch.delitem(sys.modules, "transformers.models", raising=False)
+    monkeypatch.delitem(sys.modules, "transformers.models.qwen2", raising=False)
+    monkeypatch.delitem(
+        sys.modules,
+        "transformers.models.qwen2.tokenization_qwen2",
+        raising=False,
+    )
     monkeypatch.setitem(sys.modules, "transformers", _DummyTransformersModule)
 
     tok = tokmod._load_hf_tokenizer("repo/b")
