@@ -74,6 +74,17 @@ def main():
         help="Maximum tokens to generate (default: 1024)",
     )
     parser.add_argument(
+        "--draft-model",
+        default=None,
+        help="Optional draft model for speculative decoding (e.g., Qwen/Qwen3-ASR-0.6B)",
+    )
+    parser.add_argument(
+        "--num-draft-tokens",
+        type=int,
+        default=4,
+        help="Speculative decode draft width (default: 4)",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print progress information",
@@ -146,11 +157,13 @@ def main():
             result = transcribe(
                 audio=audio_path,
                 model=args.model,
+                draft_model=args.draft_model,
                 language=args.language,
                 return_timestamps=args.timestamps,
                 forced_aligner=aligner,
                 dtype=dtype,
                 max_new_tokens=args.max_new_tokens,
+                num_draft_tokens=args.num_draft_tokens,
                 verbose=args.verbose,
             )
         except RuntimeError as e:

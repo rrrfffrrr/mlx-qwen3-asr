@@ -17,6 +17,17 @@ python scripts/benchmark_asr.py tests/fixtures/test_speech.wav \
   --json-output docs/benchmarks/latest.json
 ```
 
+Speculative baseline-vs-draft benchmark:
+
+```bash
+python scripts/benchmark_speculative.py tests/fixtures/test_speech.wav \
+  --model Qwen/Qwen3-ASR-1.7B \
+  --draft-model Qwen/Qwen3-ASR-0.6B \
+  --num-draft-tokens 4 \
+  --runs 3 \
+  --json-output docs/benchmarks/speculative-latest.json
+```
+
 Streaming benchmark:
 
 ```bash
@@ -188,6 +199,13 @@ To avoid rediscovering low-signal paths, these were tested and not kept:
   - Early microbench was mixed/noisy, so it was initially reverted.
   - Current implementation now keeps this optimization with test coverage:
     no-pad path skips mask creation; padded modes still use mask-derived true length.
+- Speculative decoding prototype (`1.7B` target + `0.6B` draft):
+  - Kept parity (`text_match=true`) but regressed latency on tested short and 10s clips.
+  - Status: experimental only; not enabled by default.
+  - Artifacts:
+    - `docs/benchmarks/2026-02-14-speculative-1p7b-vs-0p6b.json`
+    - `docs/benchmarks/2026-02-14-speculative-1p7b-vs-0p6b-10s.json`
+    - summary: `docs/benchmarks/2026-02-14-speculative-prototype.md`
 
 ## Forced Aligner Backend Smoke (2026-02-14)
 

@@ -100,6 +100,13 @@ Post-change short-clip sanity benchmark (2026-02-14):
 
 - `docs/benchmarks/2026-02-14-short-after-windowed-hybrid.json`
 
+Speculative decoding prototype benchmarks (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-speculative-1p7b-vs-0p6b-smoke.json`
+- `docs/benchmarks/2026-02-14-speculative-1p7b-vs-0p6b.json`
+- `docs/benchmarks/2026-02-14-speculative-1p7b-vs-0p6b-10s.json`
+- `docs/benchmarks/2026-02-14-speculative-prototype.md`
+
 Generate with:
 
 ```bash

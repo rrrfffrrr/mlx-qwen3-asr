@@ -73,6 +73,11 @@ Focused review of paper-backed inference algorithms that can materially improve
   - must preserve exact greedy token parity vs baseline on release lane,
   - must beat current 1.7B latency on short and 10s clips.
 
+Status update:
+- Prototype path implemented with strict parity checks.
+- Current benchmark evidence on tested short/10s workloads shows no speed win yet,
+  so it remains experimental.
+
 ## Not Prioritized (Current Policy)
 
 - Production streaming architecture work remains explicitly deprioritized until

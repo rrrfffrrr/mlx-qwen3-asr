@@ -1,0 +1,35 @@
+{
+  "audio_path": "tests/fixtures/test_speech.wav",
+  "audio_duration_sec": 2.53325,
+  "dtype": "float16",
+  "target_model": "Qwen/Qwen3-ASR-1.7B",
+  "draft_model": "Qwen/Qwen3-ASR-0.6B",
+  "num_draft_tokens": 4,
+  "runs": 1,
+  "warmup_runs": 0,
+  "max_new_tokens": 1024,
+  "baseline": {
+    "latency_sec": {
+      "mean": 6.484846707986435,
+      "median": 6.484846707986435,
+      "min": 6.484846707986435,
+      "max": 6.484846707986435,
+      "std": 0.0
+    },
+    "rtf": 2.5598921180248437
+  },
+  "speculative": {
+    "latency_sec": {
+      "mean": 2.3299187920056283,
+      "median": 2.3299187920056283,
+      "min": 2.3299187920056283,
+      "max": 2.3299187920056283,
+      "std": 0.0
+    },
+    "rtf": 0.9197350407601416
+  },
+  "speedup_mean": 2.7832930187254226,
+  "text_match": true,
+  "baseline_preview": "The quick brown fox jumps over the lazy dog.",
+  "speculative_preview": "The quick brown fox jumps over the lazy dog."
+}

@@ -391,6 +391,38 @@ class TestKVCache:
         with pytest.raises(ValueError, match="KV cache overflow"):
             cache.update(k, v, layer_idx=0)
 
+    def test_trim_non_preallocated(self):
+        cache = KVCache(num_layers=1)
+        k = mx.random.normal((1, 2, 5, 16))
+        v = mx.random.normal((1, 2, 5, 16))
+        cache.update(k, v, layer_idx=0)
+        assert cache.offset == 5
+
+        cache.trim(2)
+        assert cache.offset == 3
+        assert cache.keys[0].shape[2] == 3
+        assert cache.values[0].shape[2] == 3
+
+    def test_trim_preallocated(self):
+        cache = KVCache(num_layers=1, max_seq_len=8)
+        k = mx.random.normal((1, 2, 5, 16))
+        v = mx.random.normal((1, 2, 5, 16))
+        cache.update(k, v, layer_idx=0)
+        assert cache.offset == 5
+
+        cache.trim(2)
+        assert cache.offset == 3
+        # Buffer stays preallocated; offset controls active prefix.
+        assert cache.keys[0].shape[2] == 8
+        assert cache.values[0].shape[2] == 8
+
+    def test_trim_raises_on_invalid_count(self):
+        cache = KVCache(num_layers=1)
+        with pytest.raises(ValueError, match="must be >= 0"):
+            cache.trim(-1)
+        with pytest.raises(ValueError, match="Cannot trim"):
+            cache.trim(1)
+
 
 # ---------------------------------------------------------------------------
 # _create_causal_mask

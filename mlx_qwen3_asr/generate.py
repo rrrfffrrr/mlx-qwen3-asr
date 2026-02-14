@@ -19,6 +19,7 @@ class GenerationConfig:
     temperature: float = 0.0  # greedy by default
     eos_token_ids: list[int] = field(default_factory=lambda: [151643, 151645])
     eval_interval: int = 1
+    num_draft_tokens: int = 4
 
 
 def generate(
@@ -64,16 +65,11 @@ def generate(
 
     # Phase 2: Autoregressive decode
     seq_len = input_ids.shape[1]
-    if config.max_new_tokens > 1:
-        next_pos_base = mx.arange(
-            seq_len,
-            seq_len + (config.max_new_tokens - 1),
-            dtype=position_ids.dtype,
-        )  # (T,)
-        next_pos_3d = mx.stack([next_pos_base, next_pos_base, next_pos_base], axis=0)
-        next_pos_3d = next_pos_3d[None, :, :]  # (1, 3, T)
-    else:
-        next_pos_3d = None
+    next_pos_3d = _build_decode_positions(
+        seq_len=seq_len,
+        max_new_tokens=config.max_new_tokens,
+        dtype=position_ids.dtype,
+    )
 
     for step in range(1, config.max_new_tokens):
         # Check EOS
@@ -98,17 +94,156 @@ def generate(
         token = _sample(logits, config.temperature)
         generated.append(token)
 
-        # Materialize cache periodically to avoid graph buildup while
-        # reducing per-step synchronization overhead.
-        if config.eval_interval > 0 and (step % config.eval_interval == 0):
-            if hasattr(cache, "keys") and hasattr(cache, "values"):
-                cache_tensors = [c for c in cache.keys if c is not None] + [
-                    c for c in cache.values if c is not None
-                ]
-                if cache_tensors:
-                    mx.eval(cache_tensors)
+        _periodic_eval(cache=cache, step=step, eval_interval=config.eval_interval)
 
     # Remove EOS token if present
+    if generated and generated[-1] in config.eos_token_ids:
+        generated = generated[:-1]
+
+    return generated
+
+
+def generate_speculative(
+    model: Qwen3ASRModel,
+    draft_model: Qwen3ASRModel,
+    input_ids: mx.array,
+    audio_features: mx.array,
+    draft_audio_features: mx.array,
+    position_ids: mx.array,
+    config: GenerationConfig = None,
+) -> list[int]:
+    """Generate text with greedy speculative decoding.
+
+    Uses a small draft model to propose tokens and verifies them in batches with
+    the target model. Output is guaranteed to match greedy decoding of the
+    target model.
+    """
+    if config is None:
+        config = GenerationConfig()
+    if config.temperature != 0.0:
+        raise ValueError("Speculative decoding currently supports greedy mode only.")
+    if config.num_draft_tokens < 1:
+        raise ValueError(
+            f"num_draft_tokens must be >= 1, got {config.num_draft_tokens}"
+        )
+
+    max_seq_len = int(input_ids.shape[1] + config.max_new_tokens)
+    target_cache = model.create_cache(max_seq_len=max_seq_len)
+    draft_cache = draft_model.create_cache(max_seq_len=max_seq_len)
+
+    target_logits = model.prefill(
+        input_ids=input_ids,
+        audio_features=audio_features,
+        position_ids=position_ids,
+        cache=target_cache,
+    )
+    _ = draft_model.prefill(
+        input_ids=input_ids,
+        audio_features=draft_audio_features,
+        position_ids=position_ids,
+        cache=draft_cache,
+    )
+
+    token = _sample(target_logits, config.temperature)
+    generated = [token]
+
+    seq_len = int(input_ids.shape[1])
+    next_pos_3d = _build_decode_positions(
+        seq_len=seq_len,
+        max_new_tokens=config.max_new_tokens,
+        dtype=position_ids.dtype,
+    )
+
+    step = 1
+    while step < config.max_new_tokens:
+        if token in config.eos_token_ids:
+            break
+        if _detect_repetition(generated):
+            break
+
+        remaining = config.max_new_tokens - step
+        num_draft = min(config.num_draft_tokens, remaining - 1) if remaining > 1 else 0
+        if num_draft <= 0:
+            next_ids = mx.array([[token]])
+            next_position_ids = next_pos_3d[:, :, step - 1 : step]
+            logits = model.step(
+                input_ids=next_ids,
+                position_ids=next_position_ids,
+                cache=target_cache,
+            )
+            token = _sample(logits, config.temperature)
+            generated.append(token)
+            _periodic_eval(
+                cache=target_cache,
+                step=step,
+                eval_interval=config.eval_interval,
+            )
+            step += 1
+            continue
+
+        draft_tokens: list[int] = []
+        draft_input = token
+        for d_i in range(num_draft):
+            d_ids = mx.array([[draft_input]])
+            d_pos = next_pos_3d[:, :, step - 1 + d_i : step + d_i]
+            d_logits = draft_model.step(
+                input_ids=d_ids,
+                position_ids=d_pos,
+                cache=draft_cache,
+            )
+            draft_input = _sample(d_logits, config.temperature)
+            draft_tokens.append(draft_input)
+
+        verify_ids = mx.array([[token, *draft_tokens]])
+        verify_pos = next_pos_3d[:, :, step - 1 : step + num_draft]
+        verify_logits = model.step_many(
+            input_ids=verify_ids,
+            position_ids=verify_pos,
+            cache=target_cache,
+        )
+        verify_pred_ids = mx.argmax(verify_logits, axis=-1)
+        verify_pred = [int(x) for x in verify_pred_ids[0].tolist()]
+
+        accepted = 0
+        while accepted < num_draft and verify_pred[accepted] == draft_tokens[accepted]:
+            accepted += 1
+
+        # Rewind unaccepted speculative steps so both caches match accepted path.
+        target_cache.trim(num_draft - accepted)
+        draft_cache.trim(max(num_draft - accepted - 1, 0))
+
+        stop = False
+        for i in range(accepted):
+            token = draft_tokens[i]
+            generated.append(token)
+            step += 1
+            if step >= config.max_new_tokens:
+                stop = True
+                break
+            if token in config.eos_token_ids:
+                stop = True
+                break
+            if _detect_repetition(generated):
+                stop = True
+                break
+        if stop:
+            break
+
+        token = verify_pred[accepted]
+        generated.append(token)
+        step += 1
+
+        _periodic_eval(
+            cache=target_cache,
+            step=step,
+            eval_interval=config.eval_interval,
+        )
+        _periodic_eval(
+            cache=draft_cache,
+            step=step,
+            eval_interval=config.eval_interval,
+        )
+
     if generated and generated[-1] in config.eos_token_ids:
         generated = generated[:-1]
 
@@ -133,6 +268,40 @@ def _sample(logits: mx.array, temperature: float) -> int:
     else:
         # Temperature sampling — pass logits directly (categorical expects log-probs)
         return mx.random.categorical(logits / temperature).item()
+
+
+def _build_decode_positions(
+    seq_len: int,
+    max_new_tokens: int,
+    dtype: mx.Dtype,
+) -> mx.array | None:
+    if max_new_tokens <= 1:
+        return None
+    next_pos_base = mx.arange(
+        seq_len,
+        seq_len + (max_new_tokens - 1),
+        dtype=dtype,
+    )
+    next_pos_3d = mx.stack([next_pos_base, next_pos_base, next_pos_base], axis=0)
+    return next_pos_3d[None, :, :]
+
+
+def _periodic_eval(
+    cache: object,
+    step: int,
+    eval_interval: int,
+) -> None:
+    # Materialize cache periodically to avoid graph buildup while reducing
+    # per-step synchronization overhead.
+    if eval_interval <= 0 or (step % eval_interval) != 0:
+        return
+    if not hasattr(cache, "keys") or not hasattr(cache, "values"):
+        return
+    cache_tensors = [c for c in cache.keys if c is not None] + [
+        c for c in cache.values if c is not None
+    ]
+    if cache_tensors:
+        mx.eval(cache_tensors)
 
 
 def _detect_repetition(tokens: list[int], threshold: int = REPETITION_THRESHOLD) -> bool:

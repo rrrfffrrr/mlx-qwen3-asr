@@ -922,6 +922,35 @@ class KVCache:
         """Return the current cached sequence length."""
         return self.offset
 
+    def trim(self, num_tokens: int) -> None:
+        """Trim recently appended tokens from all layer caches.
+
+        Used by speculative decoding when some drafted tokens are rejected and
+        should not remain in cache state.
+
+        Args:
+            num_tokens: Number of latest cached tokens to remove.
+        """
+        if num_tokens < 0:
+            raise ValueError(f"num_tokens must be >= 0, got {num_tokens}")
+        if num_tokens == 0:
+            return
+        if num_tokens > self.offset:
+            raise ValueError(
+                f"Cannot trim {num_tokens} tokens from cache with length {self.offset}"
+            )
+
+        new_len = self.offset - num_tokens
+
+        if self.max_seq_len is None:
+            for i in range(len(self.keys)):
+                if self.keys[i] is not None:
+                    self.keys[i] = self.keys[i][:, :, :new_len, :]
+                if self.values[i] is not None:
+                    self.values[i] = self.values[i][:, :, :new_len, :]
+
+        self.offset = new_len
+
 
 # ---------------------------------------------------------------------------
 # Causal Mask Helper
@@ -1162,6 +1191,51 @@ class Qwen3ASRModel(nn.Module):
         Returns:
             Step logits, shape (B, 1, vocab_size).
         """
+        embeds = self.model.embed_tokens(input_ids)
+        hidden = self.model(
+            inputs_embeds=embeds,
+            position_ids=position_ids,
+            attention_mask=None,
+            cache=cache,
+        )
+        return self.lm_head(hidden)
+
+    def step_many(
+        self,
+        input_ids: mx.array,
+        position_ids: mx.array,
+        cache: KVCache,
+    ) -> mx.array:
+        """Decode multiple autoregressive steps with an existing cache.
+
+        Args:
+            input_ids: Token IDs to process, shape (B, T), where T >= 1.
+            position_ids: Step MRoPE position IDs, shape (B, 3, T).
+            cache: KV cache to update in-place.
+
+        Returns:
+            Step logits, shape (B, T, vocab_size).
+        """
+        if input_ids.ndim != 2:
+            raise ValueError(
+                f"input_ids for step_many must be rank-2 (B, T), got shape={input_ids.shape}"
+            )
+        if position_ids.ndim != 3:
+            raise ValueError(
+                "position_ids for step_many must be rank-3 (B, 3, T), "
+                f"got shape={position_ids.shape}"
+            )
+        if input_ids.shape[0] != position_ids.shape[0]:
+            raise ValueError(
+                "Batch mismatch in step_many: "
+                f"input_ids={input_ids.shape}, position_ids={position_ids.shape}"
+            )
+        if input_ids.shape[1] != position_ids.shape[2]:
+            raise ValueError(
+                "Sequence mismatch in step_many: "
+                f"input_ids={input_ids.shape}, position_ids={position_ids.shape}"
+            )
+
         embeds = self.model.embed_tokens(input_ids)
         hidden = self.model(
             inputs_embeds=embeds,

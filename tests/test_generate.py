@@ -1,6 +1,8 @@
 """Tests for mlx_qwen3_asr/generate.py."""
 
 import mlx.core as mx
+import numpy as np
+import pytest
 
 from mlx_qwen3_asr.generate import (
     REPETITION_THRESHOLD,
@@ -8,6 +10,7 @@ from mlx_qwen3_asr.generate import (
     _detect_repetition,
     _sample,
     generate,
+    generate_speculative,
 )
 
 # ---------------------------------------------------------------------------
@@ -33,6 +36,10 @@ class TestGenerationConfig:
     def test_default_eval_interval(self):
         cfg = GenerationConfig()
         assert cfg.eval_interval == 1
+
+    def test_default_num_draft_tokens(self):
+        cfg = GenerationConfig()
+        assert cfg.num_draft_tokens == 4
 
 
 # ---------------------------------------------------------------------------
@@ -202,3 +209,141 @@ class TestGenerate:
         assert model.calls[0] == ("create_cache", 8)
         assert model.calls[1][0] == "prefill"
         assert model.calls[2][0] == "step"
+
+
+class _SpecCache:
+    def __init__(self):
+        self.offset = 0
+        self.trim_calls: list[int] = []
+
+    def trim(self, num_tokens: int):
+        self.trim_calls.append(num_tokens)
+        self.offset -= num_tokens
+
+
+class _SpecDummyModel:
+    def __init__(self, transitions: dict[int, int], first_token: int, vocab_size: int = 32):
+        self.transitions = transitions
+        self.first_token = first_token
+        self.vocab_size = vocab_size
+        self.last_cache: _SpecCache | None = None
+
+    def create_cache(self, max_seq_len=None):  # noqa: ANN001
+        self.last_cache = _SpecCache()
+        return self.last_cache
+
+    def _logits(self, next_tokens: list[int]) -> mx.array:
+        arr = np.full((1, len(next_tokens), self.vocab_size), -1e9, dtype=np.float32)
+        for i, tok in enumerate(next_tokens):
+            arr[0, i, tok] = 0.0
+        return mx.array(arr)
+
+    def prefill(self, input_ids, audio_features, position_ids, cache):  # noqa: ANN001
+        cache.offset += int(input_ids.shape[1])
+        return self._logits([self.first_token])
+
+    def step(self, input_ids, position_ids, cache):  # noqa: ANN001
+        tok = int(np.array(input_ids)[0, 0])
+        cache.offset += 1
+        return self._logits([self.transitions[tok]])
+
+    def step_many(self, input_ids, position_ids, cache):  # noqa: ANN001
+        toks = np.array(input_ids)[0].tolist()
+        cache.offset += int(len(toks))
+        next_tokens = [self.transitions[int(t)] for t in toks]
+        return self._logits(next_tokens)
+
+
+class TestGenerateSpeculative:
+    def _dummy_inputs(self):
+        input_ids = mx.array([[10, 20, 30]])
+        audio_features = mx.zeros((1, 2, 4))
+        position_ids = mx.zeros((1, 3, 3), dtype=mx.int32)
+        return input_ids, audio_features, position_ids
+
+    def test_matches_greedy_when_target_and_draft_agree(self):
+        transitions = {i: i + 1 for i in range(0, 20)}
+        target = _SpecDummyModel(transitions=transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=transitions, first_token=1)
+
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(
+            max_new_tokens=6,
+            temperature=0.0,
+            eos_token_ids=[999],
+            num_draft_tokens=3,
+        )
+
+        greedy = generate(
+            model=target,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+        speculative = generate_speculative(
+            model=target,
+            draft_model=draft,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            draft_audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+
+        assert speculative == greedy
+
+    def test_matches_greedy_with_partial_rejections(self):
+        target_transitions = {i: i + 1 for i in range(0, 40)}
+        draft_transitions = {i: i + 1 for i in range(0, 40)}
+        target_transitions[2] = 9  # diverges from draft here
+        target_transitions[9] = 4
+        target = _SpecDummyModel(transitions=target_transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=draft_transitions, first_token=1)
+
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(
+            max_new_tokens=7,
+            temperature=0.0,
+            eos_token_ids=[999],
+            num_draft_tokens=3,
+        )
+
+        greedy = generate(
+            model=target,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+        speculative = generate_speculative(
+            model=target,
+            draft_model=draft,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            draft_audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+
+        assert speculative == greedy
+        assert any(v > 0 for v in target.last_cache.trim_calls)
+        assert any(v > 0 for v in draft.last_cache.trim_calls)
+
+    def test_rejects_non_greedy_mode(self):
+        transitions = {i: i + 1 for i in range(0, 20)}
+        target = _SpecDummyModel(transitions=transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=transitions, first_token=1)
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(max_new_tokens=4, temperature=0.7)
+
+        with pytest.raises(ValueError, match="greedy mode"):
+            generate_speculative(
+                model=target,
+                draft_model=draft,
+                input_ids=input_ids,
+                audio_features=audio_features,
+                draft_audio_features=audio_features,
+                position_ids=position_ids,
+                config=cfg,
+            )

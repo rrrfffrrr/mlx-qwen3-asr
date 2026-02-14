@@ -65,9 +65,11 @@ class Session:
             model_obj=self.model,
             tokenizer=self.tokenizer,
             dtype=self.dtype,
+            draft_model_obj=None,
             language=language,
             aligner=aligner,
             return_timestamps=return_timestamps,
             max_new_tokens=max_new_tokens,
+            num_draft_tokens=4,
             verbose=verbose,
         )

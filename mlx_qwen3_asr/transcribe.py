@@ -13,7 +13,7 @@ from .audio import SAMPLE_RATE, compute_features, load_audio
 from .chunking import split_audio_into_chunks
 from .config import DEFAULT_MODEL_ID
 from .forced_aligner import ForcedAligner
-from .generate import GenerationConfig, generate
+from .generate import GenerationConfig, generate, generate_speculative
 from .load_models import _ModelHolder
 from .model import Qwen3ASRModel
 from .tokenizer import Tokenizer, _TokenizerHolder, parse_asr_output
@@ -39,11 +39,13 @@ def transcribe(
     audio: AudioInput,
     *,
     model: Union[str, Qwen3ASRModel] = DEFAULT_MODEL_ID,
+    draft_model: Optional[Union[str, Qwen3ASRModel]] = None,
     language: Optional[str] = None,
     return_timestamps: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
     max_new_tokens: int = 1024,
+    num_draft_tokens: int = 4,
     verbose: bool = False,
 ) -> TranscriptionResult:
     """Transcribe audio to text using Qwen3-ASR.
@@ -58,11 +60,14 @@ def transcribe(
     Args:
         audio: Audio source - file path, numpy array, mx.array, or (array, sr) tuple
         model: Model name/path or pre-loaded model instance
+        draft_model: Optional smaller model for speculative decoding.
+            Must share tokenizer/vocabulary with ``model``.
         language: Force language detection (e.g., "English", "Chinese")
         return_timestamps: Whether to return word-level timestamps.
         forced_aligner: Path/name of forced aligner model or prebuilt aligner object.
         dtype: Model dtype
         max_new_tokens: Maximum tokens to generate per chunk
+        num_draft_tokens: Number of speculative draft tokens per verify step
         verbose: Print progress information
 
     Returns:
@@ -77,6 +82,12 @@ def transcribe(
     else:
         model_obj = model
         model_path = DEFAULT_MODEL_ID
+
+    draft_model_obj = _resolve_draft_model(
+        draft_model=draft_model,
+        dtype=dtype,
+        target_model=model_obj,
+    )
 
     # Load tokenizer (cached by model path)
     tokenizer = _TokenizerHolder.get(model_path)
@@ -93,10 +104,12 @@ def transcribe(
         model_obj=model_obj,
         tokenizer=tokenizer,
         dtype=dtype,
+        draft_model_obj=draft_model_obj,
         language=language,
         aligner=aligner,
         return_timestamps=return_timestamps,
         max_new_tokens=max_new_tokens,
+        num_draft_tokens=num_draft_tokens,
         verbose=verbose,
     )
 
@@ -125,16 +138,48 @@ def _resolve_aligner(
     return forced_aligner
 
 
+def _resolve_draft_model(
+    draft_model: Optional[Union[str, Qwen3ASRModel]],
+    dtype: mx.Dtype,
+    target_model: Qwen3ASRModel,
+) -> Optional[Qwen3ASRModel]:
+    if draft_model is None:
+        return None
+    if isinstance(draft_model, str):
+        draft_model_obj, _ = _ModelHolder.get(draft_model, dtype=dtype)
+    else:
+        draft_model_obj = draft_model
+
+    if (
+        draft_model_obj.config.text_config.vocab_size
+        != target_model.config.text_config.vocab_size
+    ):
+        raise ValueError(
+            "Draft model vocabulary size mismatch: "
+            f"target={target_model.config.text_config.vocab_size}, "
+            f"draft={draft_model_obj.config.text_config.vocab_size}"
+        )
+    if draft_model_obj.audio_token_id != target_model.audio_token_id:
+        raise ValueError(
+            "Draft model audio token mismatch: "
+            f"target={target_model.audio_token_id}, "
+            f"draft={draft_model_obj.audio_token_id}"
+        )
+    return draft_model_obj
+
+
 def _transcribe_loaded_components(
     *,
     audio_np: np.ndarray,
     model_obj: Qwen3ASRModel,
     tokenizer: Tokenizer,
     dtype: mx.Dtype,
+    draft_model_obj: Optional[Qwen3ASRModel],
     language: Optional[str],
     aligner: Optional[ForcedAligner],
     return_timestamps: bool,
     max_new_tokens: int,
+    num_draft_tokens: int,
     verbose: bool,
 ) -> TranscriptionResult:
     """Transcribe using already-loaded model/tokenizer components."""
@@ -150,6 +195,7 @@ def _transcribe_loaded_components(
     gen_config = GenerationConfig(
         max_new_tokens=max_new_tokens,
         temperature=0.0,
+        num_draft_tokens=num_draft_tokens,
     )
 
     for chunk_idx, (chunk_audio, offset) in enumerate(chunks):
@@ -161,6 +207,11 @@ def _transcribe_loaded_components(
 
         mel, feature_lens = compute_features(chunk_audio)
         audio_features, _ = model_obj.audio_tower(mel.astype(dtype), feature_lens)
+        draft_audio_features = None
+        if draft_model_obj is not None:
+            draft_audio_features, _ = draft_model_obj.audio_tower(
+                mel.astype(dtype), feature_lens
+            )
         n_audio_tokens = audio_features.shape[1]
 
         if verbose:
@@ -176,13 +227,24 @@ def _transcribe_loaded_components(
         positions = mx.arange(seq_len)[None, :]
         position_ids = mx.stack([positions, positions, positions], axis=1)
 
-        output_tokens = generate(
-            model=model_obj,
-            input_ids=input_ids,
-            audio_features=audio_features,
-            position_ids=position_ids,
-            config=gen_config,
-        )
+        if draft_model_obj is None:
+            output_tokens = generate(
+                model=model_obj,
+                input_ids=input_ids,
+                audio_features=audio_features,
+                position_ids=position_ids,
+                config=gen_config,
+            )
+        else:
+            output_tokens = generate_speculative(
+                model=model_obj,
+                draft_model=draft_model_obj,
+                input_ids=input_ids,
+                audio_features=audio_features,
+                draft_audio_features=draft_audio_features,
+                position_ids=position_ids,
+                config=gen_config,
+            )
 
         raw_text = tokenizer.decode(output_tokens)
         lang, text = parse_asr_output(raw_text, user_language=language)

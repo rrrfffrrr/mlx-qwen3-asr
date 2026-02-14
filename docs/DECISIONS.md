@@ -198,3 +198,16 @@ and remove unused `previous_tokens` state.
 - Strong input contracts (`chunk_size_sec/max_context_sec/sample_rate > 0`) fail fast
   with clear errors instead of silent undefined behavior.
 - Removing dead state simplifies the module and makes future incremental refactors clearer.
+
+## Decision 17: Keep Speculative Decoding as Opt-In Experimental Path
+
+**Choice:** Implement speculative decoding behind explicit `draft_model` opt-in and
+keep baseline greedy decode as default.
+**Alternative:** Promote speculative decoding to default generation path immediately.
+
+**Rationale:**
+- Prototype achieves strict token-level parity in greedy mode.
+- Current benchmark evidence on tested short/10s workloads shows latency regression
+  (extra draft compute outweighs target savings).
+- Keeping it opt-in preserves a clean default path while enabling continued
+  experimentation on acceptance-rate and long-form workloads.

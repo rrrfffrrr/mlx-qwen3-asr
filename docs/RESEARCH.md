@@ -305,3 +305,6 @@ Implication for this repo:
   experiment using `0.6B` as draft for `1.7B` with release-gate parity checks.
 - Model-free/token-map drafting is promising for domain-constrained workloads,
   but not the default general-purpose path yet.
+- Current local prototype status (implemented):
+  - greedy text parity preserved,
+  - tested short and 10s runs showed latency regressions, so it remains opt-in.

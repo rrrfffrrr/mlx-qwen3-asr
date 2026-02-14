@@ -111,6 +111,18 @@ Specify model, language, and output format:
 mlx-qwen3-asr recording.mp3 --model Qwen/Qwen3-ASR-0.6B --language English -f srt -o output/
 ```
 
+Experimental speculative decoding (opt-in):
+
+```bash
+mlx-qwen3-asr audio.wav \
+  --model Qwen/Qwen3-ASR-1.7B \
+  --draft-model Qwen/Qwen3-ASR-0.6B \
+  --num-draft-tokens 4
+```
+
+Current status: parity-safe experimental path; not enabled by default and may be
+slower on short/medium clips.
+
 Multiple files with all output formats:
 
 ```bash
@@ -268,9 +280,9 @@ Plus 22 Chinese dialects (Sichuan, Shanghai, Cantonese, and others).
 
 ## API reference
 
-### `transcribe(audio, *, model, language, return_timestamps, forced_aligner, dtype, max_new_tokens, verbose)`
+### `transcribe(audio, *, model, draft_model, language, return_timestamps, forced_aligner, dtype, max_new_tokens, num_draft_tokens, verbose)`
 
-Transcribe audio to text. Accepts a file path, numpy array, `mx.array`, or `(array, sample_rate)` tuple. Returns a `TranscriptionResult`. Set `return_timestamps=True` to request word-level timestamps. You can pass a configured `ForcedAligner` instance for explicit backend control (`qwen_asr`, `mlx`, or `auto`).
+Transcribe audio to text. Accepts a file path, numpy array, `mx.array`, or `(array, sample_rate)` tuple. Returns a `TranscriptionResult`. Set `return_timestamps=True` to request word-level timestamps. You can pass a configured `ForcedAligner` instance for explicit backend control (`qwen_asr`, `mlx`, or `auto`). For experimental speculative decoding, pass `draft_model` and optionally tune `num_draft_tokens`.
 
 ### `load_model(name_or_path, *, dtype)`
 

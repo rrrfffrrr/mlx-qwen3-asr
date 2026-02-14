@@ -92,6 +92,22 @@ bounded-context behavior for stable per-chunk cost.
   - `chunk_size_sec > 0`, `max_context_sec > 0`, `sample_rate > 0`.
 - Added regression tests for these behaviors.
 
+### 7) Speculative decoding prototype (target/draft) landed
+
+- Added cache trim support in `KVCache` and model `step_many(...)` API for
+  batched verification steps.
+- Added experimental speculative generation path (`generate_speculative`) with
+  strict greedy parity behavior and cache rewind logic.
+- Wired optional draft-model controls through Python API/CLI:
+  - `transcribe(..., draft_model=..., num_draft_tokens=...)`
+  - `mlx-qwen3-asr --draft-model ... --num-draft-tokens ...`
+- Added benchmark harness:
+  - `scripts/benchmark_speculative.py`
+- Current measured status:
+  - parity: `text_match=true`,
+  - performance: slower on tested short/10s workloads vs baseline.
+  - therefore remains experimental and non-default.
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch

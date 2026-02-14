@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+from types import SimpleNamespace
 
 import mlx.core as mx
 import numpy as np
@@ -14,6 +15,7 @@ from mlx_qwen3_asr.transcribe import transcribe
 
 class _DummyModel:
     audio_token_id = 151676
+    config = SimpleNamespace(text_config=SimpleNamespace(vocab_size=151936))
 
     def audio_tower(self, mel: mx.array, feature_lens: mx.array):
         n = 2
@@ -153,3 +155,46 @@ def test_transcribe_uses_resolved_model_path_for_tokenizer(monkeypatch):
 
     _ = transcribe(np.zeros(3200, dtype=np.float32))
     assert token_paths == ["/tmp/qwen3-resolved-model"]
+
+
+def test_transcribe_uses_speculative_path_when_draft_model_is_set(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+
+    get_calls = []
+
+    def _fake_get(path, **kwargs):  # noqa: ANN001
+        get_calls.append(path)
+        return _DummyModel(), None
+
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
+    monkeypatch.setattr(tmod._ModelHolder, "get", _fake_get)
+    monkeypatch.setattr(
+        tmod._ModelHolder,
+        "get_resolved_path",
+        lambda path, dtype=mx.float16: path,
+    )
+    monkeypatch.setattr(
+        tmod,
+        "compute_features",
+        lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
+    )
+    monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+
+    calls = {"spec": 0}
+
+    def _fake_speculative(**kwargs):  # noqa: ANN003
+        calls["spec"] += 1
+        return [10, 11, 12]
+
+    monkeypatch.setattr(tmod, "generate_speculative", _fake_speculative)
+
+    result = transcribe(
+        np.zeros(3200, dtype=np.float32),
+        model="Qwen/Qwen3-ASR-1.7B",
+        draft_model="Qwen/Qwen3-ASR-0.6B",
+    )
+
+    assert result.language == "English"
+    assert result.text == "hello world"
+    assert calls["spec"] == 1
+    assert get_calls == ["Qwen/Qwen3-ASR-1.7B", "Qwen/Qwen3-ASR-0.6B"]
