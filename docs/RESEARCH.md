@@ -91,12 +91,24 @@ This means exact multiples of 100 frames map to `13 * n_chunks` tokens
 
 ## Mac/MLX Implementation Landscape (2026-02-14)
 
-- `ml-explore/mlx-audio` includes a Qwen3-ASR path and is currently the most
-  visible upstream MLX implementation.
-- `ivan-digital/qwen3-asr-swift` provides a native Swift + MLX implementation
-  with published ASR latency claims and packaged 0.6B/1.7B quantized variants.
-- Small wrappers/servers exist (GitHub search), but most are thin API layers
-  on top of MLX-Audio or custom forks, not full independently validated cores.
+- `ml-explore/mlx-audio` includes a Qwen3-ASR path and remains the most visible
+  upstream MLX code path.
+- `ivan-digital/qwen3-asr-swift` is a native Swift+MLX ASR/TTS implementation
+  with packaged quantized ASR models and published ASR latency claims.
+  - Repo: https://github.com/ivan-digital/qwen3-asr-swift
+  - Evidence: `Sources/Qwen3ASR/Qwen3ASR.swift` exposes `transcribe(...) -> String`
+- `Flovflo/VoiceScribe` is a native macOS dictation app built on Swift+MLX
+  Qwen3-ASR models.
+  - Repo: https://github.com/Flovflo/VoiceScribe
+  - Evidence: `Sources/VoiceScribeCore/ML/Models/Qwen3ASR.swift`
+- `Jason-Queen/Qwen3-ASR-MLX-Server` is a server wrapper over `mlx-audio`, not a
+  standalone model-core reimplementation.
+  - Repo: https://github.com/Jason-Queen/Qwen3-ASR-MLX-Server
+  - Evidence: imports `mlx_audio.stt.*` in `whisper_mlx_server.py`
+- `predict-woo/qwen3-asr.cpp` is a notable non-MLX native implementation that
+  includes a dedicated forced aligner in C++/GGML.
+  - Repo: https://github.com/predict-woo/qwen3-asr.cpp
+  - Evidence: `src/forced_aligner.cpp`, `src/forced_aligner.h`
 
 ## Forced Aligner and Timestamp Facts
 
@@ -109,9 +121,23 @@ This means exact multiples of 100 frames map to `13 * n_chunks` tokens
 ## Swift Timestamp Status (Evidence-Based)
 
 - In `ivan-digital/qwen3-asr-swift`, ASR docs and source currently show
-  transcription support but no ASR timestamp/forced-aligner implementation.
+  transcription support but no ASR timestamp/forced-aligner implementation in
+  the public ASR module surface (`transcribe(...) -> String`).
 - The repo roadmap lists ASR streaming as pending; no published native forced
   alignment API is present in its ASR modules/docs today.
+- `Flovflo/VoiceScribe` focuses on dictation transcription flow; no dedicated
+  forced-aligner/timestamp module is exposed in the public repo structure.
+
+## Forced Aligner Direction Implication
+
+- A native timestamp path is technically feasible (evidence: C++ `qwen3-asr.cpp`
+  already ships a dedicated aligner implementation), but there is no widely
+  adopted Apple-MLX-native forced-aligner reference implementation to reuse
+  directly today.
+- Practical takeaway for this repo:
+  1. Keep optional `qwen-asr` backend for immediate user value.
+  2. Build native MLX aligner behind strict quality gates (word timing quality
+     and parity checks) before making it default.
 
 ## Practical MLX Optimization Guidance from Upstream Code
 

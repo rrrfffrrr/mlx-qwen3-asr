@@ -121,7 +121,8 @@ mlx-qwen3-asr audio.wav --timestamps
 ```
 
 Timestamps use the official forced-aligner backend (PyTorch) for now; core ASR
-inference remains native MLX.
+inference remains native MLX. Native MLX timestamp alignment is an active
+roadmap item, and this backend is treated as a temporary bridge.
 
 ## API Reference
 

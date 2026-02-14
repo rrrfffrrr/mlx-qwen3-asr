@@ -61,7 +61,8 @@ Performance progress:
 
 4. Forced aligner timestamps
 - In progress.
-- Timestamps are enabled through optional `qwen-asr` backend integration.
+- Timestamps are enabled through optional `qwen-asr` backend integration
+  as a temporary bridge.
 - Native MLX aligner remains a future optimization.
 
 5. Discoverability (README polish + PyPI)

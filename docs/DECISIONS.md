@@ -28,7 +28,7 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Qwen3-ASR deserves dedicated focus -- it's SOTA and complex enough to warrant its own package
 - Standalone allows us to optimize specifically for this model without compromise
 
-## Decision 3: Use Official Forced Aligner as Optional Backend
+## Decision 3: Use Official Forced Aligner as a Temporary Bridge
 
 **Choice:** Enable timestamps via optional `qwen-asr` forced aligner backend
 **Alternative:** Keep timestamps disabled until a native MLX aligner is finished
@@ -37,7 +37,13 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Users get working timestamps now without waiting for a full native aligner
 - Keeps core ASR path lean; extra dependency is only needed for timestamps
 - Reuses the official reference implementation for alignment quality
-- Leaves room to replace backend with native MLX aligner later
+- Keeps forward path open to replace backend with native MLX aligner
+
+**Policy (important):**
+- This is a transition state, not the end-state architecture.
+- Project north star remains full native MLX for core + timestamps.
+- `qwen-asr` should be removed from the timestamp path once native MLX aligner
+  meets acceptance gates (timing quality + reliability + performance envelope).
 
 ## Decision 4: HuggingFace Tokenizer
 
