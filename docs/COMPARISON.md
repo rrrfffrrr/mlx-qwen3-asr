@@ -17,7 +17,7 @@ Silicon. This is an implementation-focused view, not a model-quality ranking.
 | Qwen3-ASR focus | Single-model focused | Multi-model toolkit | Single-model focused | Single-model focused |
 | Core backend | MLX (Metal) | MLX (Metal) | MLX (Metal) | PyTorch |
 | Streaming status | Experimental rolling mode | Varies by revision | Streaming supported | Streaming supported |
-| Timestamp alignment | `qwen_asr` default + native MLX experimental backend | Not a primary surfaced lane | No public forced-aligner API in cited snapshot | Official forced aligner |
+| Timestamp alignment | native MLX default + `qwen_asr` optional reference backend | Not a primary surfaced lane | No public forced-aligner API in cited snapshot | Official forced aligner |
 | Quantized path | Yes (4/8-bit workflows documented) | Yes | Varies | Varies |
 
 ## Measured Position of This Repo

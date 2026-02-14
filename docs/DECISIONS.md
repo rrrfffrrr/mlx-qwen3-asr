@@ -28,28 +28,28 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Qwen3-ASR deserves dedicated focus -- it's SOTA and complex enough to warrant its own package
 - Standalone allows us to optimize specifically for this model without compromise
 
-## Decision 3: Dual Timestamp Backends with Conservative Default
+## Decision 3: Dual Timestamp Backends with Native-First Default
 
-**Choice:** Keep `qwen_asr` as default timestamp backend while exposing native
-MLX backend (`mlx`) and fallback mode (`auto`)
-**Alternative:** Switch default immediately to native MLX aligner
+**Choice:** Use native MLX backend (`mlx`) as default timestamp path while
+keeping `qwen_asr` as explicit official-reference option and `auto` fallback mode
+**Alternative:** Keep `qwen_asr` as default backend
 
 **Rationale:**
-- `qwen_asr` remains the official reference implementation path for timestamp quality.
-- Native MLX backend is now available and benchmarked, but parity coverage is still
-  narrower than core transcription parity lanes.
+- Native MLX backend removes PyTorch runtime dependency from default timestamp use.
+- `qwen_asr` remains the official reference implementation path and stays
+  available as an explicit backend for conservative parity checks.
 - Dual-backend design lets users choose:
-  - maximum conservatism (`qwen_asr`),
-  - no PyTorch runtime (`mlx`),
+  - native default (`mlx`),
+  - official reference (`qwen_asr`),
   - pragmatic fallback (`auto`).
-- This keeps forward path open to flip the default once native parity gates are
-  sufficiently broad.
+- This keeps native-first UX while preserving explicit reference fallback.
 
 **Policy (important):**
 - This is a transition state, not the end-state architecture.
 - Project north star remains full native MLX for core + timestamps.
-- Default should move to native MLX only after explicit acceptance gates are met
-  (timing quality + reliability + multilingual coverage + performance envelope).
+- Keep expanding native parity gates (timing quality + reliability +
+  multilingual coverage + performance envelope) until `qwen_asr` is no longer
+  needed in standard workflows.
 
 ## Decision 4: HuggingFace Tokenizer
 

@@ -55,6 +55,27 @@ Default thresholds in the gate hook:
 - text-match rate: `>= 1.0`
 - timing MAE: `<= 60ms`
 
+### Optional Reference Parity Suite Gate (broader coverage)
+
+Use this to validate token-level parity beyond a single fixture:
+
+```bash
+RUN_REFERENCE_PARITY=1 RUN_REFERENCE_PARITY_SUITE=1 \
+REFERENCE_PARITY_SUITE_SUBSETS=test-clean,test-other \
+REFERENCE_PARITY_SUITE_SAMPLES_PER_SUBSET=3 \
+REFERENCE_PARITY_SUITE_INCLUDE_LONG_MIXES=1 \
+python scripts/quality_gate.py --mode release
+```
+
+What it adds:
+- deterministic multi-speaker sampling from `test-clean` and `test-other`,
+- optional synthetic long/mixed-speaker clips,
+- strict token-level match-rate threshold (default `>= 1.0`).
+
+Current status:
+- this lane is exploratory and intended for gap discovery before promotion to a
+  required release gate.
+
 ## Pass Criteria
 
 - `fast` gate must pass on every pull request.

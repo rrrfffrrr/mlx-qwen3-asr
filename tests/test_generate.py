@@ -7,6 +7,7 @@ import pytest
 from mlx_qwen3_asr.generate import (
     REPETITION_THRESHOLD,
     GenerationConfig,
+    _build_decode_positions,
     _detect_repetition,
     _sample,
     generate,
@@ -210,6 +211,33 @@ class TestGenerate:
         assert model.calls[1][0] == "prefill"
         assert model.calls[2][0] == "step"
 
+    def test_generate_handles_max_new_tokens_one(self):
+        class _DummyModel:
+            def create_cache(self, max_seq_len=None):  # noqa: ANN001
+                return object()
+
+            def prefill(self, input_ids, audio_features, position_ids, cache):  # noqa: ANN001
+                return mx.array([[[0.0, 1.0, 0.0]]], dtype=mx.float32)
+
+            def step(self, input_ids, position_ids, cache):  # noqa: ANN001
+                raise AssertionError("step() should not be called for max_new_tokens=1")
+
+        model = _DummyModel()
+        out = generate(
+            model=model,
+            input_ids=mx.array([[1, 2, 3]]),
+            audio_features=mx.zeros((1, 2, 4)),
+            position_ids=mx.zeros((1, 3, 3), dtype=mx.int32),
+            config=GenerationConfig(max_new_tokens=1, temperature=0.0, eos_token_ids=[999]),
+        )
+        assert out == [1]
+
+
+class TestBuildDecodePositions:
+    def test_returns_empty_tail_for_small_generation(self):
+        pos = _build_decode_positions(seq_len=5, max_new_tokens=1, dtype=mx.int32)
+        assert tuple(pos.shape) == (1, 3, 0)
+
 
 class _SpecCache:
     def __init__(self):
@@ -329,6 +357,7 @@ class TestGenerateSpeculative:
         assert speculative == greedy
         assert any(v > 0 for v in target.last_cache.trim_calls)
         assert any(v > 0 for v in draft.last_cache.trim_calls)
+        assert target.last_cache.trim_calls == draft.last_cache.trim_calls
 
     def test_rejects_non_greedy_mode(self):
         transitions = {i: i + 1 for i in range(0, 20)}
@@ -347,3 +376,21 @@ class TestGenerateSpeculative:
                 position_ids=position_ids,
                 config=cfg,
             )
+
+    def test_handles_max_new_tokens_one(self):
+        transitions = {i: i + 1 for i in range(0, 20)}
+        target = _SpecDummyModel(transitions=transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=transitions, first_token=1)
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(max_new_tokens=1, temperature=0.0, eos_token_ids=[999])
+
+        out = generate_speculative(
+            model=target,
+            draft_model=draft,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            draft_audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+        assert out == [1]

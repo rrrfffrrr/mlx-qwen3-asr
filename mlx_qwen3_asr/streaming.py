@@ -76,6 +76,11 @@ def init_streaming(
         raise ValueError(f"max_context_sec must be > 0, got: {max_context_sec}")
     if sample_rate <= 0:
         raise ValueError(f"sample_rate must be > 0, got: {sample_rate}")
+    if max_context_sec < chunk_size_sec:
+        raise ValueError(
+            f"max_context_sec must be >= chunk_size_sec, got: "
+            f"{max_context_sec} < {chunk_size_sec}"
+        )
 
     return StreamingState(
         unfixed_chunk_num=int(unfixed_chunk_num),
@@ -120,6 +125,8 @@ def feed_audio(
         x = x.astype(np.float32) / 32768.0
     else:
         x = x.astype(np.float32, copy=False)
+    if x.size == 0:
+        return state
 
     # Accumulate audio
     state.buffer = np.concatenate([state.buffer, x])

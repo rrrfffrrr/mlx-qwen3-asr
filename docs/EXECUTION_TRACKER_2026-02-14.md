@@ -204,7 +204,7 @@ Post-change validation:
   - timestamp parity claims now include dataset/scope + artifact pointers,
   - limitations section now states streaming/speculative/native-aligner status.
 - Comparison/decision docs were updated to match current implementation state:
-  - dual timestamp backend policy (`qwen_asr` default, `mlx` experimental),
+  - dual timestamp backend policy (`mlx` default, `qwen_asr` optional reference),
   - implementation comparison now avoids stale hard claims and emphasizes
     artifact-backed evidence.
 - CLI timestamp help/error messaging now clarifies backend dependency behavior:
@@ -258,6 +258,53 @@ python scripts/quality_gate.py --mode release
 Post-change validation:
 - fast gate: PASS (`289 passed, 1 skipped`)
 - release gate: PASS (`290 passed` + reference parity lane pass)
+
+### 21) Native-first timestamp backend default (Python path)
+
+- Switched forced-aligner default backend from `qwen_asr` to native `mlx`.
+- CLI `--aligner-backend` default now `mlx`; `qwen_asr` remains explicit opt-in.
+- Updated docs/tests to match native-first policy.
+
+### 22) Targeted bug-fix pass from external audit feedback
+
+Validated and addressed:
+
+1. Speculative cache rollback bug:
+- fixed draft cache trim to match target trim (`num_draft - accepted`).
+
+2. Decode-position robustness:
+- `_build_decode_positions(...)` now always returns an array (empty tail for
+  `max_new_tokens <= 1`) to remove `None` shape hazards.
+
+3. Session API parity:
+- added `draft_model` + `num_draft_tokens` to `Session.transcribe(...)`.
+
+4. Session tokenizer safety:
+- pre-loaded model path now uses embedded source metadata;
+- explicit error when metadata/tokenizer path is unavailable.
+
+5. Streaming guards:
+- reject `max_context_sec < chunk_size_sec`,
+- treat empty PCM input as explicit no-op.
+
+All fixes include regression coverage in `tests/test_generate.py`,
+`tests/test_session.py`, and `tests/test_streaming.py`.
+
+### 23) Expanded reference parity coverage lane (new)
+
+- Added `scripts/eval_reference_parity_suite.py` for broader token-level parity:
+  - deterministic `test-clean` + `test-other` sampling,
+  - optional synthetic long/multi-speaker mixes,
+  - optional external multilingual manifest input.
+- Wired as optional release-gate lane via `RUN_REFERENCE_PARITY_SUITE=1`.
+- Smoke run artifacts:
+  - `docs/benchmarks/2026-02-14-reference-parity-suite-smoke.json`
+  - `docs/benchmarks/2026-02-14-reference-parity-suite-smoke.md`
+
+Honest finding:
+- single-fixture parity does not extrapolate to broad token-exact parity.
+- smoke lane currently shows mismatches on harder/longer samples and should
+  remain exploratory until those are resolved.
 
 ## Decision Gates
 

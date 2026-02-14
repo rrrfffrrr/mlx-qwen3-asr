@@ -15,6 +15,7 @@ from .transcribe import (
     AudioInput,
     TranscriptionResult,
     _resolve_aligner,
+    _resolve_draft_model,
     _to_audio_np,
     _transcribe_loaded_components,
 )
@@ -38,12 +39,21 @@ class Session:
         if isinstance(model, str):
             self.model_id = model
             self.model, self.config = load_model(model, dtype=dtype)
-            tok_path = tokenizer_model or str(_resolve_path(model))
+            resolved_path = getattr(self.model, "_resolved_model_path", None)
+            tok_path = tokenizer_model or resolved_path or str(_resolve_path(model))
         else:
-            self.model_id = tokenizer_model or DEFAULT_MODEL_ID
+            source_model_id = getattr(model, "_source_model_id", None)
+            resolved_model_path = getattr(model, "_resolved_model_path", None)
+            tok_path = tokenizer_model or resolved_model_path or source_model_id
+            if tok_path is None:
+                raise ValueError(
+                    "tokenizer_model is required when passing a pre-loaded model "
+                    "without source metadata."
+                )
+            self.model_id = str(source_model_id or tok_path)
             self.model = model
             self.config = None
-            tok_path = tokenizer_model or DEFAULT_MODEL_ID
+            tok_path = str(tok_path)
 
         self.tokenizer = Tokenizer(tok_path)
 
@@ -51,25 +61,32 @@ class Session:
         self,
         audio: AudioInput,
         *,
+        draft_model: Optional[Union[str, Qwen3ASRModel]] = None,
         language: Optional[str] = None,
         return_timestamps: bool = False,
         forced_aligner: Optional[Union[str, ForcedAligner]] = None,
         max_new_tokens: int = 1024,
+        num_draft_tokens: int = 4,
         verbose: bool = False,
     ) -> TranscriptionResult:
         """Transcribe audio using this session's loaded model/tokenizer."""
         aligner = _resolve_aligner(return_timestamps, forced_aligner)
+        draft_model_obj = _resolve_draft_model(
+            draft_model=draft_model,
+            dtype=self.dtype,
+            target_model=self.model,
+        )
         audio_np = _to_audio_np(audio)
         return _transcribe_loaded_components(
             audio_np=audio_np,
             model_obj=self.model,
             tokenizer=self.tokenizer,
             dtype=self.dtype,
-            draft_model_obj=None,
+            draft_model_obj=draft_model_obj,
             language=language,
             aligner=aligner,
             return_timestamps=return_timestamps,
             max_new_tokens=max_new_tokens,
-            num_draft_tokens=4,
+            num_draft_tokens=num_draft_tokens,
             verbose=verbose,
         )

@@ -457,7 +457,7 @@ class ForcedAligner:
         self,
         model_path: str = DEFAULT_FORCED_ALIGNER_MODEL,
         dtype: mx.Dtype = mx.float16,
-        backend: str = ALIGNER_BACKEND_QWEN_ASR,
+        backend: str = ALIGNER_BACKEND_MLX,
     ):
         self.model_path = model_path
         self.dtype = dtype

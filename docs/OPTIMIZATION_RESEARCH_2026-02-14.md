@@ -18,7 +18,8 @@ Resolved-status notes (to avoid stale interpretation):
   covered by parity gates/tests.
 - Earlier "forced aligner path is WIP" note is partially outdated:
   - native MLX aligner backend now exists as experimental,
-  - `qwen_asr` remains the conservative default backend.
+  - native MLX is now the default backend; `qwen_asr` remains available as
+    the official-reference option.
 - Quantization quality statements based on small-sample runs in this file have
   been superseded by speaker-balanced `n=100` artifacts in `docs/benchmarks/`.
 

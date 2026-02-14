@@ -43,6 +43,22 @@ Latest streaming baseline artifact:
 - `docs/benchmarks/2026-02-14-streaming-rolling-baseline.json`
 - `docs/benchmarks/2026-02-14-streaming-rolling-baseline.md`
 
+Reference parity suite benchmark:
+
+```bash
+python scripts/eval_reference_parity_suite.py \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --subsets test-clean,test-other \
+  --samples-per-subset 5 \
+  --include-long-mixes \
+  --long-mixes 2 \
+  --json-output docs/benchmarks/reference-parity-suite.json
+```
+
+Latest smoke artifacts:
+- `docs/benchmarks/2026-02-14-reference-parity-suite-smoke.json`
+- `docs/benchmarks/2026-02-14-reference-parity-suite-smoke.md`
+
 Mel parity evaluation:
 
 ```bash
@@ -225,8 +241,8 @@ To avoid rediscovering low-signal paths, these were tested and not kept:
 
 ## Forced Aligner Backend Smoke (2026-02-14)
 
-Experimental native MLX timestamp backend (`--aligner-backend mlx`) was
-compared against `qwen_asr` on a short deterministic fixture.
+Native MLX timestamp backend (`--aligner-backend mlx`) was compared against
+`qwen_asr` on a short deterministic fixture.
 
 Artifacts:
 - `docs/benchmarks/2026-02-14-aligner-backend-smoke.json`

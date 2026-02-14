@@ -210,7 +210,7 @@ def generate_speculative(
 
         # Rewind unaccepted speculative steps so both caches match accepted path.
         target_cache.trim(num_draft - accepted)
-        draft_cache.trim(max(num_draft - accepted - 1, 0))
+        draft_cache.trim(num_draft - accepted)
 
         stop = False
         for i in range(accepted):
@@ -274,12 +274,10 @@ def _build_decode_positions(
     seq_len: int,
     max_new_tokens: int,
     dtype: mx.Dtype,
-) -> mx.array | None:
-    if max_new_tokens <= 1:
-        return None
+) -> mx.array:
     next_pos_base = mx.arange(
         seq_len,
-        seq_len + (max_new_tokens - 1),
+        seq_len + max(max_new_tokens - 1, 0),
         dtype=dtype,
     )
     next_pos_3d = mx.stack([next_pos_base, next_pos_base, next_pos_base], axis=0)

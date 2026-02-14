@@ -112,6 +112,39 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
                 )
             )
 
+        if os.environ.get("RUN_REFERENCE_PARITY_SUITE") == "1":
+            subsets = os.environ.get("REFERENCE_PARITY_SUITE_SUBSETS", "test-clean,test-other")
+            samples_per_subset = os.environ.get("REFERENCE_PARITY_SUITE_SAMPLES_PER_SUBSET", "3")
+            max_new_tokens = os.environ.get("REFERENCE_PARITY_SUITE_MAX_NEW_TOKENS", "128")
+            fail_match_rate = os.environ.get("REFERENCE_PARITY_SUITE_FAIL_MATCH_RATE_BELOW", "1.0")
+            cmd = [
+                python_bin,
+                str(repo / "scripts" / "eval_reference_parity_suite.py"),
+                "--model",
+                os.environ.get("REFERENCE_PARITY_SUITE_MODEL", "Qwen/Qwen3-ASR-0.6B"),
+                "--subsets",
+                subsets,
+                "--samples-per-subset",
+                samples_per_subset,
+                "--max-new-tokens",
+                max_new_tokens,
+                "--fail-match-rate-below",
+                fail_match_rate,
+            ]
+            if os.environ.get("REFERENCE_PARITY_SUITE_INCLUDE_LONG_MIXES", "1") == "1":
+                cmd.append("--include-long-mixes")
+                cmd.extend(
+                    [
+                        "--long-mixes",
+                        os.environ.get("REFERENCE_PARITY_SUITE_LONG_MIXES", "2"),
+                        "--long-mix-segments",
+                        os.environ.get("REFERENCE_PARITY_SUITE_LONG_MIX_SEGMENTS", "4"),
+                        "--long-mix-silence-sec",
+                        os.environ.get("REFERENCE_PARITY_SUITE_LONG_MIX_SILENCE_SEC", "0.3"),
+                    ]
+                )
+            steps.append(_run(cmd, repo))
+
     ok = all(step.passed for step in steps)
     return steps, ok
 

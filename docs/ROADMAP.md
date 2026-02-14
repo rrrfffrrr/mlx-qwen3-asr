@@ -78,14 +78,14 @@ Performance progress:
 
 4. Forced aligner timestamps
 - In progress.
-- Timestamps are enabled through optional `qwen-asr` backend integration
-  as a temporary bridge.
+- Timestamps now default to native MLX backend.
+- Optional `qwen-asr` backend remains available as an official-reference lane.
 - Native aligner groundwork now landed:
   - ported official text-unit preprocessing and LIS-based timestamp correction
     utilities into `mlx_qwen3_asr/forced_aligner.py`,
   - added regression coverage in `tests/test_forced_aligner.py`.
-- Experimental native MLX backend path is now wired (`--aligner-backend mlx`
-  or `auto`) while default remains `qwen_asr` until quality gates are met.
+- Native MLX backend path is wired (`--aligner-backend mlx` or `auto`) and is
+  now the default timestamp backend.
 - Initial smoke benchmark on fixture audio shows strong latency upside
   (~`4.73x` mean vs `qwen_asr`) with matching sample word spans.
 - Deterministic parity lane is now in place (`scripts/eval_aligner_parity.py`)
@@ -96,7 +96,7 @@ Performance progress:
 - Native JA/KO tokenizer parity is now wired for the MLX backend:
   - Japanese via `nagisa`,
   - Korean via `soynlp` + official Korean tokenizer dictionary asset.
-- Native MLX aligner remains a future optimization.
+- Native MLX aligner quality hardening remains an active optimization lane.
 
 5. Discoverability (README polish + PyPI)
 - In progress.

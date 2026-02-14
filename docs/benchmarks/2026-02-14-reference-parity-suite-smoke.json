@@ -1,0 +1,130 @@
+{
+  "suite": "reference-parity-suite-v1",
+  "model": "Qwen/Qwen3-ASR-0.6B",
+  "dtype": "float16",
+  "max_new_tokens": 128,
+  "subsets": [
+    "test-clean",
+    "test-other"
+  ],
+  "samples_per_subset": 2,
+  "include_long_mixes": true,
+  "long_mixes": 1,
+  "manifest_jsonl": null,
+  "samples": 5,
+  "matches": 2,
+  "match_rate": 0.4,
+  "latency_sec_mlx_mean": 2.434746583394008,
+  "latency_sec_ref_mean": 10.86513582500047,
+  "elapsed_sec": 91.14101854202454,
+  "by_subset": {
+    "test-clean": {
+      "samples": 2,
+      "matches": 1,
+      "match_rate": 0.5,
+      "latency_sec_mlx_mean": 1.2918693749816157,
+      "latency_sec_ref_mean": 5.499263520992827
+    },
+    "test-other": {
+      "samples": 2,
+      "matches": 1,
+      "match_rate": 0.5,
+      "latency_sec_mlx_mean": 1.848193521000212,
+      "latency_sec_ref_mean": 7.944572645516018
+    },
+    "synthetic-longmix": {
+      "samples": 1,
+      "matches": 0,
+      "match_rate": 0.0,
+      "latency_sec_mlx_mean": 5.893607125006383,
+      "latency_sec_ref_mean": 27.438006791984662
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "sample_id": "1089-134686-0000",
+      "subset": "test-clean",
+      "speaker_id": "1089",
+      "language": "English",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0000.flac",
+      "source_sample_ids": [],
+      "duration_sec": 10.435,
+      "token_count_mlx": 36,
+      "token_count_ref": 36,
+      "text_match": false,
+      "first_mismatch_index": 8,
+      "latency_sec_mlx": 1.4023647919821087,
+      "latency_sec_ref": 5.06910454199533
+    },
+    {
+      "index": 2,
+      "sample_id": "1188-133604-0000",
+      "subset": "test-clean",
+      "speaker_id": "1188",
+      "language": "English",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1188/133604/1188-133604-0000.flac",
+      "source_sample_ids": [],
+      "duration_sec": 10.725,
+      "token_count_mlx": 30,
+      "token_count_ref": 30,
+      "text_match": true,
+      "first_mismatch_index": -1,
+      "latency_sec_mlx": 1.1813739579811227,
+      "latency_sec_ref": 5.929422499990324
+    },
+    {
+      "index": 3,
+      "sample_id": "1688-142285-0000",
+      "subset": "test-other",
+      "speaker_id": "1688",
+      "language": "English",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-other/1688/142285/1688-142285-0000.flac",
+      "source_sample_ids": [],
+      "duration_sec": 15.0,
+      "token_count_mlx": 42,
+      "token_count_ref": 43,
+      "text_match": false,
+      "first_mismatch_index": 23,
+      "latency_sec_mlx": 1.9663664999825414,
+      "latency_sec_ref": 8.546610750025138
+    },
+    {
+      "index": 4,
+      "sample_id": "1998-15444-0000",
+      "subset": "test-other",
+      "speaker_id": "1998",
+      "language": "English",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-other/1998/15444/1998-15444-0000.flac",
+      "source_sample_ids": [],
+      "duration_sec": 13.315,
+      "token_count_mlx": 46,
+      "token_count_ref": 46,
+      "text_match": true,
+      "first_mismatch_index": -1,
+      "latency_sec_mlx": 1.7300205420178827,
+      "latency_sec_ref": 7.3425345410068985
+    },
+    {
+      "index": 5,
+      "sample_id": "longmix-000",
+      "subset": "synthetic-longmix",
+      "speaker_id": "1089,1188,1688,1998",
+      "language": "English",
+      "audio_path": null,
+      "source_sample_ids": [
+        "1089-134686-0000",
+        "1188-133604-0000",
+        "1688-142285-0000",
+        "1998-15444-0000"
+      ],
+      "duration_sec": 50.375,
+      "token_count_mlx": 128,
+      "token_count_ref": 128,
+      "text_match": false,
+      "first_mismatch_index": 32,
+      "latency_sec_mlx": 5.893607125006383,
+      "latency_sec_ref": 27.438006791984662
+    }
+  ]
+}

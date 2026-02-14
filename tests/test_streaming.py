@@ -70,6 +70,10 @@ class TestInitStreaming:
         with np.testing.assert_raises(ValueError):
             init_streaming(sample_rate=0)
 
+    def test_context_must_be_at_least_chunk(self):
+        with np.testing.assert_raises(ValueError):
+            init_streaming(chunk_size_sec=2.0, max_context_sec=1.0)
+
 
 # ---------------------------------------------------------------------------
 # StreamingState defaults
@@ -286,3 +290,20 @@ class TestFeedAudio:
         state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
         with np.testing.assert_raises(ValueError):
             feed_audio(None, state)  # type: ignore[arg-type]
+
+    def test_feed_audio_empty_array_is_noop(self, monkeypatch):
+        calls = []
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            calls.append(1)
+            return SimpleNamespace(text="hello", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        out = feed_audio(np.array([], dtype=np.float32), state)
+        assert out is state
+        assert len(state.buffer) == 0
+        assert len(state.audio_accum) == 0
+        assert calls == []

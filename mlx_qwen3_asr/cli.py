@@ -49,8 +49,8 @@ def main():
         "--timestamps",
         action="store_true",
         help=(
-            "Request word-level timestamps. With --aligner-backend qwen_asr "
-            "(default), requires optional dependency qwen-asr."
+            "Request word-level timestamps. Native MLX backend is default; "
+            "qwen-asr is only required with --aligner-backend qwen_asr."
         ),
     )
     parser.add_argument(
@@ -60,9 +60,9 @@ def main():
     )
     parser.add_argument(
         "--aligner-backend",
-        default="qwen_asr",
+        default="mlx",
         choices=["qwen_asr", "mlx", "auto"],
-        help="Timestamp backend (default: qwen_asr)",
+        help="Timestamp backend (default: mlx)",
     )
     parser.add_argument(
         "--dtype",

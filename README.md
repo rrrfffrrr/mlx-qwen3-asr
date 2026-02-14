@@ -43,7 +43,7 @@ Install with optional forced aligner support:
 pip install "mlx-qwen3-asr[aligner]"
 ```
 
-This extra installs `qwen-asr` (official timestamp backend) plus `nagisa` and
+This extra installs `qwen-asr` (official reference backend) plus `nagisa` and
 `soynlp` (JA/KO tokenization parity helpers for forced alignment).
 
 For development:
@@ -112,7 +112,7 @@ Specify model, language, and output format:
 mlx-qwen3-asr recording.mp3 --model Qwen/Qwen3-ASR-0.6B --language English -f srt -o output/
 ```
 
-Word-level timestamps (default backend is `qwen_asr`):
+Word-level timestamps (default backend is native `mlx`):
 
 ```bash
 mlx-qwen3-asr audio.wav --timestamps
@@ -212,7 +212,7 @@ result = transcribe("audio.wav", model="Qwen/Qwen3-ASR-1.7B")
 Word-level timestamps are available via forced alignment. Two backends:
 
 ```bash
-# Native MLX backend (no extra dependencies)
+# Native MLX backend (default, no PyTorch dependency)
 mlx-qwen3-asr audio.wav --timestamps --aligner-backend mlx
 
 # Official Qwen backend (requires: pip install qwen-asr)
@@ -222,8 +222,8 @@ mlx-qwen3-asr audio.wav --timestamps --aligner-backend qwen_asr
 mlx-qwen3-asr audio.wav --timestamps --aligner-backend auto
 ```
 
-Default backend is `qwen_asr` (official reference path). Use `mlx` or `auto`
-explicitly if you want to avoid mandatory PyTorch runtime dependency.
+Default backend is `mlx`. Use `qwen_asr` if you want the official reference
+backend, or `auto` for MLX-first with automatic fallback.
 
 Current measured parity snapshot (`test-clean`, English, `n=50`):
 - text match rate (`mlx` vs `qwen_asr`): `1.0000`
@@ -345,6 +345,12 @@ RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
 
 # Optional native-aligner parity lane
 RUN_REFERENCE_PARITY=1 RUN_ALIGNER_PARITY=1 ALIGNER_PARITY_SAMPLES=10 \
+python scripts/quality_gate.py --mode release
+
+# Optional broader token-level parity suite (clean/other + long mixes)
+RUN_REFERENCE_PARITY=1 RUN_REFERENCE_PARITY_SUITE=1 \
+REFERENCE_PARITY_SUITE_SUBSETS=test-clean,test-other \
+REFERENCE_PARITY_SUITE_SAMPLES_PER_SUBSET=3 \
 python scripts/quality_gate.py --mode release
 
 # Golden evaluation on LibriSpeech
