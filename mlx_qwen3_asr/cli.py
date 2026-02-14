@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import sys
 import time
 from pathlib import Path
@@ -78,6 +79,16 @@ def main():
     )
 
     args = parser.parse_args()
+
+    existing_files = [p for p in args.audio if Path(p).exists()]
+    if args.timestamps and existing_files:
+        if importlib.util.find_spec("qwen_asr") is None:
+            print(
+                "Error: --timestamps requires optional dependency `qwen-asr`. "
+                "Install with: pip install \"mlx-qwen3-asr[aligner]\"",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
 
     # Lazy imports for faster --help
     import mlx.core as mx
