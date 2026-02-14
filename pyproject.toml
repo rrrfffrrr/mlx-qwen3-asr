@@ -44,7 +44,7 @@ packages = {find = {where = ["."], include = ["mlx_qwen3_asr*"]}}
 include-package-data = true
 
 [tool.setuptools.package-data]
-mlx_qwen3_asr = ["assets/*.npz"]
+mlx_qwen3_asr = ["assets/*.npz", "assets/*.dict"]
 
 [tool.ruff]
 line-length = 100

@@ -2,11 +2,26 @@
 
 from __future__ import annotations
 
+import builtins
+import sys
+import types
+
 import numpy as np
 import pytest
 
 import mlx_qwen3_asr.forced_aligner as famod
 from mlx_qwen3_asr.forced_aligner import ForcedAlignTextProcessor
+
+
+@pytest.fixture(autouse=True)
+def _reset_text_processor_caches():
+    ForcedAlignTextProcessor._nagisa = None
+    ForcedAlignTextProcessor._ko_tokenizer = None
+    ForcedAlignTextProcessor._ko_tokenizer_error = None
+    yield
+    ForcedAlignTextProcessor._nagisa = None
+    ForcedAlignTextProcessor._ko_tokenizer = None
+    ForcedAlignTextProcessor._ko_tokenizer_error = None
 
 
 def test_clean_token_keeps_letters_digits_apostrophe():
@@ -21,6 +36,74 @@ def test_tokenize_space_lang_splits_mixed_cjk():
         "界",
         "test",
     ]
+
+
+def test_tokenize_text_japanese_uses_nagisa_when_available(monkeypatch):
+    class _Tagged:
+        words = ["こんにちは", "!", "世界"]
+
+    nagisa_mod = types.ModuleType("nagisa")
+    nagisa_mod.tagging = lambda text: _Tagged()  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "nagisa", nagisa_mod)
+
+    tokens = ForcedAlignTextProcessor.tokenize_text("ignored", "ja")
+    assert tokens == ["こんにちは", "世界"]
+
+
+def test_tokenize_text_japanese_missing_dep_raises_clear_error(monkeypatch):
+    monkeypatch.delitem(sys.modules, "nagisa", raising=False)
+    original_import = builtins.__import__
+
+    def _fake_import(name, *args, **kwargs):
+        if name == "nagisa":
+            raise ImportError("nagisa not available")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+    with pytest.raises(RuntimeError, match="Japanese tokenization requires optional dependency"):
+        ForcedAlignTextProcessor.tokenize_text("こんにちは", "japanese")
+
+
+def test_tokenize_text_korean_uses_soynlp_and_caches(monkeypatch):
+    state = {"ctor_calls": 0, "scores_size": 0}
+
+    class _DummyLTokenizer:
+        def __init__(self, scores):
+            state["ctor_calls"] += 1
+            state["scores_size"] = len(scores)
+
+        def tokenize(self, text):
+            return ["안녕", "하세요!"]
+
+    soynlp_mod = types.ModuleType("soynlp")
+    soynlp_tokenizer_mod = types.ModuleType("soynlp.tokenizer")
+    soynlp_tokenizer_mod.LTokenizer = _DummyLTokenizer  # type: ignore[attr-defined]
+    soynlp_mod.tokenizer = soynlp_tokenizer_mod  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "soynlp", soynlp_mod)
+    monkeypatch.setitem(sys.modules, "soynlp.tokenizer", soynlp_tokenizer_mod)
+
+    tokens1 = ForcedAlignTextProcessor.tokenize_text("안녕하세요", "ko")
+    tokens2 = ForcedAlignTextProcessor.tokenize_text("안녕하세요", "korean")
+
+    assert tokens1 == ["안녕", "하세요"]
+    assert tokens2 == ["안녕", "하세요"]
+    assert state["ctor_calls"] == 1
+    assert state["scores_size"] > 0
+
+
+def test_tokenize_text_korean_missing_dep_raises_clear_error(monkeypatch):
+    monkeypatch.delitem(sys.modules, "soynlp", raising=False)
+    monkeypatch.delitem(sys.modules, "soynlp.tokenizer", raising=False)
+    original_import = builtins.__import__
+
+    def _fake_import(name, *args, **kwargs):
+        if name.startswith("soynlp"):
+            raise ImportError("soynlp not available")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _fake_import)
+    with pytest.raises(RuntimeError, match="Korean tokenization requires optional dependency"):
+        ForcedAlignTextProcessor.tokenize_text("안녕하세요", "korean")
 
 
 def test_encode_timestamp_prompt_wraps_audio_and_timestamps():

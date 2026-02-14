@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import unicodedata
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 
 import mlx.core as mx
@@ -33,6 +34,10 @@ class AlignedWord:
 
 class ForcedAlignTextProcessor:
     """Text processor utilities for timestamp alignment input/output."""
+
+    _nagisa: Any | None = None
+    _ko_tokenizer: Any | None = None
+    _ko_tokenizer_error: Exception | None = None
 
     @staticmethod
     def is_kept_char(ch: str) -> bool:
@@ -89,14 +94,92 @@ class ForcedAlignTextProcessor:
         return tokens
 
     @classmethod
+    def _tokenize_japanese(cls, text: str) -> list[str]:
+        if cls._nagisa is None:
+            try:
+                import nagisa  # type: ignore
+            except Exception as e:
+                raise RuntimeError(
+                    "Japanese tokenization requires optional dependency `nagisa`. "
+                    "Install with: pip install \"mlx-qwen3-asr[aligner]\""
+                ) from e
+            cls._nagisa = nagisa
+
+        words = cls._nagisa.tagging(text).words
+        out: list[str] = []
+        for w in words:
+            cleaned = cls.clean_token(str(w))
+            if cleaned:
+                out.append(cleaned)
+        return out
+
+    @classmethod
+    def _get_ko_tokenizer(cls) -> Any | None:
+        if cls._ko_tokenizer is not None:
+            return cls._ko_tokenizer
+        if cls._ko_tokenizer_error is not None:
+            raise RuntimeError(
+                "Korean tokenizer backend failed to initialize."
+            ) from cls._ko_tokenizer_error
+
+        try:
+            from soynlp.tokenizer import LTokenizer  # type: ignore
+        except Exception as e:
+            cls._ko_tokenizer_error = e
+            raise RuntimeError(
+                "Korean tokenization requires optional dependency `soynlp`. "
+                "Install with: pip install \"mlx-qwen3-asr[aligner]\""
+            ) from e
+
+        scores: dict[str, float] = {}
+        dict_path = Path(__file__).parent / "assets" / "korean_dict_jieba.dict"
+        try:
+            with dict_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    row = line.strip()
+                    if not row:
+                        continue
+                    word = row.split()[0]
+                    scores[word] = 1.0
+        except OSError as e:
+            cls._ko_tokenizer_error = e
+            raise RuntimeError(
+                "Missing Korean tokenizer dictionary asset "
+                f"at '{dict_path}'. Reinstall mlx-qwen3-asr."
+            ) from e
+
+        try:
+            cls._ko_tokenizer = LTokenizer(scores=scores)
+        except Exception as e:
+            cls._ko_tokenizer_error = e
+            raise RuntimeError("Failed to initialize Korean tokenizer backend.") from e
+        return cls._ko_tokenizer
+
+    @classmethod
+    def _tokenize_korean(cls, text: str) -> list[str]:
+        tok = cls._get_ko_tokenizer()
+
+        out: list[str] = []
+        for w in tok.tokenize(text):
+            cleaned = cls.clean_token(str(w))
+            if cleaned:
+                out.append(cleaned)
+        return out
+
+    @classmethod
     def tokenize_text(cls, text: str, language: str) -> list[str]:
         """Tokenize alignment text into word/character units.
 
-        Current default path matches official behavior for space-delimited
-        languages and mixed CJK text. Japanese/Korean specialized tokenizers
-        are intentionally deferred to keep core dependencies minimal.
+        Matches official processing behavior for:
+        - Japanese: `nagisa` tokenization
+        - Korean: `soynlp` LTokenizer + official dict
+        - Others: space/CJK tokenizer
         """
-        _ = language
+        lang = (language or "").strip().lower()
+        if lang in {"japanese", "ja", "jp"}:
+            return cls._tokenize_japanese(text)
+        if lang in {"korean", "ko", "kr"}:
+            return cls._tokenize_korean(text)
         return cls.tokenize_space_lang(text)
 
     @classmethod

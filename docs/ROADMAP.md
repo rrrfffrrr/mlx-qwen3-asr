@@ -76,6 +76,9 @@ Performance progress:
   - text-match rate: `1.0`,
   - timing MAE: `5.69ms`,
   - mean latency speedup: `~2.64x` vs `qwen_asr`.
+- Native JA/KO tokenizer parity is now wired for the MLX backend:
+  - Japanese via `nagisa`,
+  - Korean via `soynlp` + official Korean tokenizer dictionary asset.
 - Native MLX aligner remains a future optimization.
 
 5. Discoverability (README polish + PyPI)

@@ -1,0 +1,127 @@
+{
+  "suite": "aligner-parity-v1",
+  "subset": "test-clean",
+  "samples": 10,
+  "model": "Qwen/Qwen3-ForcedAligner-0.6B",
+  "dtype": "float16",
+  "language": "English",
+  "text_match_rate": 1.0,
+  "timing_mae_ms_start": 0.4761904761904766,
+  "timing_mae_ms_end": 2.8571428571428545,
+  "timing_mae_ms_all": 1.6666666666666656,
+  "latency_sec_mlx_mean": 0.5266821414988954,
+  "latency_sec_qwen_asr_mean": 0.7731386207015021,
+  "latency_speedup_qwen_over_mlx": 1.4679415909208755,
+  "rows": [
+    {
+      "sample_id": "1089-134686-0000",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0000.flac",
+      "n_words_mlx": 28,
+      "n_words_qwen_asr": 28,
+      "text_match": true,
+      "latency_sec_mlx": 4.513768708013231,
+      "latency_sec_qwen_asr": 4.8331854170101,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0001",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0001.flac",
+      "n_words_mlx": 8,
+      "n_words_qwen_asr": 8,
+      "text_match": true,
+      "latency_sec_mlx": 0.07586112499120645,
+      "latency_sec_qwen_asr": 0.23221849999390543,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0002",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0002.flac",
+      "n_words_mlx": 18,
+      "n_words_qwen_asr": 18,
+      "text_match": true,
+      "latency_sec_mlx": 0.07034016599936876,
+      "latency_sec_qwen_asr": 0.30971795799268875,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0003",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0003.flac",
+      "n_words_mlx": 7,
+      "n_words_qwen_asr": 7,
+      "text_match": true,
+      "latency_sec_mlx": 0.04311541700735688,
+      "latency_sec_qwen_asr": 0.22591533299419098,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0004",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0004.flac",
+      "n_words_mlx": 11,
+      "n_words_qwen_asr": 11,
+      "text_match": true,
+      "latency_sec_mlx": 0.08624445799796376,
+      "latency_sec_qwen_asr": 0.2784867500013206,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0005",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0005.flac",
+      "n_words_mlx": 22,
+      "n_words_qwen_asr": 22,
+      "text_match": true,
+      "latency_sec_mlx": 0.11069687499548309,
+      "latency_sec_qwen_asr": 0.3961377500090748,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 21.8181818181818
+    },
+    {
+      "sample_id": "1089-134686-0006",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0006.flac",
+      "n_words_mlx": 24,
+      "n_words_qwen_asr": 24,
+      "text_match": true,
+      "latency_sec_mlx": 0.09585637498821598,
+      "latency_sec_qwen_asr": 0.41971195800579153,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0007",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0007.flac",
+      "n_words_mlx": 8,
+      "n_words_qwen_asr": 8,
+      "text_match": true,
+      "latency_sec_mlx": 0.06351249999715947,
+      "latency_sec_qwen_asr": 0.28537566600425635,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0008",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0008.flac",
+      "n_words_mlx": 15,
+      "n_words_qwen_asr": 15,
+      "text_match": true,
+      "latency_sec_mlx": 0.09020891599357128,
+      "latency_sec_qwen_asr": 0.3277856659988174,
+      "start_mae_ms": 0.0,
+      "end_mae_ms": 0.0
+    },
+    {
+      "sample_id": "1089-134686-0009",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/LibriSpeech/test-clean/1089/134686/1089-134686-0009.flac",
+      "n_words_mlx": 27,
+      "n_words_qwen_asr": 27,
+      "text_match": true,
+      "latency_sec_mlx": 0.11721687500539701,
+      "latency_sec_qwen_asr": 0.4228512090048753,
+      "start_mae_ms": 2.9629629629629655,
+      "end_mae_ms": 0.0
+    }
+  ]
+}

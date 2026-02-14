@@ -101,3 +101,15 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Lower memory footprint reduces first-run friction and OOM risk
 - Better latency by default improves perceived product quality
 - 1.7B remains a first-class opt-in for accuracy-focused workloads
+
+## Decision 9: Native JA/KO Aligner Tokenization Mirrors Official Dependencies
+
+**Choice:** For native MLX aligner path, require `nagisa` (JA) and `soynlp` + official
+Korean dict (KO), and fail clearly when missing.
+**Alternative:** Silent fallback to generic space/CJK tokenization.
+
+**Rationale:**
+- Timestamp quality gates require tokenizer behavior to match the official processor.
+- Silent fallback hides quality degradation and weakens parity guarantees.
+- Clear runtime errors are preferable to silent low-quality alignment in multilingual use.
+- Vendoring the official Korean dictionary asset keeps behavior reproducible across machines.
