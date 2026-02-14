@@ -863,14 +863,10 @@ class KVCache:
                     (B, H, self.max_seq_len, D), dtype=value.dtype
                 )
 
-            start_indices = mx.array([0, 0, start, 0], dtype=mx.int32)
-            axes = [0, 1, 2, 3]
-            self.keys[layer_idx] = mx.slice_update(
-                self.keys[layer_idx], key, start_indices, axes
-            )
-            self.values[layer_idx] = mx.slice_update(
-                self.values[layer_idx], value, start_indices, axes
-            )
+            # Follow mlx-lm's cache pattern: in-place writes into preallocated
+            # buffers avoid constructing a fresh array on each token step.
+            self.keys[layer_idx][..., start:end, :] = key
+            self.values[layer_idx][..., start:end, :] = value
 
             full_k = self.keys[layer_idx][:, :, :end, :]
             full_v = self.values[layer_idx][:, :, :end, :]

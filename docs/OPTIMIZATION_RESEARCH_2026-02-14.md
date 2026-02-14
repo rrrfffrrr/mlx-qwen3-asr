@@ -9,13 +9,17 @@ the current gate docs:
 - `docs/GOLDEN_DATASET.md`
 - `docs/BENCHMARKING.md`
 
+Important: this file is a time-capsule of exploratory notes from a single
+session. Several items below were hypotheses at the time and may now be
+resolved. Treat `docs/RESEARCH.md` + `docs/ROADMAP.md` as current truth.
+
 Implemented optimization finding on 2026-02-14:
 
 - Tokenizer caching across repeated `transcribe()` calls reduced measured
   latency by about 68% on local M4 Pro benchmarks for
   `Qwen/Qwen3-ASR-0.6B` + `tests/fixtures/test_speech.wav`.
 - Decoder-path improvements:
-  - preallocated KV cache writes (`slice_update`) to remove repeated concat growth,
+  - preallocated KV cache writes (in-place assignment) to remove repeated concat growth,
   - direct grouped-query fused attention without explicit K/V head repetition.
 - Current measured operating point:
   - short fixture: ~`0.53s` mean latency (`RTF ~0.21`)

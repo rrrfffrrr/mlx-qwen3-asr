@@ -63,7 +63,7 @@ Raw JSON artifacts are tracked under `docs/benchmarks/`.
 ## Additional Local Finding (2026-02-14)
 
 - Change set:
-  - KV-cache preallocation via `slice_update` (remove per-step concat growth cost),
+  - KV-cache preallocation (remove per-step concat growth cost),
   - direct grouped-query fused attention (remove explicit K/V head repetition).
 - Machine: Apple M4 Pro, macOS 26.2.
 - Model: `Qwen/Qwen3-ASR-0.6B`, dtype `float16`.
@@ -104,3 +104,18 @@ Artifacts:
 
 Current recommended operating point for `Qwen/Qwen3-ASR-0.6B` on Apple Silicon:
 - `4bit-g64` (best speed with no sampled WER regression vs fp16 in this run).
+
+## KV Cache Write-Path Follow-up (2026-02-14)
+
+`KVCache.update()` preallocated writes were compared:
+- baseline: `mx.slice_update`
+- candidate: in-place slice assignment
+
+Artifacts:
+- `docs/benchmarks/2026-02-14-kvcache-write-path.json`
+- `docs/benchmarks/2026-02-14-kvcache-write-path.md`
+
+Result summary:
+- fp16 short/long and q4 short improved in mean latency.
+- q4 long median stayed effectively unchanged; one outlier inflated mean.
+- Decision: keep in-place write path (neutral-to-better overall).

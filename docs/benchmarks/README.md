@@ -27,7 +27,7 @@ Artifacts:
 Decode-path optimization benchmark (2026-02-14):
 
 - Changes:
-  - preallocated KV cache writes (`slice_update`) instead of repeated concatenation,
+  - preallocated KV cache writes instead of repeated concatenation,
   - GQA attention path no longer explicitly repeats K/V heads before fused SDPA.
 - Machine: Apple M4 Pro, macOS 26.2
 - Model: `Qwen/Qwen3-ASR-0.6B`, dtype `float16`
@@ -54,6 +54,11 @@ Quantization matrix sweep artifacts (2026-02-14):
 - CI/manual workflow output names:
   - `docs/benchmarks/ci-quant-matrix.json`
   - `docs/benchmarks/ci-quant-matrix.md`
+
+KV cache write-path follow-up (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-kvcache-write-path.json`
+- `docs/benchmarks/2026-02-14-kvcache-write-path.md`
 
 Generate with:
 
