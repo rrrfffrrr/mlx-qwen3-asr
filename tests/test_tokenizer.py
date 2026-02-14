@@ -134,6 +134,39 @@ def test_load_hf_tokenizer_uses_fix_mistral_regex(monkeypatch):
     assert calls[0][1]["fix_mistral_regex"] is True
 
 
+def test_load_hf_tokenizer_prefers_direct_qwen2_loader(monkeypatch):
+    qwen_calls = []
+
+    class _DummyQwen2Tokenizer:
+        @staticmethod
+        def from_pretrained(model_path, **kwargs):  # noqa: ANN001
+            qwen_calls.append((model_path, kwargs))
+            return object()
+
+    class _DummyAutoTokenizer:
+        @staticmethod
+        def from_pretrained(*args, **kwargs):  # noqa: ANN001
+            raise AssertionError(
+                "AutoTokenizer should not be called when Qwen2Tokenizer is available"
+            )
+
+    qwen_mod = type(sys)("transformers.models.qwen2.tokenization_qwen2")
+    qwen_mod.Qwen2Tokenizer = _DummyQwen2Tokenizer
+
+    auto_mod = type(sys)("transformers")
+    auto_mod.AutoTokenizer = _DummyAutoTokenizer
+
+    monkeypatch.setitem(sys.modules, "transformers", auto_mod)
+    monkeypatch.setitem(sys.modules, "transformers.models.qwen2.tokenization_qwen2", qwen_mod)
+
+    tok = tokmod._load_hf_tokenizer("repo/qwen")
+    assert tok is not None
+    assert len(qwen_calls) == 1
+    assert qwen_calls[0][0] == "repo/qwen"
+    assert qwen_calls[0][1]["trust_remote_code"] is True
+    assert qwen_calls[0][1]["fix_mistral_regex"] is True
+
+
 def test_load_hf_tokenizer_falls_back_when_fix_flag_unsupported(monkeypatch):
     calls = []
 

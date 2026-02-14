@@ -81,6 +81,11 @@ Forced aligner parity lane run (2026-02-14):
 - `docs/benchmarks/2026-02-14-aligner-parity-10-ja-ko-tokenizer.json`
 - `docs/benchmarks/2026-02-14-aligner-parity-10-ja-ko-tokenizer.md`
 
+Tokenizer loader path benchmark (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-tokenizer-loader-path-benchmark.json`
+- `docs/benchmarks/2026-02-14-tokenizer-loader-path-benchmark.md`
+
 Generate with:
 
 ```bash

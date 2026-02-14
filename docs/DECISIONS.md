@@ -113,3 +113,15 @@ Korean dict (KO), and fail clearly when missing.
 - Silent fallback hides quality degradation and weakens parity guarantees.
 - Clear runtime errors are preferable to silent low-quality alignment in multilingual use.
 - Vendoring the official Korean dictionary asset keeps behavior reproducible across machines.
+
+## Decision 10: Prefer Direct `Qwen2Tokenizer` Loader over `AutoTokenizer`
+
+**Choice:** In tokenizer loading, import and instantiate `Qwen2Tokenizer` directly when
+available, with `AutoTokenizer` as fallback.
+**Alternative:** Always use `AutoTokenizer.from_pretrained(...)`.
+
+**Rationale:**
+- `AutoTokenizer` dynamic import path pulls significantly more module graph at cold start.
+- Direct `Qwen2Tokenizer` reduces process-level first-transcribe latency while preserving
+  tokenization behavior and parity gates.
+- Fallback path retains compatibility with older/variant transformer stacks.

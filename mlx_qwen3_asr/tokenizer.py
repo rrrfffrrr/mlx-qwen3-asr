@@ -5,18 +5,11 @@ from __future__ import annotations
 from typing import Optional
 
 
-def _load_hf_tokenizer(model_path: str):
-    """Load HF tokenizer with best-effort compatibility fixes.
-
-    Some model/tokenizer bundles trigger a warning about Mistral regex behavior.
-    Newer `transformers` versions support `fix_mistral_regex`; older versions
-    may reject it, so we fall back cleanly.
-    """
-    from transformers import AutoTokenizer
-
+def _from_pretrained_with_fix_flag(loader_cls, model_path: str):  # noqa: ANN001
+    """Load a tokenizer class with optional mistral-regex compatibility flag."""
     common_kwargs = {"trust_remote_code": True}
     try:
-        return AutoTokenizer.from_pretrained(
+        return loader_cls.from_pretrained(
             model_path,
             fix_mistral_regex=True,
             **common_kwargs,
@@ -24,7 +17,28 @@ def _load_hf_tokenizer(model_path: str):
     except TypeError as e:
         if "fix_mistral_regex" not in str(e):
             raise
-        return AutoTokenizer.from_pretrained(model_path, **common_kwargs)
+        return loader_cls.from_pretrained(model_path, **common_kwargs)
+
+
+def _load_hf_tokenizer(model_path: str):
+    """Load HF tokenizer with best-effort compatibility fixes.
+
+    Some model/tokenizer bundles trigger a warning about Mistral regex behavior.
+    Newer `transformers` versions support `fix_mistral_regex`; older versions
+    may reject it, so we fall back cleanly.
+    """
+    # Prefer direct Qwen2 tokenizer import when available. This avoids the
+    # heavier AutoTokenizer dynamic import path and improves cold-start latency.
+    try:
+        from transformers.models.qwen2.tokenization_qwen2 import Qwen2Tokenizer
+    except Exception:
+        Qwen2Tokenizer = None
+
+    if Qwen2Tokenizer is not None:
+        return _from_pretrained_with_fix_flag(Qwen2Tokenizer, model_path)
+
+    from transformers import AutoTokenizer
+    return _from_pretrained_with_fix_flag(AutoTokenizer, model_path)
 
 
 class Tokenizer:

@@ -54,6 +54,11 @@ Performance progress:
 - Done (I/O startup optimization):
   - native fast-path WAV loader for PCM/float `.wav` inputs, with ffmpeg
     fallback for unsupported formats, reducing short-clip overhead.
+- Done (cold-start tokenizer optimization):
+  - tokenizer loader now prefers direct `Qwen2Tokenizer` path over
+    `AutoTokenizer` dynamic loading.
+  - benchmarked process-level first-transcribe latency on fixture audio:
+    mean `4.008s` -> `2.599s` (`~1.54x` faster).
 - Current measured fp16 point from refreshed matrix run
   (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, float16):
   - short fixture: mean `0.4996s`, RTF `0.1972`
