@@ -6,6 +6,11 @@ Verified notes for this repo, based on official artifacts as of **2026-02-14**.
 
 - Qwen3-ASR paper: https://arxiv.org/abs/2601.21337
 - Official codebase: https://github.com/QwenLM/Qwen3-ASR
+- Official Python package (`qwen-asr`): https://github.com/QwenLM/Qwen3-ASR/tree/main/qwen_asr
+- Apple MLX examples: https://github.com/ml-explore/mlx-examples
+- Apple MLX-LM cache implementation: https://github.com/ml-explore/mlx-lm/blob/main/mlx_lm/models/cache.py
+- MLX-Audio (existing MLX Qwen3-ASR path): https://github.com/ml-explore/mlx-audio
+- Swift MLX implementation: https://github.com/ivan-digital/qwen3-asr-swift
 - HF model cards/configs:
   - https://huggingface.co/Qwen/Qwen3-ASR-1.7B
   - https://huggingface.co/Qwen/Qwen3-ASR-0.6B
@@ -83,3 +88,37 @@ This means exact multiples of 100 frames map to `13 * n_chunks` tokens
 - Title: *Qwen3-ASR Technical Report*
 - arXiv: https://arxiv.org/abs/2601.21337
 - Submitted: **January 29, 2026**; revised version (v2): **January 30, 2026**
+
+## Mac/MLX Implementation Landscape (2026-02-14)
+
+- `ml-explore/mlx-audio` includes a Qwen3-ASR path and is currently the most
+  visible upstream MLX implementation.
+- `ivan-digital/qwen3-asr-swift` provides a native Swift + MLX implementation
+  with published ASR latency claims and packaged 0.6B/1.7B quantized variants.
+- Small wrappers/servers exist (GitHub search), but most are thin API layers
+  on top of MLX-Audio or custom forks, not full independently validated cores.
+
+## Forced Aligner and Timestamp Facts
+
+- Official Qwen timestamping is a separate model:
+  `Qwen/Qwen3-ForcedAligner-0.6B`.
+- In official `qwen-asr`, `return_time_stamps=True` requires initializing a
+  `forced_aligner`; otherwise it raises an explicit error.
+- Official streaming path does **not** support timestamps in that stack.
+
+## Swift Timestamp Status (Evidence-Based)
+
+- In `ivan-digital/qwen3-asr-swift`, ASR docs and source currently show
+  transcription support but no ASR timestamp/forced-aligner implementation.
+- The repo roadmap lists ASR streaming as pending; no published native forced
+  alignment API is present in its ASR modules/docs today.
+
+## Practical MLX Optimization Guidance from Upstream Code
+
+- `mlx-lm`'s `KVCache` uses in-place slice writes and stepped growth strategy;
+  this is the proven baseline pattern for decode-time cache efficiency.
+- Quantized model loading in MLX stacks generally applies module quantization
+  before weight loading and persists quantization metadata in config.
+- For this repo, measured wins continue to come from:
+  tokenizer/model caching, preallocated KV paths, and validated quant profiles
+  (`4-bit`, `group_size=64`) rather than speculative asynchronous decode logic.

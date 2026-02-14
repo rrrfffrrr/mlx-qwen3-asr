@@ -4,7 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/mlx-qwen3-asr/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Run [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) on Apple Silicon. A pure [MLX](https://github.com/ml-explore/mlx) reimplementation of the official PyTorch model — same weights, same output, optimized for Mac GPUs via Metal.
+Run [Qwen3-ASR](https://huggingface.co/collections/Qwen/qwen3-asr) on Apple Silicon. A pure [MLX](https://github.com/ml-explore/mlx) reimplementation of the official PyTorch model — same weights, same output, optimized for Mac GPUs via Metal.
 
 ## What is this?
 
@@ -64,12 +64,16 @@ print(result.text)
 print(result.language)
 ```
 
+By default, `transcribe()` and `mlx-qwen3-asr` use `Qwen/Qwen3-ASR-0.6B`
+for fast, low-friction local usage on Mac. Use `Qwen/Qwen3-ASR-1.7B` when
+you want higher accuracy and can afford higher latency/memory.
+
 With options:
 
 ```python
 result = transcribe(
     "meeting.mp3",
-    model="Qwen/Qwen3-ASR-1.7B",
+    model="Qwen/Qwen3-ASR-1.7B",  # accuracy-first option
     language="English",
     verbose=True,
 )

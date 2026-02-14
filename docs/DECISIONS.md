@@ -84,3 +84,14 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - Incorrect RoPE produces plausible but degraded transcription -- hard to debug
 - This is the #1 bug in existing implementations (mlx-audio gets this wrong)
 - Correctness is non-negotiable for the core position encoding
+
+## Decision 8: Default Runtime Model = 0.6B
+
+**Choice:** Default `transcribe()` and CLI to `Qwen/Qwen3-ASR-0.6B`
+**Alternative:** Keep 1.7B as the default
+
+**Rationale:**
+- "One-line and it just works" is stronger with 0.6B on typical Mac hardware
+- Lower memory footprint reduces first-run friction and OOM risk
+- Better latency by default improves perceived product quality
+- 1.7B remains a first-class opt-in for accuracy-focused workloads

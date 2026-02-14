@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 
 from ._version import __version__
+from .config import DEFAULT_MODEL_ID
 
 
 def main():
@@ -24,8 +25,8 @@ def main():
     )
     parser.add_argument(
         "--model",
-        default="Qwen/Qwen3-ASR-1.7B",
-        help="Model name or path (default: Qwen/Qwen3-ASR-1.7B)",
+        default=DEFAULT_MODEL_ID,
+        help=f"Model name or path (default: {DEFAULT_MODEL_ID})",
     )
     parser.add_argument(
         "--language",

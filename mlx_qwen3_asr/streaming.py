@@ -7,6 +7,7 @@ from typing import Optional
 
 import numpy as np
 
+from .config import DEFAULT_MODEL_ID
 from .model import Qwen3ASRModel
 
 # Streaming constants (from official repo)
@@ -36,11 +37,11 @@ class StreamingState:
     chunk_size_samples: int = 32000  # 2 seconds at 16kHz
     previous_tokens: list[int] = field(default_factory=list)
     stable_text: str = ""
-    _model_path: str = "Qwen/Qwen3-ASR-1.7B"
+    _model_path: str = DEFAULT_MODEL_ID
 
 
 def init_streaming(
-    model: str = "Qwen/Qwen3-ASR-1.7B",
+    model: str = DEFAULT_MODEL_ID,
     chunk_size_sec: float = 2.0,
     sample_rate: int = 16000,
 ) -> StreamingState:

@@ -11,6 +11,7 @@ import numpy as np
 
 from .audio import SAMPLE_RATE, compute_features, load_audio
 from .chunking import split_audio_into_chunks
+from .config import DEFAULT_MODEL_ID
 from .forced_aligner import ForcedAligner
 from .generate import GenerationConfig, generate
 from .load_models import _ModelHolder
@@ -35,7 +36,7 @@ class TranscriptionResult:
 def transcribe(
     audio: Union[str, Path, np.ndarray, mx.array, tuple[np.ndarray, int]],
     *,
-    model: Union[str, Qwen3ASRModel] = "Qwen/Qwen3-ASR-1.7B",
+    model: Union[str, Qwen3ASRModel] = DEFAULT_MODEL_ID,
     language: Optional[str] = None,
     return_timestamps: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
@@ -80,7 +81,7 @@ def transcribe(
         model_path = model
     else:
         model_obj = model
-        model_path = "Qwen/Qwen3-ASR-1.7B"
+        model_path = DEFAULT_MODEL_ID
 
     # Load tokenizer (cached by model path)
     tokenizer = _TokenizerHolder.get(model_path)

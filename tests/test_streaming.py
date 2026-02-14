@@ -2,6 +2,7 @@
 
 import numpy as np
 
+from mlx_qwen3_asr.config import DEFAULT_MODEL_ID
 from mlx_qwen3_asr.streaming import (
     UNFIXED_TOKEN_NUM,
     StreamingState,
@@ -21,7 +22,7 @@ class TestInitStreaming:
         state = init_streaming()
         assert isinstance(state, StreamingState)
         assert state.chunk_size_samples == 32000  # 2.0 * 16000
-        assert state._model_path == "Qwen/Qwen3-ASR-1.7B"
+        assert state._model_path == DEFAULT_MODEL_ID
         assert state.text == ""
         assert state.language == "unknown"
         assert state.chunk_id == 0

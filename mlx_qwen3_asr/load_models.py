@@ -12,7 +12,7 @@ import mlx.core as mx
 import mlx.nn as nn
 import mlx.utils as mlx_utils
 
-from .config import Qwen3ASRConfig
+from .config import DEFAULT_MODEL_ID, Qwen3ASRConfig
 from .convert import remap_weights
 from .model import Qwen3ASRModel
 
@@ -52,7 +52,7 @@ class _ModelHolder:
 
 
 def load_model(
-    path_or_hf_repo: str = "Qwen/Qwen3-ASR-1.7B",
+    path_or_hf_repo: str = DEFAULT_MODEL_ID,
     dtype: mx.Dtype = mx.float16,
 ) -> tuple[Qwen3ASRModel, Qwen3ASRConfig]:
     """Load Qwen3-ASR model from local path or HuggingFace Hub.

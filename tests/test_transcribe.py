@@ -7,6 +7,7 @@ import importlib
 import mlx.core as mx
 import numpy as np
 
+from mlx_qwen3_asr.config import DEFAULT_MODEL_ID
 from mlx_qwen3_asr.forced_aligner import AlignedWord
 from mlx_qwen3_asr.transcribe import transcribe
 
@@ -94,3 +95,24 @@ def test_transcribe_with_timestamps(monkeypatch):
         {"text": "hello", "start": 0.1, "end": 0.4},
         {"text": "hello", "start": 1.6, "end": 1.9},
     ]
+
+
+def test_transcribe_uses_default_model_id(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+    called_paths = []
+
+    def _fake_get(path, **kwargs):  # noqa: ANN001
+        called_paths.append(path)
+        return _DummyModel(), None
+
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
+    monkeypatch.setattr(tmod._ModelHolder, "get", _fake_get)
+    monkeypatch.setattr(
+        tmod,
+        "compute_features",
+        lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
+    )
+    monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+
+    _ = transcribe(np.zeros(3200, dtype=np.float32))
+    assert called_paths == [DEFAULT_MODEL_ID]

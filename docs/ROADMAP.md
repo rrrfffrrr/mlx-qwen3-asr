@@ -61,6 +61,8 @@ Performance progress:
 - In progress.
 - README validation section added; package metadata links updated.
 - Benchmark process documented (`scripts/benchmark_asr.py`, `docs/BENCHMARKING.md`).
+- Default model for `transcribe()`/CLI is now `Qwen/Qwen3-ASR-0.6B` to keep
+  one-line install/run fast and reliable on typical Apple Silicon machines.
 
 ## Acceptance Gates
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import mlx.core as mx
 import mlx.utils as mlx_utils
 
+from mlx_qwen3_asr.config import ACCURACY_MODEL_ID
 from mlx_qwen3_asr.load_models import (
     _cast_tree_dtype,
     _infer_quantization_params,
@@ -57,7 +58,7 @@ class TestResolvePath:
         expected = "/tmp/fake-model-dir"
 
         def fake_snapshot_download(repo_id, allow_patterns):  # noqa: ANN001
-            assert repo_id == "Qwen/Qwen3-ASR-1.7B"
+            assert repo_id == ACCURACY_MODEL_ID
             assert "*.safetensors" in allow_patterns
             return expected
 
@@ -66,7 +67,7 @@ class TestResolvePath:
             fake_snapshot_download,
         )
 
-        resolved = _resolve_path("Qwen/Qwen3-ASR-1.7B")
+        resolved = _resolve_path(ACCURACY_MODEL_ID)
         assert resolved == Path(expected)
 
 

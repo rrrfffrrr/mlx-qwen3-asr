@@ -3,6 +3,7 @@
 Only tests parse_asr_output() -- the Tokenizer class requires HF download.
 """
 
+import sys
 
 import mlx_qwen3_asr.tokenizer as tokmod
 from mlx_qwen3_asr.tokenizer import _TokenizerHolder, parse_asr_output
@@ -109,3 +110,48 @@ def test_tokenizer_holder_caches_by_model_path(monkeypatch):
     assert t1 is t2
     assert t1 is not t3
     assert created == ["repo/a", "repo/b"]
+
+
+def test_load_hf_tokenizer_uses_fix_mistral_regex(monkeypatch):
+    calls = []
+
+    class _DummyAutoTokenizer:
+        @staticmethod
+        def from_pretrained(model_path, **kwargs):  # noqa: ANN001
+            calls.append((model_path, kwargs))
+            return object()
+
+    class _DummyTransformersModule:
+        AutoTokenizer = _DummyAutoTokenizer
+
+    monkeypatch.setitem(sys.modules, "transformers", _DummyTransformersModule)
+
+    tok = tokmod._load_hf_tokenizer("repo/a")
+    assert tok is not None
+    assert len(calls) == 1
+    assert calls[0][0] == "repo/a"
+    assert calls[0][1]["trust_remote_code"] is True
+    assert calls[0][1]["fix_mistral_regex"] is True
+
+
+def test_load_hf_tokenizer_falls_back_when_fix_flag_unsupported(monkeypatch):
+    calls = []
+
+    class _DummyAutoTokenizer:
+        @staticmethod
+        def from_pretrained(model_path, **kwargs):  # noqa: ANN001
+            calls.append((model_path, kwargs))
+            if kwargs.get("fix_mistral_regex"):
+                raise TypeError("unexpected keyword argument 'fix_mistral_regex'")
+            return object()
+
+    class _DummyTransformersModule:
+        AutoTokenizer = _DummyAutoTokenizer
+
+    monkeypatch.setitem(sys.modules, "transformers", _DummyTransformersModule)
+
+    tok = tokmod._load_hf_tokenizer("repo/b")
+    assert tok is not None
+    assert len(calls) == 2
+    assert calls[0][1]["fix_mistral_regex"] is True
+    assert "fix_mistral_regex" not in calls[1][1]

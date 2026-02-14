@@ -9,6 +9,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+# Public default model IDs (kept centralized to avoid drift across CLI/API).
+DEFAULT_MODEL_ID = "Qwen/Qwen3-ASR-0.6B"
+ACCURACY_MODEL_ID = "Qwen/Qwen3-ASR-1.7B"
+
 
 @dataclass
 class AudioEncoderConfig:

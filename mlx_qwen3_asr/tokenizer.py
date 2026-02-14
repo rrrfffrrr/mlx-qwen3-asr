@@ -5,6 +5,28 @@ from __future__ import annotations
 from typing import Optional
 
 
+def _load_hf_tokenizer(model_path: str):
+    """Load HF tokenizer with best-effort compatibility fixes.
+
+    Some model/tokenizer bundles trigger a warning about Mistral regex behavior.
+    Newer `transformers` versions support `fix_mistral_regex`; older versions
+    may reject it, so we fall back cleanly.
+    """
+    from transformers import AutoTokenizer
+
+    common_kwargs = {"trust_remote_code": True}
+    try:
+        return AutoTokenizer.from_pretrained(
+            model_path,
+            fix_mistral_regex=True,
+            **common_kwargs,
+        )
+    except TypeError as e:
+        if "fix_mistral_regex" not in str(e):
+            raise
+        return AutoTokenizer.from_pretrained(model_path, **common_kwargs)
+
+
 class Tokenizer:
     """Thin wrapper around HuggingFace Qwen2TokenizerFast.
 
@@ -17,10 +39,7 @@ class Tokenizer:
     EOS_TOKEN_IDS = [151643, 151645]
 
     def __init__(self, model_path: str):
-        from transformers import AutoTokenizer
-        self._tokenizer = AutoTokenizer.from_pretrained(
-            model_path, trust_remote_code=True
-        )
+        self._tokenizer = _load_hf_tokenizer(model_path)
 
         # Look up audio token IDs from the actual tokenizer vocab
         vocab = self._tokenizer.get_vocab()
