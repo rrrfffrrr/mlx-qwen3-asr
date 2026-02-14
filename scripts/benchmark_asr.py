@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Minimal ASR benchmark harness for latency + RTF tracking."""
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ import sys
 import time
 from pathlib import Path
 
- 
+
 def _maybe_reexec_venv() -> None:
     repo = Path(__file__).resolve().parents[1]
     venv_python = repo / ".venv" / "bin" / "python"

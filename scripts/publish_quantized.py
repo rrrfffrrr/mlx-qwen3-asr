@@ -105,7 +105,12 @@ def main() -> None:
         )
 
         api = HfApi(token=token)
-        api.create_repo(repo_id=args.repo_id, repo_type="model", private=args.private, exist_ok=True)
+        api.create_repo(
+            repo_id=args.repo_id,
+            repo_type="model",
+            private=args.private,
+            exist_ok=True,
+        )
         api.upload_folder(
             folder_path=str(out_dir),
             repo_id=args.repo_id,

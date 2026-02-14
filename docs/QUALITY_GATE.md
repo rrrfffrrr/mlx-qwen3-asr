@@ -28,10 +28,20 @@ Checks:
 - Everything in fast gate.
 - Reference parity test (`tests/test_reference_parity.py`).
 
+### Nightly Regression Lane (scheduled/manual)
+
+`Nightly Regression` workflow runs on macOS and tracks:
+- Fast gate
+- Golden quality sample (`scripts/eval_librispeech.py`)
+- Latency/RTF benchmark (`scripts/benchmark_asr.py`)
+
+This lane is intentionally separate from PR CI so day-to-day development stays fast.
+
 ## Pass Criteria
 
 - `fast` gate must pass on every pull request.
 - `release` gate must pass before publishing releases/artifacts.
+- Nightly regression should remain green; red runs block performance claims until investigated.
 - Any optimization PR that changes decoding/model math must include:
   - parity evidence (release gate pass or equivalent),
   - benchmark before/after results.

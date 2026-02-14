@@ -13,6 +13,10 @@ Qwen3-ASR on Apple Silicon.
 - Added manual CI workflow: `.github/workflows/reference-parity.yml`.
 - Added explicit gate runner: `scripts/quality_gate.py` with fast/release modes.
 - Added policy doc: `docs/QUALITY_GATE.md`.
+- Added scheduled regression lane:
+  - `.github/workflows/nightly-regression.yml`
+  - `scripts/eval_librispeech.py`
+  - `docs/GOLDEN_DATASET.md`
 
 2. Long audio preprocessing (no 30s feature truncation)
 - Done.
@@ -39,4 +43,5 @@ Qwen3-ASR on Apple Silicon.
 
 - Token parity: deterministic greedy parity test passes on reference fixtures.
 - Reliability: long audio regression tests pass (`>30s` mel lengths).
+- Golden quality: LibriSpeech sampled WER/CER trend remains within policy threshold.
 - Packaging: reproducible release checklist (version bump, build, publish).

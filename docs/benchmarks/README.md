@@ -7,6 +7,8 @@ Suggested naming:
 - `baseline_<machine>_<model>_<dtype>.json`
 - `pr<id>_<machine>_<model>_<dtype>.json`
 - `latest.json` for quick local runs
+- `nightly-latency.json` for scheduled runtime trend
+- `nightly-librispeech.json` for scheduled quality trend
 
 Generate with:
 

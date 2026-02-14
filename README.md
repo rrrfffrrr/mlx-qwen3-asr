@@ -205,6 +205,16 @@ Run release-quality gate (includes reference parity):
 RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
 ```
 
+Run golden quality evaluation (LibriSpeech deterministic subset):
+
+```bash
+python scripts/eval_librispeech.py \
+  --subset test-clean \
+  --samples 100 \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --json-output docs/benchmarks/golden-librispeech.json
+```
+
 Run unit tests directly:
 
 ```bash
@@ -235,6 +245,10 @@ python scripts/benchmark_asr.py tests/fixtures/test_speech.wav \
   --runs 5 \
   --json-output docs/benchmarks/latest.json
 ```
+
+Nightly regression workflow runs fast gate + golden quality sample + latency benchmark:
+
+- `.github/workflows/nightly-regression.yml`
 
 ## Acknowledgments
 

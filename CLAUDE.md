@@ -2,9 +2,27 @@
 
 Agent instructions for working on mlx-qwen3-asr.
 
+## North Star
+
+**`pip install mlx-qwen3-asr` is the obvious, default way to run Qwen3-ASR on a Mac.**
+
+This is a ground-up reimplementation of the official PyTorch model using Apple's MLX framework. Same weights, same output, runs on Mac GPUs via Metal. Not a wrapper — every layer is rewritten for MLX.
+
+### Execution order (strict)
+
+1. **Quality parity** — Match official PyTorch output token-for-token (greedy). Proven via `test_reference_parity.py`. Nothing else matters until this is locked.
+2. **Runtime optimization** — Faster inference on Apple Silicon (M1/M2/M3/M4). Measured via `scripts/benchmark_asr.py`. No optimization may regress quality (enforced by quality gate).
+3. **Swift port** — Once Python is correct and fast, port the proven implementation to Swift+MLX for native macOS/iOS apps.
+
+### What this is NOT
+
+- Not a multi-model toolkit (that's mlx-audio)
+- Not a training framework
+- Not a server/API — just a library and CLI
+
 ## Project Context
 
-This is an **MLX port of Qwen3-ASR** — the SOTA open-source ASR model — for Apple Silicon Macs. Written in Python, using Apple's MLX framework for Metal GPU acceleration. Standalone package (not part of mlx-audio).
+This is an **MLX reimplementation of Qwen3-ASR** — the SOTA open-source ASR model — for Apple Silicon Macs. The official implementation is PyTorch + NVIDIA CUDA and doesn't use Apple GPUs. We rewrite every layer in Python + MLX so the same model runs natively on Mac hardware. Standalone package (not part of mlx-audio).
 
 ### Key Constraints
 
@@ -32,6 +50,7 @@ Qwen3-ASR is an encoder-decoder model:
 | `docs/DECISIONS.md` | Key decisions and rationale | Major technical choices |
 | `docs/COMPARISON.md` | Comparison with alternatives | New competitors, feature changes |
 | `docs/QUALITY_GATE.md` | Merge/release quality gates | Test policy changes |
+| `docs/GOLDEN_DATASET.md` | Golden dataset policy and commands | Dataset/threshold policy changes |
 | `docs/BENCHMARKING.md` | Runtime measurement protocol | Perf process changes |
 
 ## Code Conventions
@@ -231,16 +250,22 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 pip install -e ".[dev]"
 ```
 
-### Tests
+### Quality gate (run before every PR)
 
 ```bash
-python -m pytest tests/ -v
+python scripts/quality_gate.py --mode fast
 ```
 
-### Lint
+### Release gate (run before tags/releases — requires `qwen-asr` for parity test)
 
 ```bash
-ruff check mlx_qwen3_asr/
+RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
+```
+
+### Benchmark (run for any performance-related change)
+
+```bash
+python scripts/benchmark_asr.py tests/fixtures/test_speech.wav --runs 5 --json-output docs/benchmarks/latest.json
 ```
 
 ### Quick smoke test

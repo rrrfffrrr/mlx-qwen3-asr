@@ -30,6 +30,7 @@ dependencies = [
 [project.optional-dependencies]
 aligner = ["qwen-asr", "nagisa", "soynlp"]
 dev = ["pytest", "ruff", "mypy"]
+eval = ["soundfile>=0.12.1"]
 
 [project.scripts]
 mlx-qwen3-asr = "mlx_qwen3_asr.cli:main"
