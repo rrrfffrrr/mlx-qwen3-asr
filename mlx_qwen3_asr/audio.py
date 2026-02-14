@@ -85,6 +85,10 @@ def load_audio(
 
 def _load_audio_file(path: str, sr: int) -> mx.array:
     """Load audio file using ffmpeg, returning mono float32 at target sample rate."""
+    wav_audio = _try_load_wav_fast(path, sr)
+    if wav_audio is not None:
+        return mx.array(wav_audio)
+
     cmd = [
         "ffmpeg",
         "-nostdin",
@@ -113,6 +117,125 @@ def _load_audio_file(path: str, sr: int) -> mx.array:
 
     audio_np = np.frombuffer(result.stdout, np.int16).astype(np.float32) / 32768.0
     return mx.array(audio_np)
+
+
+def _try_load_wav_fast(path: str, target_sr: int) -> np.ndarray | None:
+    """Fast-path WAV loader using stdlib for uncompressed PCM WAV files.
+
+    Returns None when the file is not a supported WAV variant so callers can
+    fall back to ffmpeg.
+    """
+    if not str(path).lower().endswith(".wav"):
+        return None
+
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return None
+
+    parsed = _parse_wav_bytes(data)
+    if parsed is None:
+        return None
+
+    audio, orig_sr = parsed
+    if audio.size == 0:
+        return np.array([], dtype=np.float32)
+
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    if orig_sr != target_sr:
+        audio = _resample_via_ffmpeg(audio.astype(np.float32), orig_sr, target_sr)
+
+    return audio.astype(np.float32)
+
+
+def _parse_wav_bytes(data: bytes) -> tuple[np.ndarray, int] | None:
+    """Parse a RIFF/WAVE byte stream.
+
+    Supports little-endian PCM (format 1) and IEEE float (format 3).
+    Returns decoded samples and sample rate, or None if unsupported.
+    """
+    if len(data) < 12:
+        return None
+    if data[0:4] != b"RIFF" or data[8:12] != b"WAVE":
+        return None
+
+    fmt_chunk: bytes | None = None
+    data_chunk: bytes | None = None
+    i = 12
+    while i + 8 <= len(data):
+        chunk_id = data[i : i + 4]
+        chunk_size = int.from_bytes(data[i + 4 : i + 8], "little")
+        start = i + 8
+        end = start + chunk_size
+        if end > len(data):
+            return None
+        chunk = data[start:end]
+        if chunk_id == b"fmt ":
+            fmt_chunk = chunk
+        elif chunk_id == b"data":
+            data_chunk = chunk
+        i = end + (chunk_size & 1)
+
+    if fmt_chunk is None or data_chunk is None or len(fmt_chunk) < 16:
+        return None
+
+    audio_format = int.from_bytes(fmt_chunk[0:2], "little")
+    n_channels = int.from_bytes(fmt_chunk[2:4], "little")
+    sample_rate = int.from_bytes(fmt_chunk[4:8], "little")
+    bits_per_sample = int.from_bytes(fmt_chunk[14:16], "little")
+    if n_channels <= 0 or sample_rate <= 0:
+        return None
+
+    if audio_format == 1:  # PCM
+        if bits_per_sample % 8 != 0:
+            return None
+        sample_width = bits_per_sample // 8
+        decoded = _decode_pcm_bytes(data_chunk, sample_width)
+        if decoded is None:
+            return None
+    elif audio_format == 3:  # IEEE float
+        if bits_per_sample == 32:
+            decoded = np.frombuffer(data_chunk, dtype="<f4").astype(np.float32)
+        elif bits_per_sample == 64:
+            decoded = np.frombuffer(data_chunk, dtype="<f8").astype(np.float32)
+        else:
+            return None
+    else:
+        return None
+
+    n = (decoded.size // n_channels) * n_channels
+    decoded = decoded[:n]
+    if n_channels > 1:
+        decoded = decoded.reshape(-1, n_channels)
+    return decoded, sample_rate
+
+
+def _decode_pcm_bytes(raw: bytes, sample_width: int) -> np.ndarray | None:
+    """Decode PCM bytes from WAV data to float32 in [-1, 1]."""
+    if sample_width == 1:
+        x = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+        return (x - 128.0) / 128.0
+
+    if sample_width == 2:
+        x = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
+        return x / 32768.0
+
+    if sample_width == 3:
+        b = np.frombuffer(raw, dtype=np.uint8)
+        if len(b) % 3 != 0:
+            return None
+        b = b.reshape(-1, 3).astype(np.int32)
+        x = b[:, 0] | (b[:, 1] << 8) | (b[:, 2] << 16)
+        sign_mask = 1 << 23
+        x = np.where((x & sign_mask) != 0, x - (1 << 24), x)
+        return x.astype(np.float32) / float(1 << 23)
+
+    if sample_width == 4:
+        x = np.frombuffer(raw, dtype=np.int32).astype(np.float32)
+        return x / float(1 << 31)
+
+    return None
 
 
 def _resample_via_ffmpeg(

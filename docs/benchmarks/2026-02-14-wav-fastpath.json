@@ -1,0 +1,27 @@
+{
+  "experiment": "wav-fast-path-loader",
+  "date": "2026-02-14",
+  "notes": "Added native WAV parser for PCM/IEEE-float WAV files, with ffmpeg fallback for unsupported formats.",
+  "results": {
+    "fp16_short": {
+      "before_mean_sec": 0.5450552458045422,
+      "after_mean_sec": 0.5056636458333136,
+      "delta_pct": -7.227083910197707
+    },
+    "fp16_long_10s": {
+      "before_mean_sec": 0.9125695416278177,
+      "after_mean_sec": 0.9162171980005951,
+      "delta_pct": 0.39971270203373876
+    },
+    "q4g64_short": {
+      "before_mean_sec": 0.15749083319969942,
+      "after_mean_sec": 0.11846737483332011,
+      "delta_pct": -24.778241103656683
+    },
+    "q4g64_long_10s": {
+      "before_mean_sec": 0.24907784337301564,
+      "after_mean_sec": 0.22578043224893918,
+      "delta_pct": -9.353465891860392
+    }
+  }
+}

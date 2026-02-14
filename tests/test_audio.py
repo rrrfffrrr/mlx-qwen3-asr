@@ -1,9 +1,15 @@
 """Tests for mlx_qwen3_asr/audio.py."""
 
+import struct
+import subprocess
+import wave
+from pathlib import Path
+
 import mlx.core as mx
 import numpy as np
 import pytest
 
+import mlx_qwen3_asr.audio as audio_mod
 from mlx_qwen3_asr.audio import (
     N_FFT,
     SAMPLE_RATE,
@@ -80,6 +86,122 @@ class TestLoadAudioErrors:
     def test_unsupported_type_list_raises_value_error(self):
         with pytest.raises(ValueError, match="Unsupported source type"):
             load_audio([1, 2, 3])
+
+
+class TestLoadAudioWavFastPath:
+    """WAV loader fast-path behavior."""
+
+    def _write_wav(
+        self,
+        path: Path,
+        samples: np.ndarray,
+        sr: int = SAMPLE_RATE,
+        channels: int = 1,
+    ) -> None:
+        samples = np.asarray(samples, dtype=np.float32)
+        if channels > 1:
+            samples = samples.reshape(-1, channels)
+            flat = samples.reshape(-1)
+        else:
+            flat = samples
+        pcm = (np.clip(flat, -1.0, 1.0) * 32767.0).astype(np.int16)
+        with wave.open(str(path), "wb") as wf:
+            wf.setnchannels(channels)
+            wf.setsampwidth(2)
+            wf.setframerate(sr)
+            wf.writeframes(pcm.tobytes())
+
+    def _write_wav_float32(
+        self,
+        path: Path,
+        samples: np.ndarray,
+        sr: int = SAMPLE_RATE,
+        channels: int = 1,
+    ) -> None:
+        samples = np.asarray(samples, dtype=np.float32)
+        if channels > 1:
+            samples = samples.reshape(-1, channels)
+            flat = samples.reshape(-1)
+        else:
+            flat = samples
+        payload = flat.astype("<f4").tobytes()
+        byte_rate = sr * channels * 4
+        block_align = channels * 4
+        fmt_chunk = struct.pack(
+            "<HHIIHH",
+            3,  # IEEE float
+            channels,
+            sr,
+            byte_rate,
+            block_align,
+            32,
+        )
+        riff_size = 4 + (8 + len(fmt_chunk)) + (8 + len(payload))
+        with open(path, "wb") as f:
+            f.write(b"RIFF")
+            f.write(struct.pack("<I", riff_size))
+            f.write(b"WAVE")
+            f.write(b"fmt ")
+            f.write(struct.pack("<I", len(fmt_chunk)))
+            f.write(fmt_chunk)
+            f.write(b"data")
+            f.write(struct.pack("<I", len(payload)))
+            f.write(payload)
+
+    def test_wav_fast_path_avoids_ffmpeg(self, tmp_path: Path, monkeypatch):
+        wav_path = tmp_path / "mono.wav"
+        src = np.linspace(-0.5, 0.5, SAMPLE_RATE, dtype=np.float32)
+        self._write_wav(wav_path, src, sr=SAMPLE_RATE, channels=1)
+
+        def fail_run(*args, **kwargs):  # noqa: ANN001
+            raise AssertionError("ffmpeg subprocess should not be used for supported WAV")
+
+        monkeypatch.setattr(subprocess, "run", fail_run)
+
+        audio = np.array(load_audio(str(wav_path)))
+        assert audio.ndim == 1
+        assert len(audio) == SAMPLE_RATE
+        np.testing.assert_allclose(audio[:200], src[:200], atol=1e-3)
+
+    def test_wav_fast_path_stereo_to_mono(self, tmp_path: Path):
+        wav_path = tmp_path / "stereo.wav"
+        left = np.linspace(-1.0, 1.0, SAMPLE_RATE, dtype=np.float32)
+        right = np.linspace(1.0, -1.0, SAMPLE_RATE, dtype=np.float32)
+        stereo = np.stack([left, right], axis=1)
+        self._write_wav(wav_path, stereo, sr=SAMPLE_RATE, channels=2)
+
+        audio = np.array(load_audio(str(wav_path)))
+        expected = stereo.mean(axis=1)
+        np.testing.assert_allclose(audio, expected, atol=1e-3)
+
+    def test_wav_fast_path_resamples_when_needed(self, tmp_path: Path, monkeypatch):
+        wav_path = tmp_path / "resample.wav"
+        src = np.linspace(-0.5, 0.5, 8000, dtype=np.float32)
+        self._write_wav(wav_path, src, sr=8000, channels=1)
+
+        called = []
+
+        def fake_resample(audio: np.ndarray, orig_sr: int, target_sr: int):  # noqa: ANN001
+            called.append((len(audio), orig_sr, target_sr))
+            return np.zeros(16000, dtype=np.float32)
+
+        monkeypatch.setattr(audio_mod, "_resample_via_ffmpeg", fake_resample)
+        out = np.array(load_audio(str(wav_path), sr=16000))
+        assert called == [(8000, 8000, 16000)]
+        assert out.shape == (16000,)
+
+    def test_wav_float32_fast_path(self, tmp_path: Path, monkeypatch):
+        wav_path = tmp_path / "float32.wav"
+        src = np.linspace(-0.8, 0.8, SAMPLE_RATE, dtype=np.float32)
+        self._write_wav_float32(wav_path, src, sr=SAMPLE_RATE, channels=1)
+
+        def fail_run(*args, **kwargs):  # noqa: ANN001
+            raise AssertionError("ffmpeg subprocess should not be used for float WAV")
+
+        monkeypatch.setattr(subprocess, "run", fail_run)
+
+        audio = np.array(load_audio(str(wav_path)))
+        np.testing.assert_allclose(audio, src, atol=1e-6)
 
 
 # ---------------------------------------------------------------------------

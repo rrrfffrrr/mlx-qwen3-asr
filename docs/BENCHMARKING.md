@@ -119,3 +119,22 @@ Result summary:
 - fp16 short/long and q4 short improved in mean latency.
 - q4 long median stayed effectively unchanged; one outlier inflated mean.
 - Decision: keep in-place write path (neutral-to-better overall).
+
+## WAV Loader Fast-Path (2026-02-14)
+
+Added a native WAV parser (PCM + IEEE float) with ffmpeg fallback for
+unsupported/non-WAV formats. This removes ffmpeg process startup overhead for
+common `.wav` inputs.
+
+Artifacts:
+- `docs/benchmarks/2026-02-14-wav-fastpath.json`
+- `docs/benchmarks/2026-02-14-wav-fastpath.md`
+
+Measured impact (same-session A/B):
+- fp16 short: ~`-7.23%`
+- fp16 long 10s: ~`+0.40%` (effectively neutral)
+- 4bit-g64 short: ~`-24.78%`
+- 4bit-g64 long 10s: ~`-9.35%`
+
+Short-clip latency benefits are strongest for fast quantized profiles where
+audio loading overhead is a larger fraction of total runtime.

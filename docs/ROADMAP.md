@@ -51,6 +51,9 @@ Performance progress:
 - Done (decoder micro-optimization follow-up):
   - switched preallocated KV cache write path to in-place slice assignment
     after same-session A/B benchmarking (neutral-to-better overall).
+- Done (I/O startup optimization):
+  - native fast-path WAV loader for PCM/float `.wav` inputs, with ffmpeg
+    fallback for unsupported formats, reducing short-clip overhead.
 - Current measured point (Apple M4 Pro, `Qwen/Qwen3-ASR-0.6B`, float16):
   - short fixture: mean `0.5303s`, RTF `0.2093`
   - 10s clip: mean `0.9420s`, RTF `0.0942`

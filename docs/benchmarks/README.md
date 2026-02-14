@@ -60,6 +60,11 @@ KV cache write-path follow-up (2026-02-14):
 - `docs/benchmarks/2026-02-14-kvcache-write-path.json`
 - `docs/benchmarks/2026-02-14-kvcache-write-path.md`
 
+WAV fast-path loader experiment (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-wav-fastpath.json`
+- `docs/benchmarks/2026-02-14-wav-fastpath.md`
+
 Generate with:
 
 ```bash
