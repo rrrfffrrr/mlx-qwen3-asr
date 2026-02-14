@@ -214,6 +214,21 @@ Post-change validation:
   - fast gate: PASS (`286 passed, 1 skipped`)
   - release gate: PASS (`287 passed` + reference parity lane pass)
 
+### 18) Fused-attention fallback hardening (error visibility)
+
+- Tightened `_scaled_dot_product_attention(...)` fused-kernel fallback policy:
+  - still falls back on `TypeError` / `ValueError`,
+  - for `RuntimeError`, only falls back when error clearly indicates unsupported
+    fused-kernel compatibility (`not implemented` / `unsupported`),
+  - otherwise re-raises to avoid hiding real runtime failures (e.g., OOM).
+- Added regression tests:
+  - compatibility-style runtime error falls back and returns valid output,
+  - non-compatibility runtime error propagates.
+
+Post-change validation:
+- fast gate: PASS (`288 passed, 1 skipped`)
+- release gate: PASS (`289 passed` + reference parity lane pass)
+
 ## Decision Gates
 
 ### Gate A: Mel backend switch

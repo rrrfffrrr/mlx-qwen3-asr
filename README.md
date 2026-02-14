@@ -4,13 +4,13 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://pypi.org/project/mlx-qwen3-asr/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Run [Qwen3-ASR](https://huggingface.co/collections/Qwen/qwen3-asr) — the current best open-source speech recognition model — natively on Apple Silicon.
+Run [Qwen3-ASR](https://huggingface.co/collections/Qwen/qwen3-asr) — one of the strongest open-source speech recognition models — natively on Apple Silicon.
 
 A ground-up reimplementation of the [official PyTorch model](https://github.com/QwenLM/Qwen3-ASR) using Apple's [MLX](https://github.com/ml-explore/mlx) framework. Same weights, same output quality, optimized for Mac GPUs via Metal. No PyTorch dependency for core transcription.
 
 ## Why this exists
 
-[Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) is the current state-of-the-art open-source speech recognition model by the Alibaba Qwen team, beating Whisper-large-v3 across nearly every benchmark and supporting 30 languages plus 22 Chinese dialects. But the official implementation is **PyTorch + NVIDIA CUDA** — it doesn't use Apple GPUs.
+[Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) is positioned in its official report as SOTA among open-source ASR models, with strong benchmark results and support for 30 languages plus 22 Chinese dialects. But the official implementation is **PyTorch + NVIDIA CUDA** — it doesn't use Apple GPUs.
 
 This project rewrites every layer for MLX so the same model runs natively on M1/M2/M3/M4 hardware. Not a wrapper — a full reimplementation with correct interleaved MRoPE, per-chunk windowed encoder attention, and all the details that matter for output quality.
 

@@ -22,6 +22,7 @@ from mlx_qwen3_asr.model import (
     _apply_windowed_encoder_layers,
     _create_causal_mask,
     _create_windowed_mask,
+    _scaled_dot_product_attention,
 )
 
 # ---------------------------------------------------------------------------
@@ -114,6 +115,35 @@ class TestAudioAttention:
         result = attn(x)
         mx.eval(result)
         assert result.shape == (2, 8, d_model)
+
+
+class TestScaledDotProductAttention:
+    """Test fused-attention fallback behavior."""
+
+    def test_runtime_unsupported_falls_back_to_manual(self, monkeypatch):
+        def _unsupported(*args, **kwargs):
+            raise RuntimeError("unsupported fused kernel for this mask layout")
+
+        monkeypatch.setattr(mx.fast, "scaled_dot_product_attention", _unsupported)
+
+        q = mx.random.normal((1, 2, 4, 8))
+        k = mx.random.normal((1, 2, 4, 8))
+        v = mx.random.normal((1, 2, 4, 8))
+        out = _scaled_dot_product_attention(q, k, v, mask=None)
+        mx.eval(out)
+        assert out.shape == (1, 2, 4, 8)
+
+    def test_runtime_errors_are_not_silently_swallowed(self, monkeypatch):
+        def _oom(*args, **kwargs):
+            raise RuntimeError("out of memory")
+
+        monkeypatch.setattr(mx.fast, "scaled_dot_product_attention", _oom)
+
+        q = mx.random.normal((1, 2, 4, 8))
+        k = mx.random.normal((1, 2, 4, 8))
+        v = mx.random.normal((1, 2, 4, 8))
+        with pytest.raises(RuntimeError, match="out of memory"):
+            _scaled_dot_product_attention(q, k, v, mask=None)
 
 
 # ---------------------------------------------------------------------------

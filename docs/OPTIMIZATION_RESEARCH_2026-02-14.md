@@ -61,6 +61,10 @@ All findings are based on official Qwen sources, official model configs, and off
 
 ## Critical Correctness Findings for This Repo
 
+Historical note: this section records findings captured during the exploratory
+session window; some items here were later resolved. See the resolved-status
+notes at the top and `docs/RESEARCH.md` for current-state truth.
+
 ### 1) MRoPE behavior mismatch with official code
 
 Official `apply_interleaved_mrope` keeps temporal frequencies as the base and overwrites only selected indices for H/W dimensions. It does **not** zero out "uncovered" indices.

@@ -55,9 +55,17 @@ def _scaled_dot_product_attention(
             return mx.fast.scaled_dot_product_attention(
                 q, k, v, scale=scale, mask=mask
             )
-        except (TypeError, ValueError, RuntimeError):
+        except (TypeError, ValueError):
             # Fall through to a compatibility path below.
             pass
+        except RuntimeError as e:
+            # Only fall back for known fused-kernel compatibility issues.
+            # Unexpected runtime failures (e.g., OOM) should still surface.
+            msg = str(e).lower()
+            if "not implemented" in msg or "unsupported" in msg:
+                pass
+            else:
+                raise
 
     # Manual fallback
     if q.shape[1] != k.shape[1]:
