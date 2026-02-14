@@ -35,6 +35,8 @@ Qwen3-ASR on Apple Silicon.
 - Local validated benchmark point (4-bit, 0.6B, Apple M4 Pro):
   - short fixture: mean `0.1591s`, RTF `0.0628`
   - 10s clip: mean `0.2831s`, RTF `0.0283`
+- Quantization sweep complete (`fp16`, `4bit-g64`, `4bit-g32`, `8bit-g64`):
+  - selected `4bit-g64` as current recommended default profile.
 
 Performance progress:
 - Done (low-risk optimization): tokenizer caching in `transcribe()` hot path.

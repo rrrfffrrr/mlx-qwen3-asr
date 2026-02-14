@@ -251,6 +251,11 @@ python scripts/convert.py \
 mlx-qwen3-asr tests/fixtures/test_speech.wav --model /tmp/qwen3-asr-0.6b-4bit
 ```
 
+Recommended quantization profile (current best on Apple Silicon):
+
+- `4-bit`, `group_size=64`
+- Matrix report: `docs/benchmarks/2026-02-14-quant-matrix.md`
+
 Benchmark latency + RTF (record JSON for before/after comparisons):
 
 ```bash

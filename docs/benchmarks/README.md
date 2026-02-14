@@ -47,6 +47,11 @@ Quantized comparison artifacts (2026-02-14):
   - `docs/benchmarks/2026-02-14-librispeech-fp16-20.json`
   - `docs/benchmarks/2026-02-14-librispeech-4bit-20.json`
 
+Quantization matrix sweep artifacts (2026-02-14):
+
+- `docs/benchmarks/2026-02-14-quant-matrix.json`
+- `docs/benchmarks/2026-02-14-quant-matrix.md`
+
 Generate with:
 
 ```bash
