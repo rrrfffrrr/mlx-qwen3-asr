@@ -14,6 +14,7 @@ import shutil
 from pathlib import Path
 
 import mlx.core as mx
+import mlx.utils as mlx_utils
 
 from mlx_qwen3_asr.config import Qwen3ASRConfig
 from mlx_qwen3_asr.convert import quantize_model, remap_weights
@@ -94,7 +95,7 @@ def main():
 
     # Save weights (tree_flatten produces flat key-value pairs from nested params)
     weight_path = output_dir / "weights.safetensors"
-    flat_weights = dict(mx.utils.tree_flatten(model.parameters()))
+    flat_weights = dict(mlx_utils.tree_flatten(model.parameters()))
     mx.save_safetensors(str(weight_path), flat_weights)
     print(f"Saved weights to {weight_path}")
 

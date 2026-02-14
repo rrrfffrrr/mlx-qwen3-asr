@@ -1,16 +1,13 @@
 """Tests for mlx_qwen3_asr/generate.py."""
 
-import pytest
-import numpy as np
 import mlx.core as mx
 
 from mlx_qwen3_asr.generate import (
+    REPETITION_THRESHOLD,
+    GenerationConfig,
     _detect_repetition,
     _sample,
-    GenerationConfig,
-    REPETITION_THRESHOLD,
 )
-
 
 # ---------------------------------------------------------------------------
 # GenerationConfig

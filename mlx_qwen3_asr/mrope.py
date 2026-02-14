@@ -15,10 +15,9 @@ Frequency assignment uses STRIDE-3 INTERLEAVING (NOT chunking):
 Total frequencies: (24 + 20 + 20) = 64 = head_dim // 2
 Each frequency maps to 2 dimensions in the rotation, so 64 * 2 = 128 = head_dim.
 
-Note: With sections [24, 20, 20] and stride-3 interleaving across 64 indices,
-not all 64 positions are covered. Section 0 gets ceil(64/3)=22 indices (not 24),
-leaving 2 frequency slots uncovered. These stay at zero (cos=0, sin=0), matching
-the official PyTorch implementation which initializes with torch.zeros.
+Official behavior follows Qwen's `apply_interleaved_mrope` logic:
+start from the temporal frequencies and overwrite selected indices for
+height/width dimensions. Uncovered indices remain temporal-derived (not zeroed).
 
 Reference: apply_interleaved_mrope() in the official Qwen3-ASR repo.
 """
@@ -39,14 +38,14 @@ class InterleavedMRoPE:
 
     Args:
         head_dim: Dimension per attention head (128 for Qwen3-ASR).
-        base: RoPE base frequency (5000000.0 for Qwen3-ASR 1.7B).
+        base: RoPE base frequency (1000000.0 for Qwen3-ASR checkpoints).
         mrope_section: Frequency count per spatial dimension [24, 20, 20].
     """
 
     def __init__(
         self,
         head_dim: int,
-        base: float = 5000000.0,
+        base: float = 1000000.0,
         mrope_section: list[int] | None = None,
     ):
         self.head_dim = head_dim
@@ -65,39 +64,18 @@ class InterleavedMRoPE:
         )
         self._inv_freq = inv_freq  # shape: (half_dim,)
 
-        # Precompute interleaved frequency indices per section.
-        # With stride-3 interleaving, section i gets indices [i, i+3, i+6, ...]
-        # truncated to at most sec_size entries. The actual count may be less
-        # than sec_size if there aren't enough stride-3 indices in [0, half_dim).
-        total = sum(self.mrope_section)
-        self._freq_indices: list[np.ndarray] = []
-        self._actual_sizes: list[int] = []
-        for i, sec_size in enumerate(self.mrope_section):
-            indices = np.array(
-                list(range(i, total, 3))[:sec_size], dtype=np.int32
-            )
-            self._freq_indices.append(indices)
-            self._actual_sizes.append(len(indices))
-
-        # Build the scatter mapping: for each section, which positions in the
-        # concatenated [sec0, sec1, sec2] tensor map to which positions in the
-        # full half_dim output. We precompute two arrays:
-        #   _src_indices: positions in the concatenated tensor (length = n_covered)
-        #   _dst_indices: positions in the half_dim output (length = n_covered)
-        # Uncovered positions stay at zero.
-        src_indices = []
-        dst_indices = []
-        offset = 0
-        for i, indices in enumerate(self._freq_indices):
-            for local_j, global_j in enumerate(indices):
-                src_indices.append(offset + local_j)
-                dst_indices.append(int(global_j))
-            offset += len(indices)
-
-        self._src_indices = np.array(src_indices, dtype=np.int32)
-        self._dst_indices = np.array(dst_indices, dtype=np.int32)
-        self._n_covered = len(src_indices)
-        self._total_concat = offset  # sum of actual sizes
+        # Official overwrite masks:
+        # freqs_t = freqs[0] (temporal), then overwrite selected indices with
+        # freqs[1] / freqs[2] values.
+        self._overwrite_masks: list[mx.array] = []
+        for dim, offset in enumerate((1, 2), start=1):
+            length = self.mrope_section[dim] * 3
+            stop = min(length, self.half_dim)
+            indices = np.arange(offset, stop, 3, dtype=np.int32)
+            mask = np.zeros(self.half_dim, dtype=bool)
+            mask[indices] = True
+            # Shape (1, 1, half_dim) for broadcast over (B, L, half_dim)
+            self._overwrite_masks.append(mx.array(mask[None, None, :]))
 
     def __call__(
         self,
@@ -117,53 +95,20 @@ class InterleavedMRoPE:
         batch, n_dims, seq_len = position_ids.shape
         assert n_dims == 3, f"Expected 3 spatial dims, got {n_dims}"
 
-        # Compute cos/sin for each section independently, then concatenate.
-        all_cos: list[mx.array] = []
-        all_sin: list[mx.array] = []
+        # Compute per-dimension frequencies over the full half_dim.
+        # position_ids: (B, 3, L) -> (3, B, L, 1)
+        pos = position_ids.astype(mx.float32).transpose(1, 0, 2)[..., None]
+        freqs = pos * self._inv_freq[None, None, None, :]  # (3, B, L, half_dim)
 
-        for i, indices in enumerate(self._freq_indices):
-            # Position values for this spatial dimension: (batch, seq_len)
-            pos = position_ids[:, i, :]
+        # Official interleaving:
+        # freqs_t = freqs[0]; overwrite selected indices from H/W dimensions.
+        freqs_t = freqs[0]
+        for dim, mask in enumerate(self._overwrite_masks, start=1):
+            freqs_t = mx.where(mask, freqs[dim], freqs_t)
 
-            # Select inverse frequencies for this section
-            freq_idx = mx.array(indices)
-            inv_freq_sec = self._inv_freq[freq_idx]  # (actual_size,)
-
-            # Compute angles: (batch, seq_len, actual_size)
-            angles = pos[:, :, None].astype(mx.float32) * inv_freq_sec[None, None, :]
-
-            all_cos.append(mx.cos(angles))
-            all_sin.append(mx.sin(angles))
-
-        # Concatenate: (batch, seq_len, total_concat)
-        cos_cat = mx.concatenate(all_cos, axis=-1)
-        sin_cat = mx.concatenate(all_sin, axis=-1)
-
-        # Scatter into full half_dim output.
-        # Build the output by selecting from cos_cat at src_indices and placing
-        # at dst_indices. Since MLX doesn't have scatter, we construct the full
-        # array by building a permutation array of size half_dim where covered
-        # positions index into cos_cat and uncovered positions index into a
-        # dummy zero column we append.
-
-        # Append a zero column to cos_cat/sin_cat for uncovered positions
-        zero_col = mx.zeros((batch, seq_len, 1), dtype=mx.float32)
-        cos_cat_padded = mx.concatenate([cos_cat, zero_col], axis=-1)
-        sin_cat_padded = mx.concatenate([sin_cat, zero_col], axis=-1)
-
-        # Build gather indices: half_dim positions mapping into cos_cat_padded
-        # Default to zero column (sentinel index) for uncovered positions
-        gather = np.full(self.half_dim, self._total_concat, dtype=np.int32)
-        for src, dst in zip(self._src_indices, self._dst_indices):
-            gather[dst] = src
-
-        gather_mx = mx.array(gather)
-        cos_out = cos_cat_padded[:, :, gather_mx]  # (batch, seq_len, half_dim)
-        sin_out = sin_cat_padded[:, :, gather_mx]
-
-        # Duplicate for full head_dim: [cos, cos] for the rotation formula
-        cos_full = mx.concatenate([cos_out, cos_out], axis=-1).astype(dtype)
-        sin_full = mx.concatenate([sin_out, sin_out], axis=-1).astype(dtype)
+        emb = mx.concatenate([freqs_t, freqs_t], axis=-1)  # (B, L, head_dim)
+        cos_full = mx.cos(emb).astype(dtype)
+        sin_full = mx.sin(emb).astype(dtype)
 
         return cos_full, sin_full
 

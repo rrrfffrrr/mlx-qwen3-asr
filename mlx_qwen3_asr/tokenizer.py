@@ -11,10 +11,7 @@ class Tokenizer:
     Handles prompt template construction with audio placeholder tokens.
     """
 
-    # Special token IDs
-    AUDIO_TOKEN_ID = 151646       # <|audio_pad|>
-    AUDIO_START_TOKEN_ID = 151647  # <|audio_start|>
-    AUDIO_END_TOKEN_ID = 151648    # <|audio_end|>
+    # Fallback special token IDs (looked up from tokenizer at init)
     IM_START_ID = 151644           # <|im_start|>
     IM_END_ID = 151645             # <|im_end|>
     EOS_TOKEN_IDS = [151643, 151645]
@@ -24,6 +21,12 @@ class Tokenizer:
         self._tokenizer = AutoTokenizer.from_pretrained(
             model_path, trust_remote_code=True
         )
+
+        # Look up audio token IDs from the actual tokenizer vocab
+        vocab = self._tokenizer.get_vocab()
+        self.AUDIO_TOKEN_ID = vocab.get("<|audio_pad|>", 151676)
+        self.AUDIO_START_TOKEN_ID = vocab.get("<|audio_start|>", 151669)
+        self.AUDIO_END_TOKEN_ID = vocab.get("<|audio_end|>", 151670)
 
     def encode(self, text: str, add_special_tokens: bool = False) -> list[int]:
         return self._tokenizer.encode(text, add_special_tokens=add_special_tokens)

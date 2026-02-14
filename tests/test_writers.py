@@ -1,20 +1,20 @@
 """Tests for mlx_qwen3_asr/writers.py."""
 
 import json
+
 import pytest
 
 from mlx_qwen3_asr.transcribe import TranscriptionResult
 from mlx_qwen3_asr.writers import (
-    write_txt,
-    write_json,
-    write_srt,
-    write_vtt,
-    write_tsv,
-    get_writer,
     _format_timestamp_srt,
     _format_timestamp_vtt,
+    get_writer,
+    write_json,
+    write_srt,
+    write_tsv,
+    write_txt,
+    write_vtt,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

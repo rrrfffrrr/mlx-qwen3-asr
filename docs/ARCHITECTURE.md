@@ -8,13 +8,13 @@ Deep dive into the Qwen3-ASR model architecture.
 Audio (16kHz mono) → Mel Spectrogram (128 bins)
     → Conv2d stem (3 layers, stride 2 each → 8x downsample)
     → Sinusoidal position embeddings (NOT learned)
-    → 32 Transformer encoder layers (bidirectional attention)
-    → LayerNorm + GELU projection → audio features (3584-dim)
+    → 24 Transformer encoder layers (bidirectional attention)
+    → LayerNorm + GELU projection → audio features (2048-dim)
 
 Text prompt: <system>...<user><audio_start><audio_pad>*N<audio_end>
     → Token embedding (151936 vocab)
     → Replace audio_pad positions with audio features
-    → 32 Qwen3 decoder layers (MRoPE, SwiGLU, RMSNorm)
+    → 28 Qwen3 decoder layers (MRoPE, SwiGLU, RMSNorm)
     → LM head → next token logits
 ```
 
@@ -35,7 +35,7 @@ Each followed by GELU activation.
 **Input:** Mel spectrogram (batch, 1, n_frames, 128)
 **After conv:** (batch, 480, n_frames/8, 128/8) = (batch, 480, time', 16)
 **Reshape:** (batch, time', 480 x 16) = (batch, time', 7680)
-**Linear projection:** (batch, time', 7680) -> (batch, time', 1280)
+**Linear projection:** (batch, time', 7680) -> (batch, time', 1024)
 
 ### Sinusoidal Position Embeddings
 
@@ -47,20 +47,20 @@ Fixed (not learned) sinusoidal embeddings added after the conv stem:
 
 ### Transformer Encoder Layers
 
-32 layers, each with:
+24 layers, each with:
 - **Pre-norm:** LayerNorm (with bias) -- NOT RMSNorm
-- **Self-attention:** Bidirectional MHA, 20 heads, head_dim=64, WITH bias on projections
-- **FFN:** Linear(1280->5120) + GELU + Linear(5120->1280), WITH bias
+- **Self-attention:** Bidirectional MHA, 16 heads, head_dim=64, WITH bias on projections
+- **FFN:** Linear(1024->4096) + GELU + Linear(4096->1024), WITH bias
 - **Residual connections** around attention and FFN
 
 ### Output Projection
 
 After the transformer stack:
 1. LayerNorm (ln_post)
-2. Linear(1280->1280) + GELU (proj1)
-3. Linear(1280->3584) (proj2)
+2. Linear(1024->1024) + GELU (proj1)
+3. Linear(1024->2048) (proj2)
 
-Output: (batch, n_tokens, 3584) -- projected to match text decoder hidden_size (4096 for 1.7B, 1024 for 0.6B... wait, 3584 is the output_dim, not hidden_size)
+Output: (batch, n_tokens, 2048) for 1.7B and 1024 for 0.6B.
 
 ## Text Decoder
 
@@ -69,18 +69,8 @@ Output: (batch, n_tokens, 3584) -- projected to match text decoder hidden_size (
 Multi-dimensional Rotary Position Embedding -- the critical correctness component.
 
 **Sections:** [24, 20, 20] for temporal, height, width dimensions
-**Frequency assignment:** Stride-3 interleaving (NOT chunking)
-
-```
-freq[0]  -> temporal (section 0)
-freq[1]  -> height   (section 1)
-freq[2]  -> width    (section 2)
-freq[3]  -> temporal (section 0)
-freq[4]  -> height   (section 1)
-freq[5]  -> width    (section 2)
-...
-freq[63] -> width    (section 2)
-```
+**Official interleaving rule:** build full temporal frequencies first, then
+overwrite selected stride-3 indices for height and width.
 
 **position_ids shape:** (batch, 3, seq_len) -- one row per spatial dimension
 **Output cos/sin shape:** (batch, seq_len, head_dim=128)
@@ -93,11 +83,14 @@ Qwen3 innovation: RMSNorm applied per-head on queries and keys before RoPE.
 
 ### SwiGLU MLP
 
+For 1.7B:
+```text
+Linear(2048 -> 6144), SiLU gate, then Linear(6144 -> 2048)
 ```
-gate = gate_proj(x)         # Linear(4096 -> 22016, no bias)
-up = up_proj(x)             # Linear(4096 -> 22016, no bias)
-hidden = silu(gate) * up    # Element-wise
-output = down_proj(hidden)  # Linear(22016 -> 4096, no bias)
+
+For 0.6B:
+```text
+Linear(1024 -> 3072), SiLU gate, then Linear(3072 -> 1024)
 ```
 
 ### Decoder Layer Structure
@@ -112,8 +105,8 @@ h = h + mlp(rms_norm(h))
 
 Audio features are injected into the text embedding sequence:
 
-1. Text prompt contains `<|audio_pad|>` placeholder tokens (token_id=151646)
-2. Audio encoder produces features of shape (batch, n_audio_tokens, 3584)
+1. Text prompt contains `<|audio_pad|>` placeholder tokens (token_id=151676)
+2. Audio encoder produces features of shape (batch, n_audio_tokens, output_dim)
 3. Text embeddings are computed for all tokens including placeholders
 4. Placeholder positions are replaced with audio features
 5. Combined sequence is processed by the text decoder
@@ -129,14 +122,14 @@ The replacement uses cumulative indexing:
 
 | Parameter | 1.7B | 0.6B |
 |-----------|------|------|
-| encoder_layers | 32 | 18 |
-| encoder_attention_heads | 20 | 14 |
-| encoder_ffn_dim | 5120 | 3584 |
-| d_model | 1280 | 896 |
+| encoder_layers | 24 | 18 |
+| encoder_attention_heads | 16 | 14 |
+| encoder_ffn_dim | 4096 | 3584 |
+| d_model | 1024 | 896 |
 | head_dim | 64 | 64 |
-| output_dim | 3584 | 1024 |
-| n_window | 100 | 50 |
-| n_window_infer | 400 | 800 |
+| output_dim | 2048 | 1024 |
+| n_window | 50 | 50 |
+| n_window_infer | 800 | 800 |
 | downsample_hidden_size | 480 | 480 |
 
 ### Text Decoder
@@ -144,23 +137,23 @@ The replacement uses cumulative indexing:
 | Parameter | 1.7B | 0.6B |
 |-----------|------|------|
 | vocab_size | 151936 | 151936 |
-| hidden_size | 4096 | 1024 |
-| intermediate_size | 22016 | 3072 |
-| num_hidden_layers | 32 | 28 |
-| num_attention_heads | 32 | 16 |
-| num_key_value_heads | **32 (MHA)** | **8 (GQA)** |
+| hidden_size | 2048 | 1024 |
+| intermediate_size | 6144 | 3072 |
+| num_hidden_layers | 28 | 28 |
+| num_attention_heads | 16 | 16 |
+| num_key_value_heads | **8 (GQA)** | **8 (GQA)** |
 | head_dim | 128 | 128 |
-| max_position_embeddings | 128000 | 65536 |
-| rope_theta | 5000000.0 | 1000000.0 |
+| max_position_embeddings | 65536 | 65536 |
+| rope_theta | 1000000.0 | 1000000.0 |
 
-**Key difference:** 1.7B uses MHA (32 heads = 32 KV heads), 0.6B uses GQA (16 heads, 8 KV heads).
+**Key difference:** both use GQA (16/8); 1.7B is wider (`hidden_size=2048`, `intermediate_size=6144`) than 0.6B.
 
 ## Forced Aligner Architecture
 
 The aligner (Qwen3-ForcedAligner-0.6B) is a separate model:
 
-- **Audio encoder:** 24 layers, 16 heads, d_model=1024
-- **Text decoder:** Same architecture as ASR-0.6B (28 layers, GQA 16/8)
+- **Audio encoder:** 18 layers, 14 heads, d_model=896, output_dim=1024
+- **Text decoder:** Same core architecture as ASR-0.6B (28 layers, GQA 16/8)
 - **Classification head:** Non-autoregressive, classify_num=5000 time bins
 - **Time resolution:** timestamp_segment_time=80ms per classification unit
 - **LIS correction:** Longest Increasing Subsequence for monotonic timestamps

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import mlx.core as mx
+import mlx.utils as mlx_utils
 
 from .config import Qwen3ASRConfig
 from .convert import remap_weights
@@ -88,22 +89,24 @@ def load_model(
 
     # Cast to target dtype
     if dtype != mx.float32:
-        params = {}
-        for k, v in model.parameters().items():
-            if isinstance(v, mx.array):
-                params[k] = v.astype(dtype)
-            elif isinstance(v, dict):
-                params[k] = {kk: vv.astype(dtype) if isinstance(vv, mx.array) else vv
-                             for kk, vv in v.items()}
-            else:
-                params[k] = v
-        model.load_weights(list(mx.utils.tree_flatten(params)))
+        params = _cast_tree_dtype(model.parameters(), dtype)
+        model.load_weights(list(mlx_utils.tree_flatten(params)))
 
     mx.eval(model.parameters())
     model.eval()
 
     logger.info(f"Loaded model from {model_path} with dtype {dtype}")
     return model, config
+
+
+def _cast_tree_dtype(tree: dict, dtype: mx.Dtype) -> dict:
+    """Recursively cast floating-point mx.array leaves in a parameter tree."""
+    return mlx_utils.tree_map(
+        lambda x: x.astype(dtype)
+        if isinstance(x, mx.array) and mx.issubdtype(x.dtype, mx.floating)
+        else x,
+        tree,
+    )
 
 
 def _resolve_path(path_or_hf_repo: str) -> Path:

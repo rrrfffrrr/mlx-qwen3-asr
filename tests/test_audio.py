@@ -1,20 +1,18 @@
 """Tests for mlx_qwen3_asr/audio.py."""
 
-import pytest
-import numpy as np
 import mlx.core as mx
+import numpy as np
+import pytest
 
 from mlx_qwen3_asr.audio import (
-    load_audio,
+    N_FFT,
+    SAMPLE_RATE,
     _reflect_pad,
+    load_audio,
+    log_mel_spectrogram,
     mel_filters,
     stft,
-    log_mel_spectrogram,
-    SAMPLE_RATE,
-    N_FFT,
-    HOP_LENGTH,
 )
-
 
 # ---------------------------------------------------------------------------
 # load_audio

@@ -1,19 +1,22 @@
 """Audio loading and mel spectrogram computation for Qwen3-ASR.
 
-Handles audio I/O via ffmpeg subprocess and computes log-mel spectrograms
-using MLX for Metal-accelerated processing. Compatible with the Whisper-style
-mel spectrogram pipeline used by Qwen3-ASR.
+Handles audio I/O via ffmpeg subprocess and computes log-mel spectrograms.
+Uses HuggingFace's WhisperFeatureExtractor for mel computation (matching
+the official Qwen3-ASR preprocessing pipeline) with a fallback to a custom
+MLX implementation.
 
 Key parameters:
     - Sample rate: 16000 Hz
     - FFT size: 400 (25ms window at 16kHz)
     - Hop length: 160 (10ms stride at 16kHz)
     - Mel bins: 128 (Slaney-normalized)
+    - Chunk length: 30s (pads to 3000 mel frames)
 """
 
 from __future__ import annotations
 
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -24,6 +27,7 @@ SAMPLE_RATE = 16000
 N_FFT = 400
 HOP_LENGTH = 160
 NUM_MEL_BINS = 128
+MAX_FRAMES = 3000  # 30s at 100 frames/s
 
 
 def load_audio(
@@ -185,6 +189,60 @@ def mel_filters(n_mels: int = NUM_MEL_BINS) -> mx.array:
             f"Available keys: {list(filterbank.keys())}"
         )
     return mx.array(filterbank[key])
+
+
+def compute_features(
+    audio_np: np.ndarray,
+    sr: int = SAMPLE_RATE,
+    padding: str = "max_length",
+) -> tuple[mx.array, mx.array]:
+    """Compute mel spectrogram features using HF WhisperFeatureExtractor.
+
+    This matches the official Qwen3-ASR preprocessing pipeline exactly:
+    128-bin Slaney mel filterbank, padded to 3000 frames, with attention mask.
+
+    Args:
+        audio_np: Raw waveform as numpy array, shape (n_samples,).
+        sr: Sample rate. Default 16000.
+        padding: Padding mode. "max_length" pads to 3000 frames (30s).
+            Use "do_not_pad" to skip padding.
+
+    Returns:
+        Tuple of (mel_features, feature_lens):
+            mel_features: shape (1, 128, n_frames) as mx.array
+            feature_lens: shape (1,) with actual frame count as mx.array
+    """
+    extractor = _get_feature_extractor(sr)
+    audio_np = np.asarray(audio_np, dtype=np.float32)
+    result = extractor(
+        audio_np,
+        sampling_rate=sr,
+        return_tensors="np",
+        padding=padding,
+        return_attention_mask=True,
+    )
+    mel = result["input_features"][0]  # (128, n_frames)
+    attn_mask = result["attention_mask"][0]  # (n_frames,)
+    actual_frames = int(attn_mask.sum())
+
+    mel_mx = mx.array(mel[None, :, :].astype(np.float32))  # (1, 128, n_frames)
+    feature_lens = mx.array([actual_frames])
+
+    return mel_mx, feature_lens
+
+
+@lru_cache(maxsize=4)
+def _get_feature_extractor(sr: int):
+    """Get a cached HF WhisperFeatureExtractor instance for a sample rate."""
+    from transformers import WhisperFeatureExtractor
+
+    return WhisperFeatureExtractor(
+        feature_size=NUM_MEL_BINS,
+        sampling_rate=sr,
+        chunk_length=30,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+    )
 
 
 def _reflect_pad(x: mx.array, pad_len: int) -> mx.array:

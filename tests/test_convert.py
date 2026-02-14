@@ -1,8 +1,7 @@
 """Tests for mlx_qwen3_asr/convert.py."""
 
-import pytest
-import numpy as np
 import mlx.core as mx
+import numpy as np
 
 from mlx_qwen3_asr.convert import remap_weights
 

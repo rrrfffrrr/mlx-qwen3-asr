@@ -12,7 +12,8 @@ Qwen3-ASR speech recognition on Apple Silicon via [MLX](https://github.com/ml-ex
 [Qwen3-ASR](https://huggingface.co/Qwen/Qwen3-ASR-1.7B), the current
 state-of-the-art open-source ASR model released by the Alibaba Qwen team in
 January 2026. Qwen3-ASR beats Whisper-large-v3 across nearly every benchmark
-and supports 30+ languages.
+and supports 52 languages and dialects (30 languages + 22 Chinese dialects)
+per the official release docs.
 
 **Why a separate port?** The existing mlx-audio port has known issues: no proper
 Multi-dimensional RoPE (MRoPE), long-audio truncation bugs, and incorrect config
@@ -102,12 +103,17 @@ mlx-qwen3-asr *.wav -f all -o transcripts/ --verbose
 
 Run `mlx-qwen3-asr --help` for the full list of options.
 
+`--timestamps` is currently unavailable and exits with a clear error until
+forced alignment is fully implemented.
+
 ## API Reference
 
 ### `transcribe(audio, *, model, language, return_timestamps, forced_aligner, dtype, max_new_tokens, verbose)`
 
 Transcribe audio to text. Accepts a file path, numpy array, `mx.array`, or
 `(array, sample_rate)` tuple. Returns a `TranscriptionResult`.
+`return_timestamps=True` is currently not implemented and raises
+`NotImplementedError`.
 
 ### `load_model(name_or_path, *, dtype)`
 
@@ -123,11 +129,12 @@ Load and resample audio to mono 16 kHz. Returns an `mx.array`.
 Frozen dataclass with fields:
 - `text` (str) -- transcribed text
 - `language` (str) -- detected or forced language
-- `segments` (list[dict] | None) -- word-level timestamps when requested, each with `text`, `start`, `end`
+- `segments` (list[dict] | None) -- `None` for now (word-level timestamps are WIP)
 
 ## Supported Languages
 
-Qwen3-ASR supports the following 30+ languages:
+Qwen3-ASR supports 52 languages and dialects in total. The table below lists
+the 30 core languages from the official docs:
 
 | Language | Language | Language | Language |
 |----------|----------|----------|----------|
@@ -140,15 +147,20 @@ Qwen3-ASR supports the following 30+ languages:
 | Russian | Spanish | Swedish | Thai |
 | Turkish | Vietnamese | | |
 
+Chinese dialect support (22 dialects) is provided by the official model but is
+not expanded in this table.
+
 ## Model Variants
 
 | | Qwen3-ASR-1.7B | Qwen3-ASR-0.6B |
 |---|---|---|
 | **Parameters** | 1.7B | 0.6B |
-| **Encoder layers** | 32 | 18 |
-| **Decoder layers** | 32 | 28 |
-| **Hidden dim** | 4096 | 1024 |
-| **Attention** | MHA (32 heads) | GQA (16 heads, 8 KV) |
+| **Audio encoder layers** | 24 | 18 |
+| **Text decoder layers** | 28 | 28 |
+| **Audio encoder dim (`d_model`)** | 1024 | 896 |
+| **Text hidden size** | 2048 | 1024 |
+| **Text attention (Q/KV heads)** | GQA (16/8) | GQA (16/8) |
+| **RoPE theta** | 1,000,000 | 1,000,000 |
 | **Accuracy** | Higher | Slightly lower |
 | **Speed** | Slower | Faster |
 | **HuggingFace** | `Qwen/Qwen3-ASR-1.7B` | `Qwen/Qwen3-ASR-0.6B` |

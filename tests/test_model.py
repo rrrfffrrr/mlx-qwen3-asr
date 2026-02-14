@@ -4,25 +4,23 @@ All tests use tiny configs (small d_model, 2 layers, 2 heads) to keep tests
 fast and avoid needing real model weights.
 """
 
-import pytest
-import numpy as np
 import mlx.core as mx
-import mlx.nn as nn
+import numpy as np
+import pytest
 
-from mlx_qwen3_asr.config import AudioEncoderConfig, TextDecoderConfig, Qwen3ASRConfig
+from mlx_qwen3_asr.config import AudioEncoderConfig, Qwen3ASRConfig, TextDecoderConfig
 from mlx_qwen3_asr.model import (
-    SinusoidalPositionEmbedding,
     AudioAttention,
-    AudioEncoderLayer,
     AudioEncoder,
-    TextAttention,
-    SwiGLU,
-    TextDecoderLayer,
+    AudioEncoderLayer,
     KVCache,
-    _create_causal_mask,
     Qwen3ASRModel,
+    SinusoidalPositionEmbedding,
+    SwiGLU,
+    TextAttention,
+    TextDecoderLayer,
+    _create_causal_mask,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tiny configs for fast tests
@@ -198,7 +196,6 @@ class TestTextAttention:
     """Test TextAttention output shape with small config."""
 
     def test_output_shape(self):
-        cfg = _tiny_text_config()
         # Need head_dim such that sections sum to half_dim
         # head_dim=48 -> half_dim=24 -> need sections summing to 24
         # We'll use a head_dim of 128 for MRoPE compatibility or mock cos/sin
@@ -389,5 +386,5 @@ class TestQwen3ASRModelInstantiation:
         """Instantiation with full default config should not error."""
         cfg = Qwen3ASRConfig()
         model = Qwen3ASRModel(cfg)
-        assert model.num_audio_encoder_layers == 32
-        assert model.num_text_decoder_layers == 32
+        assert model.num_audio_encoder_layers == 24
+        assert model.num_text_decoder_layers == 28

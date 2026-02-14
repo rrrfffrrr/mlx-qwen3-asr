@@ -8,10 +8,10 @@ Feature comparison across available implementations for running Qwen3-ASR.
 |---------|---------------|-----------|-----------------|-------------------|
 | MRoPE correct? | Yes (interleaved) | **No** (standard RoPE) | Yes | Yes |
 | Streaming? | Yes | No | Yes | Yes |
-| Forced aligner? | Yes | No | No | Yes |
+| Forced aligner? | Scaffolding only (WIP) | No | No | Yes |
 | Long audio (>20min)? | Yes (energy split) | **No** (truncation bug) | Yes | Yes |
 | Quantization? | Yes (4/8-bit) | Yes | No | No |
-| 1.7B model correct? | Yes (MHA, 32 KV heads) | **No** (uses GQA/8 KV heads) | Yes | Yes |
+| 1.7B config parity with official HF? | Yes (audio 24 layers; text GQA 16/8) | Version-dependent, verify before use | Yes | Yes |
 | Install method | pip install | pip install | Build from source | pip install |
 | Platform | macOS (Apple Silicon) | macOS (Apple Silicon) | macOS (Apple Silicon) | Linux (CUDA) |
 | Compute backend | MLX (Metal) | MLX (Metal) | MLX (Metal) | PyTorch (CUDA) |
@@ -22,14 +22,15 @@ Feature comparison across available implementations for running Qwen3-ASR.
 
 - **Pros:**
   - Correct interleaved MRoPE implementation
-  - Full feature set: streaming, forced alignment, long audio
+  - Streaming and long-audio chunking
   - Standalone package with minimal dependencies
-  - Proper 1.7B config (MHA, not GQA)
+  - Proper 1.7B config parity with official HF artifacts
   - Energy-based audio chunking for long files
 
 - **Cons:**
   - New project, less battle-tested
   - Single-model focus (only Qwen3-ASR)
+  - Forced aligner is not implemented yet (API/CLI guarded)
 
 ### mlx-audio (Blaizzy/mlx-audio)
 
@@ -41,7 +42,7 @@ Feature comparison across available implementations for running Qwen3-ASR.
 - **Cons:**
   - Uses standard nn.RoPE instead of interleaved MRoPE -- incorrect for Qwen3-ASR
   - Issue #459: Long audio truncation
-  - Applies 0.6B GQA config to 1.7B model (should be MHA)
+  - Historical reports of Qwen3-ASR config drift across revisions
   - Depends on bleeding-edge: transformers==5.0.0rc3, mlx-lm==0.30.5
   - No forced aligner support
   - No streaming support
@@ -90,10 +91,9 @@ Feature comparison across available implementations for running Qwen3-ASR.
    - Sections [24,20,20] with stride-3 pattern are not implemented
    - Results in degraded transcription quality
 
-2. **Incorrect 1.7B model config:**
-   - Applies 0.6B's GQA config (16 heads, 8 KV heads) to 1.7B model
-   - 1.7B actually uses MHA (32 heads = 32 KV heads)
-   - This changes attention computation significantly
+2. **Historical config drift risk:**
+   - Some revisions have been reported to mismatch upstream Qwen3-ASR configs.
+   - Always verify against current HF `config.json` for the exact version in use.
 
 3. **Long audio truncation (Issue #459):**
    - Audio longer than a threshold gets truncated instead of chunked

@@ -23,21 +23,21 @@ Key technical decisions made for mlx-qwen3-asr, with rationale.
 - mlx-audio has critical bugs for Qwen3-ASR:
   - Uses standard nn.RoPE instead of interleaved MRoPE
   - Issue #459: long-audio truncation
-  - Incorrect GQA config applied to 1.7B model
+  - Historical config drift risk across revisions
 - mlx-audio depends on bleeding-edge packages: `transformers==5.0.0rc3`, `mlx-lm==0.30.5`
 - Qwen3-ASR deserves dedicated focus -- it's SOTA and complex enough to warrant its own package
 - Standalone allows us to optimize specifically for this model without compromise
 
-## Decision 3: Full Port for v1
+## Decision 3: Stage Forced Aligner Behind a Guard
 
-**Choice:** Ship ASR + forced aligner + streaming + quantization in v1
-**Alternative:** Start with just basic ASR, add features later
+**Choice:** Ship ASR + streaming + quantization in v1; keep forced aligner as explicit WIP
+**Alternative:** Expose timestamps before the aligner implementation is complete
 
 **Rationale:**
-- The forced aligner (word-level timestamps) is a killer feature -- 42.9ms AAS vs 130ms+ alternatives
-- Streaming is straightforward to implement with the official protocol
-- Users expect timestamp support from day 1
-- Better to have a complete package than an incomplete one
+- Core ASR quality and model correctness matter more than partial timestamp support
+- A clear fail-fast guard is better UX than late runtime failures
+- The dedicated aligner architecture is still valuable and kept as scaffolding
+- This keeps the public surface honest while preserving implementation momentum
 
 ## Decision 4: HuggingFace Tokenizer
 

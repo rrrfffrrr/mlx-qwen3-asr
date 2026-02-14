@@ -3,7 +3,6 @@
 Only tests parse_asr_output() -- the Tokenizer class requires HF download.
 """
 
-import pytest
 
 from mlx_qwen3_asr.tokenizer import parse_asr_output
 

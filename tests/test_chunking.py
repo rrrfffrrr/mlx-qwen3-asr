@@ -1,14 +1,11 @@
 """Tests for mlx_qwen3_asr/chunking.py."""
 
-import pytest
 import numpy as np
 
 from mlx_qwen3_asr.chunking import (
-    split_audio_into_chunks,
     _find_split_point,
-    MAX_CHUNK_SECONDS,
+    split_audio_into_chunks,
 )
-
 
 # ---------------------------------------------------------------------------
 # split_audio_into_chunks

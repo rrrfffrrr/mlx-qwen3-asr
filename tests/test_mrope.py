@@ -1,16 +1,38 @@
 """Tests for mlx_qwen3_asr/mrope.py."""
 
-import pytest
-import numpy as np
 import mlx.core as mx
+import numpy as np
+import pytest
 
 from mlx_qwen3_asr.mrope import (
     InterleavedMRoPE,
-    apply_rotary_pos_emb,
     _rotate_half,
-    MROPE_SECTION,
+    apply_rotary_pos_emb,
 )
 
+
+def _official_interleaved_reference(
+    position_ids: np.ndarray,
+    head_dim: int,
+    base: float,
+    mrope_section: list[int],
+) -> tuple[np.ndarray, np.ndarray]:
+    """Numpy reference equivalent to official Qwen apply_interleaved_mrope."""
+    inv_freq = 1.0 / (
+        base ** (np.arange(0, head_dim, 2, dtype=np.float32) / head_dim)
+    )
+
+    # (B, 3, L) -> (3, B, L, half_dim)
+    pos = position_ids.astype(np.float32).transpose(1, 0, 2)
+    freqs = pos[..., None] * inv_freq[None, None, None, :]
+
+    freqs_t = freqs[0].copy()
+    for dim, offset in enumerate((1, 2), start=1):
+        idx = slice(offset, mrope_section[dim] * 3, 3)
+        freqs_t[..., idx] = freqs[dim, ..., idx]
+
+    emb = np.concatenate([freqs_t, freqs_t], axis=-1)
+    return np.cos(emb), np.sin(emb)
 
 # ---------------------------------------------------------------------------
 # InterleavedMRoPE constructor
@@ -67,69 +89,45 @@ class TestInterleavedMRoPEShapes:
         assert sin.dtype == mx.float32
 
 
-# ---------------------------------------------------------------------------
-# Uncovered positions
-# ---------------------------------------------------------------------------
+class TestMRoPEParity:
+    """Test MRoPE matches official interleaving behavior."""
 
+    def test_matches_official_reference(self):
+        mrope = InterleavedMRoPE(head_dim=128, base=1000000.0)
+        pos_ids = np.array(
+            [[[0, 1, 2, 3], [5, 6, 7, 8], [9, 10, 11, 12]]],
+            dtype=np.int32,
+        )
 
-class TestMRoPEUncoveredPositions:
-    """Test that uncovered frequency indices produce zero cos/sin."""
+        cos, sin = mrope(mx.array(pos_ids), dtype=mx.float32)
+        mx.eval(cos, sin)
+        cos_np = np.array(cos)
+        sin_np = np.array(sin)
 
-    def test_uncovered_positions_are_zero(self):
-        """With sections [24, 20, 20], stride-3 interleaving across 64 indices.
-        Section 0 gets indices [0, 3, 6, ..., 63] -> that's ceil(64/3)=22 entries, not 24.
-        Section 1 gets indices [1, 4, 7, ..., 61] -> 21 entries, not 20 (truncated to 20).
-        Section 2 gets indices [2, 5, 8, ..., 62] -> 21 entries, not 20 (truncated to 20).
+        ref_cos, ref_sin = _official_interleaved_reference(
+            position_ids=pos_ids,
+            head_dim=128,
+            base=1000000.0,
+            mrope_section=[24, 20, 20],
+        )
 
-        The indices covered in half_dim (0..63) are:
-          Section 0: 0,3,6,...,63 -> 22 indices (stops at 63)
-          Section 1: 1,4,7,...,58 -> 20 indices (truncated from 21)
-          Section 2: 2,5,8,...,59 -> 20 indices (truncated from 21)
+        np.testing.assert_allclose(cos_np, ref_cos, atol=1e-6, rtol=0)
+        np.testing.assert_allclose(sin_np, ref_sin, atol=1e-6, rtol=0)
 
-        Total covered: 22+20+20 = 62 out of 64.
-        Uncovered: indices 61, 62 in the half_dim space.
-
-        Wait, let's compute precisely. Section 0 gets range(0, 64, 3)[:24]:
-          range(0,64,3) = [0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63]
-          That's 22 elements. [:24] keeps all 22.
-        Section 1 gets range(1, 64, 3)[:20]:
-          range(1,64,3) = [1,4,7,10,13,16,19,22,25,28,31,34,37,40,43,46,49,52,55,58,61]
-          That's 21 elements. [:20] keeps first 20: [1,4,...,58].
-          So 61 is NOT covered.
-        Section 2 gets range(2, 64, 3)[:20]:
-          range(2,64,3) = [2,5,8,11,14,17,20,23,26,29,32,35,38,41,44,47,50,53,56,59,62]
-          That's 21 elements. [:20] keeps first 20: [2,5,...,59].
-          So 62 is NOT covered.
-
-        Uncovered half_dim indices: 61, 62.
-        In the full head_dim output, these map to positions 61 and 62 (first half)
-        and 61+64=125 and 62+64=126 (second half, since cos/sin are duplicated).
-        """
-        mrope = InterleavedMRoPE(head_dim=128)
-        # Use non-zero position ids to ensure covered positions are non-zero
-        pos_ids = mx.ones((1, 3, 1), dtype=mx.int32) * 5
-        cos, sin = mrope(pos_ids)
+    def test_uncovered_indices_follow_temporal_dimension(self):
+        """Indices 61/62 are not overwritten by H/W and stay temporal-derived."""
+        mrope = InterleavedMRoPE(head_dim=128, base=1000000.0)
+        pos_ids = mx.array([[[0], [123], [456]]], dtype=mx.int32)  # T=0
+        cos, sin = mrope(pos_ids, dtype=mx.float32)
         mx.eval(cos, sin)
 
-        cos_np = np.array(cos[0, 0, :])  # (128,)
+        cos_np = np.array(cos[0, 0, :])
         sin_np = np.array(sin[0, 0, :])
 
-        # Positions 61 and 62 in the first half should be zero
-        assert cos_np[61] == 0.0, f"cos[61] = {cos_np[61]}, expected 0.0"
-        assert cos_np[62] == 0.0, f"cos[62] = {cos_np[62]}, expected 0.0"
-        assert sin_np[61] == 0.0, f"sin[61] = {sin_np[61]}, expected 0.0"
-        assert sin_np[62] == 0.0, f"sin[62] = {sin_np[62]}, expected 0.0"
-
-        # The duplicated second half should also be zero at those positions
-        assert cos_np[61 + 64] == 0.0
-        assert cos_np[62 + 64] == 0.0
-        assert sin_np[61 + 64] == 0.0
-        assert sin_np[62 + 64] == 0.0
-
-        # But a covered position (e.g., index 0) should be non-zero
-        # cos(pos * inv_freq) for non-zero pos should not be exactly zero
-        # (it's possible for specific values but extremely unlikely for pos=5)
-        assert cos_np[0] != 0.0, "Covered position cos[0] should be non-zero"
+        # Since temporal position is zero, temporal-derived frequencies yield cos=1, sin=0.
+        for idx in (61, 62, 125, 126):
+            assert cos_np[idx] == pytest.approx(1.0, abs=1e-6)
+            assert sin_np[idx] == pytest.approx(0.0, abs=1e-6)
 
 
 # ---------------------------------------------------------------------------

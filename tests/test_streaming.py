@@ -1,15 +1,13 @@
 """Tests for mlx_qwen3_asr/streaming.py."""
 
-import pytest
 import numpy as np
 
 from mlx_qwen3_asr.streaming import (
-    init_streaming,
-    _split_stable_unstable,
-    StreamingState,
     UNFIXED_TOKEN_NUM,
+    StreamingState,
+    _split_stable_unstable,
+    init_streaming,
 )
-
 
 # ---------------------------------------------------------------------------
 # init_streaming
@@ -108,7 +106,6 @@ class TestSplitStableUnstable:
         """Text with more words than unfixed_tokens should split."""
         text = "one two three four five six seven eight"
         stable, unstable = _split_stable_unstable("", text)
-        words = text.split()
         # 8 words, unfixed_tokens=5 -> stable = first 3, unstable = last 5
         assert stable == "one two three"
         assert unstable == "four five six seven eight"

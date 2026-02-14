@@ -46,7 +46,7 @@ def main():
     parser.add_argument(
         "--timestamps",
         action="store_true",
-        help="Enable word-level timestamps via forced aligner",
+        help="Request word-level timestamps (currently unavailable)",
     )
     parser.add_argument(
         "--forced-aligner",
@@ -77,6 +77,11 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if args.timestamps:
+        parser.error(
+            "--timestamps is not available yet: forced alignment is still WIP."
+        )
 
     # Lazy imports for faster --help
     import mlx.core as mx

@@ -74,8 +74,14 @@ class SinusoidalPositionEmbedding(nn.Module):
     Computed at init time and stored as a frozen buffer -- these are NOT
     part of the saved weights.
 
-    PE(pos, 2i)   = sin(pos / 10000^(2i/d))
-    PE(pos, 2i+1) = cos(pos / 10000^(2i/d))
+    Uses the official Qwen3-ASR formula matching ``SinusoidsPositionEmbedding``
+    from the HuggingFace reference::
+
+        log_timescale_increment = log(10000) / (channels // 2 - 1)
+        inv_timescales = exp(-i * log_timescale_increment)
+
+    This differs from the standard Transformer PE formula by using
+    ``half_dim - 1`` in the denominator (not ``half_dim``).
 
     Args:
         num_positions: Maximum number of positions to support.
@@ -88,31 +94,36 @@ class SinusoidalPositionEmbedding(nn.Module):
         self.embedding_dim = embedding_dim
 
         half_dim = embedding_dim // 2
-        # 10000^(2i/d) computed as exp(2i/d * log(10000))
-        inv_freq = 1.0 / (
-            10000.0 ** (mx.arange(0, half_dim, dtype=mx.float32) / half_dim)
+        # Match official: log_timescale_increment = log(10000) / (half_dim - 1)
+        log_timescale_increment = math.log(10000.0) / (half_dim - 1)
+        inv_timescales = mx.exp(
+            -log_timescale_increment * mx.arange(half_dim, dtype=mx.float32)
         )
         positions = mx.arange(0, num_positions, dtype=mx.float32)
         # Outer product: (num_positions, half_dim)
-        angles = positions[:, None] * inv_freq[None, :]
-        # Interleave sin and cos: (num_positions, embedding_dim)
-        pe = mx.concatenate([mx.sin(angles), mx.cos(angles)], axis=-1)
+        scaled_time = positions[:, None] * inv_timescales[None, :]
+        # Concatenate sin and cos: (num_positions, embedding_dim)
+        pe = mx.concatenate([mx.sin(scaled_time), mx.cos(scaled_time)], axis=-1)
         # If embedding_dim is odd, trim the last column
         if embedding_dim % 2 == 1:
             pe = pe[:, :embedding_dim]
         self._pe = pe
         self.freeze()
 
-    def __call__(self, position_ids: mx.array) -> mx.array:
-        """Look up position embeddings.
+    def __call__(self, positions: int | mx.array) -> mx.array:
+        """Return sinusoidal embeddings by length or explicit indices.
 
         Args:
-            position_ids: Integer positions, shape (...,).
+            positions:
+                - int: returns embeddings for 0..positions-1.
+                - mx.array: returns embeddings indexed by that tensor.
 
         Returns:
-            Embeddings of shape (..., embedding_dim).
+            Embeddings of shape (positions, embedding_dim).
         """
-        return self._pe[position_ids]
+        if isinstance(positions, int):
+            return self._pe[:positions]
+        return self._pe[positions]
 
 
 class AudioAttention(nn.Module):
@@ -135,11 +146,13 @@ class AudioAttention(nn.Module):
         self.v_proj = nn.Linear(d_model, d_model, bias=True)
         self.out_proj = nn.Linear(d_model, d_model, bias=True)
 
-    def __call__(self, x: mx.array) -> mx.array:
+    def __call__(self, x: mx.array, mask: Optional[mx.array] = None) -> mx.array:
         """Forward pass.
 
         Args:
             x: Input tensor, shape (B, L, D).
+            mask: Optional attention mask, broadcastable to (B, H, L, S).
+                Used to mask padded positions in the encoder.
 
         Returns:
             Output tensor, shape (B, L, D).
@@ -155,8 +168,8 @@ class AudioAttention(nn.Module):
         k = k.reshape(B, L, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
         v = v.reshape(B, L, self.num_heads, self.head_dim).transpose(0, 2, 1, 3)
 
-        # Bidirectional attention -- no causal mask
-        out = _scaled_dot_product_attention(q, k, v)
+        # Bidirectional attention with optional padding mask
+        out = _scaled_dot_product_attention(q, k, v, mask=mask)
 
         # (B, H, L, Dh) -> (B, L, H, Dh) -> (B, L, D)
         out = out.transpose(0, 2, 1, 3).reshape(B, L, -1)
@@ -183,11 +196,12 @@ class AudioEncoderLayer(nn.Module):
         self.fc1 = nn.Linear(d_model, encoder_ffn_dim, bias=True)
         self.fc2 = nn.Linear(encoder_ffn_dim, d_model, bias=True)
 
-    def __call__(self, x: mx.array) -> mx.array:
+    def __call__(self, x: mx.array, mask: Optional[mx.array] = None) -> mx.array:
         """Forward pass.
 
         Args:
             x: Input tensor, shape (B, L, D).
+            mask: Optional attention mask for padding, broadcastable to (B, H, L, S).
 
         Returns:
             Output tensor, shape (B, L, D).
@@ -195,7 +209,7 @@ class AudioEncoderLayer(nn.Module):
         # Self-attention block (pre-norm)
         residual = x
         x = self.self_attn_layer_norm(x)
-        x = self.self_attn(x)
+        x = self.self_attn(x, mask=mask)
         x = residual + x
 
         # Feed-forward block (pre-norm)
@@ -260,10 +274,10 @@ class AudioEncoder(nn.Module):
         """Apply the 3-layer Conv2d stem with GELU activations.
 
         Args:
-            x: Input tensor, shape (B, 1, T, F) where T=time, F=freq.
+            x: Input tensor in NHWC format, shape ``(B, H=mel, W=time, C)``.
 
         Returns:
-            Output tensor, shape (B, dhs, T', F') after 8x downsampling.
+            Output tensor in NHWC, shape ``(B, mel_down, time_down, dhs)``.
         """
         x = nn.gelu(self.conv2d1(x))
         x = nn.gelu(self.conv2d2(x))
@@ -271,71 +285,236 @@ class AudioEncoder(nn.Module):
         return x
 
     def get_output_lengths(self, input_lengths: mx.array) -> mx.array:
-        """Compute output sequence lengths after the Conv2d stem.
+        """Compute output token counts matching the official encoder formula.
 
-        With stride=2, padding=1, kernel_size=3:
-            L_out = floor((L_in + 2*1 - 3) / 2 + 1) = (L_in + 1) // 2
-
-        Applied three times for three conv layers.
+        The encoder splits mel frames into chunks of ``n_window * 2``
+        (typically 100) frames each.  Full chunks produce 13 tokens; the
+        tail chunk (if any) produces fewer.  The formula matches
+        ``_get_feat_extract_output_lengths`` from the official Qwen3-ASR
+        codebase.
 
         Args:
-            input_lengths: Frame counts, shape (B,).
+            input_lengths: Mel frame counts, shape ``(B,)``.
 
         Returns:
-            Token counts after conv stem, shape (B,).
+            Output token counts, shape ``(B,)``.
         """
-        lengths = input_lengths
-        for _ in range(3):
-            lengths = (lengths + 1) // 2
-        return lengths
+        chunk_size = self.config.n_window * 2  # e.g. 100
+        # Tail chunk: frames not filling a full chunk
+        tail_frames = input_lengths % chunk_size
+        # Apply 3x stride-2 conv downsampling to tail
+        tail_after_conv1 = (tail_frames - 1) // 2 + 1
+        tail_after_conv2 = (tail_after_conv1 - 1) // 2 + 1
+        tail_tokens = (tail_after_conv2 - 1) // 2 + 1
+        # When tail_frames == 0 there is no tail chunk → 0 tokens.
+        # (MLX integer // truncates towards zero for negatives, unlike
+        # Python/PyTorch which floor towards -inf, so (0-1)//2 gives 0
+        # not -1, producing an off-by-one without this guard.)
+        tail_tokens = mx.where(
+            tail_frames > 0, tail_tokens, mx.zeros_like(tail_tokens)
+        )
+        # Full chunks each produce 13 tokens
+        n_full_chunks = input_lengths // chunk_size
+        return tail_tokens + n_full_chunks * 13
 
     def __call__(
         self,
         input_features: mx.array,
         feature_lens: mx.array,
-    ) -> mx.array:
+    ) -> tuple[mx.array, mx.array]:
         """Encode audio mel spectrograms into feature vectors.
 
+        Implements the official Qwen3-ASR encoder pipeline:
+
+        1. Split mel into chunks of ``n_window * 2`` frames
+        2. Per-chunk Conv2d stem with channel-major reshape
+        3. Per-chunk sinusoidal position embeddings
+        4. Windowed block-diagonal attention across transformer layers
+        5. Post-processing: LayerNorm, GELU projection
+
         Args:
-            input_features: Mel spectrogram, shape (B, n_mels, n_frames).
-            feature_lens: Frame counts per sample, shape (B,).
+            input_features: Mel spectrogram, shape ``(B, n_mels, n_frames)``.
+                May be padded (e.g. to 3000 frames / 30 seconds).
+            feature_lens: Actual frame counts per sample (before padding),
+                shape ``(B,)``.
 
         Returns:
-            Audio features, shape (B, n_tokens, output_dim).
+            Tuple of ``(audio_features, output_lens)``:
+                audio_features: shape ``(B, max_tokens, output_dim)``
+                output_lens: shape ``(B,)``, valid token count per sample
         """
         B = input_features.shape[0]
+        chunk_size = self.config.n_window * 2
+        n_window_infer = self.config.n_window_infer
 
-        # (B, n_mels, n_frames) -> (B, n_frames, n_mels) -> (B, 1, n_frames, n_mels)
-        # Note: MLX Conv2d expects (B, H, W, C) -- NHWC format
-        x = input_features.transpose(0, 2, 1)  # (B, n_frames, n_mels)
-        x = x[:, :, :, None]  # (B, n_frames, n_mels, 1) -- NHWC with C=1
+        all_features = []
+        all_output_lens = []
 
-        # Apply Conv2d stem: output is (B, T', F', dhs) in NHWC
-        x = self._apply_conv_stem(x)
+        for b in range(B):
+            feat_len = int(feature_lens[b].item())
+            mel = input_features[b, :, :feat_len]  # (128, actual_frames)
+            features = self._encode_single(mel, chunk_size, n_window_infer)
+            all_features.append(features)
+            all_output_lens.append(features.shape[0])
 
-        # Reshape: (B, T', F', dhs) -> (B, T', F' * dhs)
-        B, T_prime, F_prime, C = x.shape
-        x = x.reshape(B, T_prime, F_prime * C)
+        # Pad to max length and stack into batch
+        max_len = max(all_output_lens)
+        padded = []
+        for f in all_features:
+            if f.shape[0] < max_len:
+                pad_arr = mx.zeros(
+                    (max_len - f.shape[0], f.shape[-1]), dtype=f.dtype
+                )
+                f = mx.concatenate([f, pad_arr], axis=0)
+            padded.append(f)
 
-        # Project to d_model
-        x = self.conv_out(x)  # (B, T', d_model)
+        output = mx.stack(padded)  # (B, max_len, output_dim)
+        output_lens = mx.array(all_output_lens)
+        return output, output_lens
 
-        # Add sinusoidal position embeddings
-        positions = mx.arange(T_prime)
-        x = x + self.embed_positions(positions)
+    def _encode_single(
+        self,
+        mel: mx.array,
+        chunk_size: int,
+        n_window_infer: int,
+    ) -> mx.array:
+        """Encode a single (unbatched) mel spectrogram.
 
-        # Transformer encoder layers
+        Implements the per-sample encoder forward pass matching the official
+        ``Qwen3ASRAudioEncoder.forward()`` logic:
+
+        - Split mel into chunks of ``chunk_size`` frames
+        - Process each chunk through the Conv2d stem independently
+        - Use channel-major reshape: ``(1, F', T', C) -> (1, T', C*F')``
+        - Apply per-chunk sinusoidal position embeddings (each chunk starts
+          from position 0)
+        - Run transformer with windowed (block-diagonal) attention
+
+        Args:
+            mel: Mel spectrogram, shape ``(n_mels, n_frames)``, already
+                trimmed to actual length (no padding).
+            chunk_size: Number of mel frames per chunk (``n_window * 2``).
+            n_window_infer: Number of mel frames per attention window.
+
+        Returns:
+            Encoded features, shape ``(n_tokens, output_dim)``.
+        """
+        total_frames = mel.shape[1]
+
+        # --- Per-chunk Conv2d processing ---
+        chunk_token_lens: list[int] = []
+        chunk_conv_outputs: list[mx.array] = []
+
+        for start in range(0, total_frames, chunk_size):
+            end = min(start + chunk_size, total_frames)
+            chunk_mel = mel[:, start:end]  # (n_mels, chunk_len)
+
+            # MLX NHWC: (1, H=n_mels, W=chunk_len, C=1)
+            x = chunk_mel[None, :, :, None]
+
+            # Conv2d stem: output is (1, mel_down, time_down, dhs) in NHWC
+            x = self._apply_conv_stem(x)
+
+            # Channel-major reshape to match conv_out weight layout.
+            # PyTorch does: (B,C,F,T) -> permute(0,3,1,2) -> (B,T,C,F) -> view(B,T,C*F)
+            # MLX NHWC:    (1,F',T',C) -> transpose(0,2,3,1) -> (1,T',C,F')
+            _, F_d, T_d, C_d = x.shape
+            x = x.transpose(0, 2, 3, 1)  # (1, T', C=dhs, F'=freq_down)
+            x = x.reshape(1, T_d, C_d * F_d)  # (1, T', dhs*freq_down)
+
+            chunk_token_lens.append(T_d)
+            chunk_conv_outputs.append(x[0])  # (T', dhs*freq_down)
+
+        # Concatenate all chunks and project to d_model
+        x = mx.concatenate(chunk_conv_outputs, axis=0)  # (total_tokens, dhs*freq_down)
+        x = self.conv_out(x)  # (total_tokens, d_model)
+
+        # --- Per-chunk sinusoidal position embeddings ---
+        # Each chunk gets PE starting from position 0 (matching official)
+        max_chunk_tokens = max(chunk_token_lens)
+        pe = self.embed_positions(max_chunk_tokens)  # (max_chunk_tokens, d_model)
+
+        pe_parts: list[mx.array] = []
+        for ct in chunk_token_lens:
+            pe_parts.append(pe[:ct])
+        pe_full = mx.concatenate(pe_parts, axis=0)  # (total_tokens, d_model)
+        x = x + pe_full
+
+        # --- Windowed attention ---
+        total_tokens = x.shape[0]
+        tokens_per_full_chunk = chunk_token_lens[0]
+        tokens_per_window = tokens_per_full_chunk * (n_window_infer // chunk_size)
+
+        # Build cu_seqlens for attention windows
+        cu_seqlens: list[int] = [0]
+        pos = 0
+        while pos < total_tokens:
+            window_end = min(pos + tokens_per_window, total_tokens)
+            cu_seqlens.append(window_end)
+            pos = window_end
+
+        mask = _create_windowed_mask(total_tokens, cu_seqlens, x.dtype)
+
+        # Add batch dim for transformer layers: (1, total_tokens, d_model)
+        x = x[None, :, :]
+
         for layer in self.layers:
-            x = layer(x)
+            x = layer(x, mask=mask)
 
-        # Post-norm
+        x = x[0]  # remove batch dim: (total_tokens, d_model)
+
+        # --- Post-processing ---
         x = self.ln_post(x)
-
-        # Output projection MLP
         x = nn.gelu(self.proj1(x))
-        x = self.proj2(x)  # (B, T', output_dim)
+        x = self.proj2(x)
 
-        return x
+        return x  # (total_tokens, output_dim)
+
+
+def _create_windowed_mask(
+    seq_len: int,
+    cu_seqlens: list[int],
+    dtype: mx.Dtype = mx.float32,
+) -> Optional[mx.array]:
+    """Create a block-diagonal attention mask for windowed encoder attention.
+
+    Tokens within the same window can attend to each other; tokens in
+    different windows cannot.  This matches the ``cu_seqlens``-based
+    windowed attention in the official Qwen3-ASR encoder.
+
+    Args:
+        seq_len: Total sequence length.
+        cu_seqlens: Cumulative sequence lengths defining window boundaries.
+            E.g. ``[0, 104, 208, 260]`` means three windows: [0..103],
+            [104..207], [208..259].
+        dtype: Output dtype.
+
+    Returns:
+        Additive attention mask of shape ``(1, 1, seq_len, seq_len)`` where
+        cross-window positions have ``-1e9``, or ``None`` if there is only
+        one window (no masking needed).
+    """
+    # Single window — no mask needed
+    if len(cu_seqlens) <= 2:
+        return None
+
+    # Assign each position to a window via boundary counting
+    boundaries = mx.array(cu_seqlens[1:-1])  # internal boundaries
+    positions = mx.arange(seq_len)
+
+    # window_id[i] = number of internal boundaries <= position i
+    window_ids = mx.sum(
+        positions[:, None] >= boundaries[None, :], axis=1
+    )  # (seq_len,)
+
+    # Tokens attend iff they share a window
+    same_window = window_ids[:, None] == window_ids[None, :]  # (L, L)
+    mask = mx.where(
+        same_window,
+        mx.array(0.0, dtype=dtype),
+        mx.array(-1e9, dtype=dtype),
+    )
+    return mask[None, None, :, :]  # (1, 1, L, L)
 
 
 # ---------------------------------------------------------------------------
@@ -347,8 +526,7 @@ class TextAttention(nn.Module):
     """Causal self-attention with MRoPE and Q/K norms for the text decoder.
 
     Uses RMSNorm on queries and keys (Qwen3 innovation). Supports grouped
-    query attention (GQA) when num_kv_heads < num_heads, though the 1.7B
-    model uses full MHA.
+    query attention (GQA) when num_kv_heads < num_heads.
 
     Args:
         config: TextDecoderConfig with model hyperparameters.
@@ -545,10 +723,14 @@ class TextDecoder(nn.Module):
         self.norm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         # MRoPE with interleaved frequency assignment
+        mrope_section = [24, 20, 20]
+        if isinstance(config.rope_scaling, dict):
+            mrope_section = config.rope_scaling.get("mrope_section", mrope_section)
+
         self.rotary_emb = InterleavedMRoPE(
             head_dim=config.head_dim,
             base=config.rope_theta,
-            mrope_section=[24, 20, 20],
+            mrope_section=list(mrope_section),
         )
 
     def __call__(
@@ -753,7 +935,7 @@ class Qwen3ASRModel(nn.Module):
 
         # Encode and inject audio features if audio is provided
         if input_features is not None:
-            audio_features = self.audio_tower(input_features, feature_lens)
+            audio_features, _ = self.audio_tower(input_features, feature_lens)
             audio_mask = input_ids == self.audio_token_id
             embeds = self._inject_audio_features(embeds, audio_features, audio_mask)
 

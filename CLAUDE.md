@@ -17,9 +17,9 @@ This is an **MLX port of Qwen3-ASR** — the SOTA open-source ASR model — for 
 ### Architecture Overview
 
 Qwen3-ASR is an encoder-decoder model:
-1. Audio → mel spectrogram (128 bins) → Conv2d stem (8x downsample) → 32 transformer encoder layers → audio features
+1. Audio → mel spectrogram (128 bins) → Conv2d stem (8x downsample) → 24 transformer encoder layers → audio features
 2. Audio features injected into text embedding sequence at placeholder positions
-3. Text decoder (32 Qwen3-style layers with MRoPE) autoregressively generates transcription
+3. Text decoder (28 Qwen3-style layers with MRoPE) autoregressively generates transcription
 4. Optional: Forced aligner (separate 0.6B model) provides word-level timestamps
 
 ## Documentation Map

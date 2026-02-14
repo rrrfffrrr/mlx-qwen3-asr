@@ -9,7 +9,7 @@ from typing import Optional, Union
 import mlx.core as mx
 import numpy as np
 
-from .audio import SAMPLE_RATE, load_audio, log_mel_spectrogram
+from .audio import SAMPLE_RATE, compute_features, load_audio
 from .chunking import split_audio_into_chunks
 from .generate import GenerationConfig, generate
 from .load_models import _ModelHolder
@@ -55,8 +55,9 @@ def transcribe(
         audio: Audio source - file path, numpy array, mx.array, or (array, sr) tuple
         model: Model name/path or pre-loaded model instance
         language: Force language detection (e.g., "English", "Chinese")
-        return_timestamps: Whether to return word-level timestamps
-        forced_aligner: Path/name of forced aligner model (requires return_timestamps)
+        return_timestamps: Whether to return word-level timestamps.
+            Not yet implemented; raises NotImplementedError when True.
+        forced_aligner: Path/name of forced aligner model (reserved for future use)
         dtype: Model dtype
         max_new_tokens: Maximum tokens to generate per chunk
         verbose: Print progress information
@@ -64,9 +65,14 @@ def transcribe(
     Returns:
         TranscriptionResult with text, language, and optional segments
     """
+    if return_timestamps:
+        raise NotImplementedError(
+            "return_timestamps is not available yet: forced alignment is still WIP."
+        )
+
     # Load model
     if isinstance(model, str):
-        model_obj, config = _ModelHolder.get(model, dtype=dtype)
+        model_obj, _ = _ModelHolder.get(model, dtype=dtype)
         model_path = model
     else:
         model_obj = model
@@ -109,14 +115,13 @@ def transcribe(
             print(f"Processing chunk {chunk_idx + 1}/{len(chunks)} "
                   f"(offset={offset:.1f}s, duration={len(chunk_audio)/SAMPLE_RATE:.1f}s)")
 
-        # Compute mel spectrogram
-        audio_mx = mx.array(chunk_audio)
-        mel = log_mel_spectrogram(audio_mx)  # (n_mels, n_frames)
-        mel = mel[None, :, :]  # (1, n_mels, n_frames)
+        # Compute mel spectrogram using HF WhisperFeatureExtractor
+        mel, feature_lens = compute_features(chunk_audio)  # (1, 128, 3000), (1,)
 
-        # Encode audio
-        feature_lens = mx.array([mel.shape[2]])
-        audio_features = model_obj.audio_tower(mel, feature_lens)  # (1, n_tokens, dim)
+        # Encode audio (encoder handles padding mask and trims to valid tokens)
+        audio_features, output_lens = model_obj.audio_tower(
+            mel.astype(dtype), feature_lens
+        )  # (1, n_valid_tokens, dim)
         n_audio_tokens = audio_features.shape[1]
 
         if verbose:
@@ -158,23 +163,8 @@ def transcribe(
     # Merge chunks
     full_text = " ".join(all_texts)
 
-    # Optional: forced alignment for timestamps
-    segments = None
-    if return_timestamps and forced_aligner:
-        from .forced_aligner import ForcedAligner
-        aligner = ForcedAligner(forced_aligner, dtype=dtype)
-        aligned = aligner.align(
-            audio=audio_np,
-            text=full_text,
-            language=detected_language,
-        )
-        segments = [
-            {"text": w.text, "start": w.start_time, "end": w.end_time}
-            for w in aligned
-        ]
-
     return TranscriptionResult(
         text=full_text,
         language=detected_language,
-        segments=segments,
+        segments=None,
     )

@@ -21,14 +21,14 @@ class AudioEncoderConfig:
     """
 
     num_mel_bins: int = 128
-    encoder_layers: int = 32
-    encoder_attention_heads: int = 20
-    encoder_ffn_dim: int = 5120
-    d_model: int = 1280
-    output_dim: int = 3584
+    encoder_layers: int = 24
+    encoder_attention_heads: int = 16
+    encoder_ffn_dim: int = 4096
+    d_model: int = 1024
+    output_dim: int = 2048
     max_source_positions: int = 1500
-    n_window: int = 100
-    n_window_infer: int = 400
+    n_window: int = 50
+    n_window_infer: int = 800
     conv_chunksize: int = 500
     downsample_hidden_size: int = 480
     activation_function: str = "gelu"
@@ -69,23 +69,23 @@ class TextDecoderConfig:
     RoPE (MRoPE) that autoregressively generates transcription tokens.
     Uses RMSNorm (no bias), unlike the audio encoder which uses LayerNorm.
 
-    Defaults correspond to the 1.7B model (which uses MHA, not GQA).
+    Defaults correspond to the 1.7B model (GQA with 16 heads, 8 KV heads).
     """
 
     vocab_size: int = 151936
-    hidden_size: int = 4096
-    intermediate_size: int = 22016
-    num_hidden_layers: int = 32
-    num_attention_heads: int = 32
-    num_key_value_heads: int = 32
+    hidden_size: int = 2048
+    intermediate_size: int = 6144
+    num_hidden_layers: int = 28
+    num_attention_heads: int = 16
+    num_key_value_heads: int = 8
     head_dim: int = 128
     hidden_act: str = "silu"
-    max_position_embeddings: int = 128000
-    rope_theta: float = 5000000.0
+    max_position_embeddings: int = 65536
+    rope_theta: float = 1000000.0
     rope_scaling: Optional[dict] = None
     rms_norm_eps: float = 1e-6
     attention_bias: bool = False
-    tie_word_embeddings: bool = False
+    tie_word_embeddings: bool = True
 
     @classmethod
     def for_0_6b(cls) -> TextDecoderConfig:
@@ -135,8 +135,9 @@ class Qwen3ASRConfig:
 
     audio_config: AudioEncoderConfig = field(default_factory=AudioEncoderConfig)
     text_config: TextDecoderConfig = field(default_factory=TextDecoderConfig)
-    audio_token_id: int = 151646
-    audio_start_token_id: int = 151647
+    audio_token_id: int = 151676        # <|audio_pad|>
+    audio_start_token_id: int = 151669  # <|audio_start|>
+    audio_end_token_id: int = 151670    # <|audio_end|>
     user_token_id: int = 872
     support_languages: Optional[list] = None
 
@@ -151,10 +152,11 @@ class Qwen3ASRConfig:
                 "thinker_config": {
                     "audio_config": { ... },
                     "text_config": { ... },
+                    "audio_token_id": 151676,
+                    "audio_start_token_id": 151669,
                     ...
                 },
-                "audio_token_id": 151646,
-                ...
+                "support_languages": [...],
             }
 
         This method handles both the nested HF format and a flat format
@@ -167,13 +169,16 @@ class Qwen3ASRConfig:
             Fully instantiated Qwen3ASRConfig.
         """
         # HF format: configs are nested under "thinker_config"
+        # Token IDs live inside thinker_config, not at top level
         if "thinker_config" in d:
             thinker = d["thinker_config"]
             audio_dict = thinker.get("audio_config", {})
             text_dict = thinker.get("text_config", {})
+            token_source = thinker
         else:
             audio_dict = d.get("audio_config", {})
             text_dict = d.get("text_config", {})
+            token_source = d
 
         # Parse nested configs — if they're already dataclasses, use them directly
         if isinstance(audio_dict, dict):
@@ -189,9 +194,10 @@ class Qwen3ASRConfig:
         return cls(
             audio_config=audio_config,
             text_config=text_config,
-            audio_token_id=d.get("audio_token_id", 151646),
-            audio_start_token_id=d.get("audio_start_token_id", 151647),
-            user_token_id=d.get("user_token_id", 872),
+            audio_token_id=token_source.get("audio_token_id", 151676),
+            audio_start_token_id=token_source.get("audio_start_token_id", 151669),
+            audio_end_token_id=token_source.get("audio_end_token_id", 151670),
+            user_token_id=token_source.get("user_token_id", 872),
             support_languages=d.get("support_languages", None),
         )
 
