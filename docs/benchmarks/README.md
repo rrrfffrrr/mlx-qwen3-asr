@@ -76,6 +76,8 @@ Forced aligner parity lane run (2026-02-14):
 
 - `docs/benchmarks/2026-02-14-aligner-parity-10.json`
 - `docs/benchmarks/2026-02-14-aligner-parity-10.md`
+- `docs/benchmarks/2026-02-14-aligner-parity-50.json`
+- `docs/benchmarks/2026-02-14-aligner-parity-50.md`
 
 Generate with:
 

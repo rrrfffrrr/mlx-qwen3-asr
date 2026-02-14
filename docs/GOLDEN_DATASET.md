@@ -62,7 +62,9 @@ python scripts/eval_librispeech.py \
 ```bash
 python scripts/eval_aligner_parity.py \
   --subset test-clean \
-  --samples 20 \
+  --samples 50 \
   --model Qwen/Qwen3-ForcedAligner-0.6B \
+  --fail-text-match-rate-below 1.0 \
+  --fail-timing-mae-ms-above 60.0 \
   --json-output docs/benchmarks/aligner-parity.json
 ```
