@@ -137,6 +137,23 @@ Reference parity suite smoke run (2026-02-14):
 - `docs/benchmarks/2026-02-14-reference-parity-suite-multilingual-100-analysis.json`
 - `docs/benchmarks/2026-02-14-reference-parity-suite-multilingual-100-analysis.md`
 
+Long-form multilingual parity artifacts (2026-02-15):
+
+- manifests:
+  - `docs/benchmarks/2026-02-14-fleurs-longform-smoke2-manifest.jsonl`
+  - `docs/benchmarks/2026-02-14-fleurs-longform-10x75-manifest.jsonl`
+- smoke parity:
+  - `docs/benchmarks/2026-02-14-reference-parity-suite-longform-smoke2.json`
+  - `docs/benchmarks/2026-02-14-reference-parity-suite-longform-smoke2-1024.json`
+- full 10-sample run (serial shards + aggregate):
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard00.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard01.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard02.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard03.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard04.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10.md`
+
 Generate with:
 
 ```bash

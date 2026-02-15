@@ -11,6 +11,9 @@ make broad "production-grade across languages/conditions" quality claims.
     - smoke: 4 samples (EN/CN/JA/DE),
     - medium: 20 samples (10 languages x 2),
     - expanded: 100 samples (10 languages x 10).
+  - Long-form multilingual parity lane:
+    - 10 synthetic concatenated clips (~75-90s each, 10 languages),
+    - strict token/text parity currently `0.0` (all mismatch; early divergence).
 - Aligner parity:
   - 50 LibriSpeech test-clean samples (MLX vs official qwen_asr backend).
 - WER/CER lane:
@@ -33,7 +36,8 @@ make broad "production-grade across languages/conditions" quality claims.
 
 4. `P0` Long-form quality lane (`>30s`, multi-minute)
 - Why: chunking/context behavior can drift differently than short utterances.
-- Status: synthetic long parity exists; long-form quality lane missing.
+- Status: synthetic long parity now expanded to 10 clips, but quality lane
+  against ground-truth (WER/CER) is still missing.
 
 5. `P1` Direct MLX-vs-PyTorch quality comparison on same samples
 - Why: closes the loop on backend parity at transcript quality level.

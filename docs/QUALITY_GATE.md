@@ -35,6 +35,16 @@ RUN_REFERENCE_PARITY=1 python scripts/quality_gate.py --mode release
 Checks:
 - Everything in fast gate.
 - Reference parity test (`tests/test_reference_parity.py`).
+- Default quality-metrics lane (deterministic LibriSpeech sample):
+  - runs `scripts/eval_librispeech.py`
+  - enforces both WER and CER thresholds (`--fail-wer-above`, `--fail-cer-above`)
+  - default envs:
+    - `QUALITY_EVAL_SUBSET=test-clean`
+    - `QUALITY_EVAL_SAMPLES=20`
+    - `QUALITY_EVAL_FAIL_WER_ABOVE=0.10`
+    - `QUALITY_EVAL_FAIL_CER_ABOVE=0.06`
+  - disable only when explicitly needed:
+    - `RUN_QUALITY_EVAL=0`
 - Optional aligner parity lane when explicitly enabled:
   - `RUN_ALIGNER_PARITY=1`
   - runs `scripts/eval_aligner_parity.py` on deterministic LibriSpeech samples.

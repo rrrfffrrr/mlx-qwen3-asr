@@ -87,3 +87,19 @@ def test_normalize_parity_text_is_unicode_safe():
     assert mod._normalize_parity_text(left) == mod._normalize_parity_text(right)
     # Accented Latin + apostrophes normalize predictably.
     assert mod._normalize_parity_text("Café — it's me") == "café it's me"
+
+
+def test_parse_manifest_reads_source_sample_ids(tmp_path: Path):
+    mod = _load_module()
+    audio = tmp_path / "sample.wav"
+    audio.write_bytes(b"stub")
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text(
+        '{"sample_id":"x1","audio_path":"'
+        + str(audio)
+        + '","source_sample_ids":["a","b",""]}\n',
+        encoding="utf-8",
+    )
+    rows = mod._parse_manifest(manifest)  # noqa: SLF001
+    assert len(rows) == 1
+    assert rows[0].source_sample_ids == ["a", "b"]

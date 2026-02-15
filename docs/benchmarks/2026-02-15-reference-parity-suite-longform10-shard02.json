@@ -1,0 +1,103 @@
+{
+  "suite": "reference-parity-suite-v1",
+  "model": "Qwen/Qwen3-ASR-0.6B",
+  "dtype": "float16",
+  "max_new_tokens": 1024,
+  "subsets": [],
+  "samples_per_subset": 1,
+  "include_long_mixes": false,
+  "long_mixes": 0,
+  "include_noise_variants": false,
+  "noise_snrs_db": null,
+  "manifest_jsonl": "/tmp/longform10_shards/shard-02",
+  "samples": 2,
+  "token_matches": 0,
+  "token_match_rate": 0.0,
+  "text_matches": 0,
+  "text_match_rate": 0.0,
+  "matches": 0,
+  "match_rate": 0.0,
+  "latency_sec_mlx_mean": 18.35694268750376,
+  "latency_sec_ref_mean": 53.23994570798823,
+  "elapsed_sec": 146.25121191699873,
+  "by_subset": {
+    "longform-german": {
+      "samples": 1,
+      "token_matches": 0,
+      "token_match_rate": 0.0,
+      "text_matches": 0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 11.20552108398988,
+      "latency_sec_ref_mean": 49.09322749997955
+    },
+    "longform-hindi": {
+      "samples": 1,
+      "token_matches": 0,
+      "token_match_rate": 0.0,
+      "text_matches": 0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 25.508364291017642,
+      "latency_sec_ref_mean": 57.386663915996905
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "sample_id": "longform-german-000",
+      "subset": "longform-german",
+      "condition": "longform-concat",
+      "speaker_id": "mixed-german",
+      "language": "German",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/longform-audio/german/longform-german-000.wav",
+      "source_sample_ids": [
+        "de_de-8970395757894156280",
+        "de_de-11483238450854783006",
+        "de_de-11715892750462546813",
+        "de_de-11906634980733046933",
+        "de_de-12118389603857044218",
+        "de_de-15824620871868309906"
+      ],
+      "duration_sec": 86.93,
+      "token_count_mlx": 302,
+      "token_count_ref": 303,
+      "token_match": false,
+      "normalized_text_match": false,
+      "first_mismatch_index": 25,
+      "latency_sec_mlx": 11.20552108398988,
+      "latency_sec_ref": 49.09322749997955,
+      "ref_text_raw": "Feuchte Kleidung zu bügeln kann beim Trocknen helfen. Viele Hotels verleihen Bügeliisen und Bügelnbretter, auch wenn man nicht im Zimmer anwesend ist. Der Kursfluss ist die Untersuchung der Bewegung einzelner Fahrer und Fahrzeuge zwischen zwei Punkten und der Interaktionen, die zwischen beiden stattfinden. Reisende werden dringend gewarnt, auf jede Art von Umwelter zu achten, die ihr Gebiet betrifft, da dies sich auf alle Reisepläne auswirken kann. Er fügte hinzu, dass jedoch nicht dazu aufgefordert werden sollten, da Pflichtungen einzugehen, die über ihren Entwicklungszustand, ihre Verantwortung und ihre Fähigkeiten hinausgehen. Die meisten Gebäude an den Rändern des Komplexes wurden wieder aufgebaut, um den Touristen einen besseren Eindruck davon zu vermitteln, wie sie ursprünglich aussahen. Seit 1988 müssen Wahlen transparent sein, damit Wähler und Beobachter bezeugen können, dass zu Beginn der Wahl keine Umschläge vorhanden sind und dass keine Umschläge eingeworfen werden, außer jene der ordnungsgemäß zählten und autorisierten Wähler.",
+      "mlx_text_raw": "Feuchte Kleidung zu bügeln kann beim Trocknen helfen. Viele Hotels verleihen Bügeleisen und Bügenbretter, auch wenn man nicht im Zimmer anwesend ist. Verkehrsfluß ist die Untersuchung der Bewegung einzelner Fahrer und Fahrzeuge zwischen zwei Punkten und der Interaktionen, die zwischen beiden stattfinden. Reisende werden dringend gewarnt, auf jede Art von Unwetter zu achten, die ihr Gebiet betrifft, da dies sich auf alle Reisepläne auswirken kann. Er fügte hinzu, dass jedoch nicht dazu aufgefordert werden sollten, Verpflichtungen einzugehen, die über ihren Entwicklungszustand, ihre Verantwortung und ihre Fähigkeiten hinausgehen. Die meisten Gebäude an den Rändern des Komplexes wurden wieder aufgebaut, um den Touristen einen besseren Eindruck davon zu vermitteln, wie sie ursprünglich aussehen. Seit 1988 müssen Wahlurne transparent sein, damit Wähler und Beobachter bezeugen können, dass zu Beginn der Wahl keine Umschläge vorhanden sind und dass keine Umschläge eingeworfen werden, außer jene der ordnungsmäßig zählten und autorisierten Wähler.",
+      "ref_text_normalized": "feuchte kleidung zu bügeln kann beim trocknen helfen viele hotels verleihen bügeliisen und bügelnbretter auch wenn man nicht im zimmer anwesend ist der kursfluss ist die untersuchung der bewegung einzelner fahrer und fahrzeuge zwischen zwei punkten und der interaktionen die zwischen beiden stattfinden reisende werden dringend gewarnt auf jede art von umwelter zu achten die ihr gebiet betrifft da dies sich auf alle reisepläne auswirken kann er fügte hinzu dass jedoch nicht dazu aufgefordert werden sollten da pflichtungen einzugehen die über ihren entwicklungszustand ihre verantwortung und ihre fähigkeiten hinausgehen die meisten gebäude an den rändern des komplexes wurden wieder aufgebaut um den touristen einen besseren eindruck davon zu vermitteln wie sie ursprünglich aussahen seit 1988 müssen wahlen transparent sein damit wähler und beobachter bezeugen können dass zu beginn der wahl keine umschläge vorhanden sind und dass keine umschläge eingeworfen werden ausser jene der ordnungsgemäss zählten und autorisierten wähler",
+      "mlx_text_normalized": "feuchte kleidung zu bügeln kann beim trocknen helfen viele hotels verleihen bügeleisen und bügenbretter auch wenn man nicht im zimmer anwesend ist verkehrsfluss ist die untersuchung der bewegung einzelner fahrer und fahrzeuge zwischen zwei punkten und der interaktionen die zwischen beiden stattfinden reisende werden dringend gewarnt auf jede art von unwetter zu achten die ihr gebiet betrifft da dies sich auf alle reisepläne auswirken kann er fügte hinzu dass jedoch nicht dazu aufgefordert werden sollten verpflichtungen einzugehen die über ihren entwicklungszustand ihre verantwortung und ihre fähigkeiten hinausgehen die meisten gebäude an den rändern des komplexes wurden wieder aufgebaut um den touristen einen besseren eindruck davon zu vermitteln wie sie ursprünglich aussehen seit 1988 müssen wahlurne transparent sein damit wähler und beobachter bezeugen können dass zu beginn der wahl keine umschläge vorhanden sind und dass keine umschläge eingeworfen werden ausser jene der ordnungsmässig zählten und autorisierten wähler"
+    },
+    {
+      "index": 2,
+      "sample_id": "longform-hindi-000",
+      "subset": "longform-hindi",
+      "condition": "longform-concat",
+      "speaker_id": "mixed-hindi",
+      "language": "Hindi",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/longform-audio/hindi/longform-hindi-000.wav",
+      "source_sample_ids": [
+        "hi_in-10847487616323903195",
+        "hi_in-12192139752982190546",
+        "hi_in-12193749519479711646",
+        "hi_in-12261305966768506027",
+        "hi_in-12919174378536885221",
+        "hi_in-13033303492941325688"
+      ],
+      "duration_sec": 79.31,
+      "token_count_mlx": 617,
+      "token_count_ref": 622,
+      "token_match": false,
+      "normalized_text_match": false,
+      "first_mismatch_index": 9,
+      "latency_sec_mlx": 25.508364291017642,
+      "latency_sec_ref": 57.386663915996905,
+      "ref_text_raw": "कुछ लोग ये सोचते थे कि कि ये सही था लेकिन बहुत से लोग इसके विपरीत मानते थे कि सौर मंडल सूर्य और यहाँ तक कि अन्य सितारे सहित पृष्ठभूमि के चारों ओर चक्कर लगाता था। हमारी ग्रह की नदियों से महासागरों में जाने वाला पानी का 20 प्रतिशत हिस्सा अमेज़न से आता है। सुंदर बन दुनिया का सबसे बड़ा तटीय मंगल छेत्र है जो तट से बांग्ला देशी और भारतीय पहाड़ी छेत्र में 30 किलोमीटर 80 मील तक फैला हुआ है। प्रश्न को दृढ़ता से नकारे और अपनी बात पर बेहिच्च अड़ी रहे। सांस्कृतिक अंतरों के होने या नहीं होने से यह सही नहीं हो जाता। वहीं इस प्रक्रम का दूसरा सिराकोई व्यक्ति किसी ऐसे अपरिचित व्यक्ति का रूप लेता है जिसे लगता है कि उसे तीन में सब कुछ बदल देना चाहिए और उसे अपने हिसाब से बनाना चाहिए.",
+      "mlx_text_raw": "कुछ लोग यह सोचते थे कि कि यह सही था लेकिन बहुत से लोग इसके विपरीत मानते थे कि सौर मंडल सूर्य और यहाँ तक कि अनसितारे सहित पिशवी के चारों चक्कर लगाता था हमारे ग्रह की नदियों से महासागरों में जाने वाला पानी का 20 प्रतिशत हिस्सा अमेज़न से आता है सुंदर बन दुनिया का सबसे बड़ा तटीय मंगलप्रार्थना क्षेत्र है जो तट से बांग्लादेशी और भारतीय पहाड़ी क्षेत्र में 80 किलोमीटर 50 मील तक फैला हुआ है पुरुषों को दृढ़ता से नकारें और अपनी बात पर बेहिचक अड़ी रहें सांस्कृतिक अंतरों के होने या नहीं होने से यह सही नहीं हो जाता वही स्पेक्ट्रम का दूसरा सिरा कोई व्यक्ति किसी ऐसे अपरिचित व्यक्ति का रूप लेता है जिसे लगता है कि उसे टीम में सब कुछ बदल देना चाहिए और उसे अपने हिसाब से बनाना चाहिए",
+      "ref_text_normalized": "कुछ लोग ये सोचते थे कि कि ये सही था लेकिन बहुत से लोग इसके विपरीत मानते थे कि सौर मंडल सूर्य और यहाँ तक कि अन्य सितारे सहित पृष्ठभूमि के चारों ओर चक्कर लगाता था हमारी ग्रह की नदियों से महासागरों में जाने वाला पानी का 20 प्रतिशत हिस्सा अमेज़न से आता है सुंदर बन दुनिया का सबसे बड़ा तटीय मंगल छेत्र है जो तट से बांग्ला देशी और भारतीय पहाड़ी छेत्र में 30 किलोमीटर 80 मील तक फैला हुआ है प्रश्न को दृढ़ता से नकारे और अपनी बात पर बेहिच्च अड़ी रहे सांस्कृतिक अंतरों के होने या नहीं होने से यह सही नहीं हो जाता वहीं इस प्रक्रम का दूसरा सिराकोई व्यक्ति किसी ऐसे अपरिचित व्यक्ति का रूप लेता है जिसे लगता है कि उसे तीन में सब कुछ बदल देना चाहिए और उसे अपने हिसाब से बनाना चाहिए",
+      "mlx_text_normalized": "कुछ लोग यह सोचते थे कि कि यह सही था लेकिन बहुत से लोग इसके विपरीत मानते थे कि सौर मंडल सूर्य और यहाँ तक कि अनसितारे सहित पिशवी के चारों चक्कर लगाता था हमारे ग्रह की नदियों से महासागरों में जाने वाला पानी का 20 प्रतिशत हिस्सा अमेज़न से आता है सुंदर बन दुनिया का सबसे बड़ा तटीय मंगलप्रार्थना क्षेत्र है जो तट से बांग्लादेशी और भारतीय पहाड़ी क्षेत्र में 80 किलोमीटर 50 मील तक फैला हुआ है पुरुषों को दृढ़ता से नकारें और अपनी बात पर बेहिचक अड़ी रहें सांस्कृतिक अंतरों के होने या नहीं होने से यह सही नहीं हो जाता वही स्पेक्ट्रम का दूसरा सिरा कोई व्यक्ति किसी ऐसे अपरिचित व्यक्ति का रूप लेता है जिसे लगता है कि उसे टीम में सब कुछ बदल देना चाहिए और उसे अपने हिसाब से बनाना चाहिए"
+    }
+  ]
+}

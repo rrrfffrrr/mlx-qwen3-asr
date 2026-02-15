@@ -69,3 +69,27 @@ def test_collect_samples_sequential_keeps_sorted_order(tmp_path: Path):
         "100-200-0003",
         "101-201-0001",
     ]
+
+
+def test_threshold_failures_none_when_under_limits():
+    mod = _load_module()
+    failures = mod._threshold_failures(  # noqa: SLF001
+        wer=0.02,
+        cer=0.01,
+        fail_wer_above=0.03,
+        fail_cer_above=0.02,
+    )
+    assert failures == []
+
+
+def test_threshold_failures_reports_both_metrics():
+    mod = _load_module()
+    failures = mod._threshold_failures(  # noqa: SLF001
+        wer=0.05,
+        cer=0.03,
+        fail_wer_above=0.03,
+        fail_cer_above=0.02,
+    )
+    assert len(failures) == 2
+    assert "WER regression gate failed" in failures[0]
+    assert "CER regression gate failed" in failures[1]

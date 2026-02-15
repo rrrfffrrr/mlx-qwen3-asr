@@ -1,0 +1,103 @@
+{
+  "suite": "reference-parity-suite-v1",
+  "model": "Qwen/Qwen3-ASR-0.6B",
+  "dtype": "float16",
+  "max_new_tokens": 1024,
+  "subsets": [],
+  "samples_per_subset": 1,
+  "include_long_mixes": false,
+  "long_mixes": 0,
+  "include_noise_variants": false,
+  "noise_snrs_db": null,
+  "manifest_jsonl": "/tmp/longform10_shards/shard-04",
+  "samples": 2,
+  "token_matches": 0,
+  "token_match_rate": 0.0,
+  "text_matches": 0,
+  "text_match_rate": 0.0,
+  "matches": 0,
+  "match_rate": 0.0,
+  "latency_sec_mlx_mean": 11.677700250016642,
+  "latency_sec_ref_mean": 51.90863377049391,
+  "elapsed_sec": 130.42590154201025,
+  "by_subset": {
+    "longform-russian": {
+      "samples": 1,
+      "token_matches": 0,
+      "token_match_rate": 0.0,
+      "text_matches": 0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 12.76082312501967,
+      "latency_sec_ref_mean": 51.412666040996555
+    },
+    "longform-spanish": {
+      "samples": 1,
+      "token_matches": 0,
+      "token_match_rate": 0.0,
+      "text_matches": 0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 10.594577375013614,
+      "latency_sec_ref_mean": 52.40460149999126
+    }
+  },
+  "rows": [
+    {
+      "index": 1,
+      "sample_id": "longform-russian-000",
+      "subset": "longform-russian",
+      "condition": "longform-concat",
+      "speaker_id": "mixed-russian",
+      "language": "Russian",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/longform-audio/russian/longform-russian-000.wav",
+      "source_sample_ids": [
+        "ru_ru-14538972329666110700",
+        "ru_ru-1465434251837536297",
+        "ru_ru-17890295407287151733",
+        "ru_ru-17970174005402751578",
+        "ru_ru-4823746764539457698",
+        "ru_ru-5180978310776149118"
+      ],
+      "duration_sec": 83.93,
+      "token_count_mlx": 329,
+      "token_count_ref": 328,
+      "token_match": false,
+      "normalized_text_match": false,
+      "first_mismatch_index": 28,
+      "latency_sec_mlx": 12.76082312501967,
+      "latency_sec_ref": 51.412666040996555,
+      "ref_text_raw": "В 2002 году город Гома был разрушен лавой вулкана Нирогонго, который сохранил под собой большую часть городских улиц, особенно центральную часть города. Однако после потери колодки капитана Индия совершил лишь 36 пробегов, потеряв все колодки для завершения Иннгсов. Исследователи университета сообщили, что эти два соединения вступают друг с другом в реакцию, образуя кристаллы, которые могут блокировать работу почек. Выкладывание экскурсию в виртуальное пространство для всеобщего обзора — это также отличный способ освежить память, экскурсию поделиться своими полученными знаниями с будущими классами. Конгресс начал финансировать инициативу по борьбе с разворотом в 2005 налоговым году и определил, что ФБР должен выделить 10 агентов на борьбу со взрослой порнографией. Хотя никто не знал наверняка, кто его написал, известно, что в начале своего существования этот большой пергаментный документ размером 29 целых 3/4 на 24 целых 1/2 дюйма был свернут для более удобного хранения.",
+      "mlx_text_raw": "В 2002 году город Гома был разрушен лавой вулкана Нирогонго, которая похоронила под собой большую часть городских улиц, особенно центральную часть города. Однако после потери колитки капитана Индия совершила лишь 36 пробегов, потеряв семь колиток для завершения иннингсов. Исследователи университета сообщили, что эти два соединения вступают друг с другом в реакцию, образуя кристаллы, которые могут блокировать работу почек. Выкладывание экскурсию в виртуальное пространство для всеобщего обозрения — это также отличный способ освежить память, экскурсию поделиться своими полученными знаниями с будущими классами. Конгресс начал финансировать инициативу по борьбе с разворотом в 2005 году и определил, что ФБР должно выделить 10 агентов на борьбу со взрослой порнографией. Хотя никто не знал на вероника, кто его написал, известно, что в начале своего существования этот большой пергаментный документ размером 29 целых 3/4 на 24 целых 1/2 дюйма был свернут для более удобного хранения.",
+      "ref_text_normalized": "в 2002 году город гома был разрушен лавой вулкана нирогонго который сохранил под собой большую часть городских улиц особенно центральную часть города однако после потери колодки капитана индия совершил лишь 36 пробегов потеряв все колодки для завершения иннгсов исследователи университета сообщили что эти два соединения вступают друг с другом в реакцию образуя кристаллы которые могут блокировать работу почек выкладывание экскурсию в виртуальное пространство для всеобщего обзора это также отличный способ освежить память экскурсию поделиться своими полученными знаниями с будущими классами конгресс начал финансировать инициативу по борьбе с разворотом в 2005 налоговым году и определил что фбр должен выделить 10 агентов на борьбу со взрослой порнографией хотя никто не знал наверняка кто его написал известно что в начале своего существования этот большой пергаментный документ размером 29 целых 3 4 на 24 целых 1 2 дюйма был свернут для более удобного хранения",
+      "mlx_text_normalized": "в 2002 году город гома был разрушен лавой вулкана нирогонго которая похоронила под собой большую часть городских улиц особенно центральную часть города однако после потери колитки капитана индия совершила лишь 36 пробегов потеряв семь колиток для завершения иннингсов исследователи университета сообщили что эти два соединения вступают друг с другом в реакцию образуя кристаллы которые могут блокировать работу почек выкладывание экскурсию в виртуальное пространство для всеобщего обозрения это также отличный способ освежить память экскурсию поделиться своими полученными знаниями с будущими классами конгресс начал финансировать инициативу по борьбе с разворотом в 2005 году и определил что фбр должно выделить 10 агентов на борьбу со взрослой порнографией хотя никто не знал на вероника кто его написал известно что в начале своего существования этот большой пергаментный документ размером 29 целых 3 4 на 24 целых 1 2 дюйма был свернут для более удобного хранения"
+    },
+    {
+      "index": 2,
+      "sample_id": "longform-spanish-000",
+      "subset": "longform-spanish",
+      "condition": "longform-concat",
+      "speaker_id": "mixed-spanish",
+      "language": "Spanish",
+      "audio_path": "/Users/dmoon/.cache/mlx-qwen3-asr/datasets/longform-audio/spanish/longform-spanish-000.wav",
+      "source_sample_ids": [
+        "es_419-1821024258569634743",
+        "es_419-3098223863013106026",
+        "es_419-4570903375997816310",
+        "es_419-6295972223351365462",
+        "es_419-8346269462268040135",
+        "es_419-8837843170287635243"
+      ],
+      "duration_sec": 84.17,
+      "token_count_mlx": 268,
+      "token_count_ref": 261,
+      "token_match": false,
+      "normalized_text_match": false,
+      "first_mismatch_index": 10,
+      "latency_sec_mlx": 10.594577375013614,
+      "latency_sec_ref": 52.40460149999126,
+      "ref_text_raw": "La incorporación de dormientes para mantener a los ríes en su lugar se produjo bastante temprano. No obstante paulatinamente fueron dando cuenta de que los ríes resultarían más eficientes si estuvieran revestidos de hierro en su parte superior. Sin embargo hay muchas características en las aves que todavía las hacen ganar a los dinosauros. La bomba atómica opera en base al principio de que se requiere energía para conformar un núcleo con gran cantidad de protones y neutrones. Los Sundarbans han sido desde 1966 un templo de la vida silvestre y se calcula que en la actualidad existen en el área 400 tigres reales de Bengal y unos 30.000 cierros moteados. En general pueden darse dos tipos de comportamientos cuando los gerentes comienzan a liberar a sus antiguos compañeros. De un lado el espectro está el intento de continuar siendo uno de los muchachos o muchachas. Más tarde los fotógrafos ocuparon el lugar de una anciana porque necesitaba ir al baño. Mendosa fue acribilado.",
+      "mlx_text_raw": "La incorporación de dormientes para mantener a los riels en su lugar se produjo bastante temprano. No obstante, paulatinamente, fueron dándose cuenta de que los riels resultarían más eficientes si estuvieran revestidos de hierro en su parte superior. Sin embargo, hay muchas características en las aves que todavía las asemejan a los dinosaurios. La bomba atómica opera en base al principio de que se requiere energía para conformar un núcleo con gran cantidad de protones y neutrones. Los Sundarbans han sido desde 1966 un templo de la vida silvestre y se calcula que en la actualidad existen en el área 400 tigres reales de Bengala y unos 30.000 ciervos moteados. En general, pueden darse dos tipos de comportamientos cuando los gerentes comienzan a liberar a sus antiguos compañeros. De un lado del espectro está el intento de continuar siendo uno de los muchachos o muchachas. Más tarde, los fotógrafos ocuparon el lugar de una anciana porque necesitaba ir al baño. Mendoza fue acribilgado.",
+      "ref_text_normalized": "la incorporación de dormientes para mantener a los ríes en su lugar se produjo bastante temprano no obstante paulatinamente fueron dando cuenta de que los ríes resultarían más eficientes si estuvieran revestidos de hierro en su parte superior sin embargo hay muchas características en las aves que todavía las hacen ganar a los dinosauros la bomba atómica opera en base al principio de que se requiere energía para conformar un núcleo con gran cantidad de protones y neutrones los sundarbans han sido desde 1966 un templo de la vida silvestre y se calcula que en la actualidad existen en el área 400 tigres reales de bengal y unos 30 000 cierros moteados en general pueden darse dos tipos de comportamientos cuando los gerentes comienzan a liberar a sus antiguos compañeros de un lado el espectro está el intento de continuar siendo uno de los muchachos o muchachas más tarde los fotógrafos ocuparon el lugar de una anciana porque necesitaba ir al baño mendosa fue acribilado",
+      "mlx_text_normalized": "la incorporación de dormientes para mantener a los riels en su lugar se produjo bastante temprano no obstante paulatinamente fueron dándose cuenta de que los riels resultarían más eficientes si estuvieran revestidos de hierro en su parte superior sin embargo hay muchas características en las aves que todavía las asemejan a los dinosaurios la bomba atómica opera en base al principio de que se requiere energía para conformar un núcleo con gran cantidad de protones y neutrones los sundarbans han sido desde 1966 un templo de la vida silvestre y se calcula que en la actualidad existen en el área 400 tigres reales de bengala y unos 30 000 ciervos moteados en general pueden darse dos tipos de comportamientos cuando los gerentes comienzan a liberar a sus antiguos compañeros de un lado del espectro está el intento de continuar siendo uno de los muchachos o muchachas más tarde los fotógrafos ocuparon el lugar de una anciana porque necesitaba ir al baño mendoza fue acribilgado"
+    }
+  ]
+}

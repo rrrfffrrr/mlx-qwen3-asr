@@ -319,7 +319,11 @@ def _parse_manifest(path: Path) -> list[SuiteSample]:
                 speaker_id=str(obj.get("speaker_id", "unknown")),
                 language=obj.get("language"),
                 audio_path=audio_path,
-                source_sample_ids=[],
+                source_sample_ids=[
+                    str(x)
+                    for x in obj.get("source_sample_ids", [])
+                    if str(x).strip()
+                ],
                 audio=None,
                 condition=str(obj.get("condition", "manifest")),
             )

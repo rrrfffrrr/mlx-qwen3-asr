@@ -156,6 +156,25 @@ def _read_audio(path: Path) -> tuple[np.ndarray, int]:
     return audio, int(sr)
 
 
+def _threshold_failures(
+    *,
+    wer: float,
+    cer: float,
+    fail_wer_above: float | None,
+    fail_cer_above: float | None,
+) -> list[str]:
+    failures: list[str] = []
+    if fail_wer_above is not None and wer > fail_wer_above:
+        failures.append(
+            f"WER regression gate failed: wer={wer:.6f} > threshold={fail_wer_above:.6f}"
+        )
+    if fail_cer_above is not None and cer > fail_cer_above:
+        failures.append(
+            f"CER regression gate failed: cer={cer:.6f} > threshold={fail_cer_above:.6f}"
+        )
+    return failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate model quality on LibriSpeech samples.")
     parser.add_argument(
@@ -205,6 +224,12 @@ def main() -> int:
         type=float,
         default=None,
         help="Fail with non-zero exit code if WER exceeds this threshold.",
+    )
+    parser.add_argument(
+        "--fail-cer-above",
+        type=float,
+        default=None,
+        help="Fail with non-zero exit code if CER exceeds this threshold.",
     )
     parser.add_argument(
         "--json-output",
@@ -301,11 +326,15 @@ def main() -> int:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    if args.fail_wer_above is not None and wer > args.fail_wer_above:
-        print(
-            f"WER regression gate failed: wer={wer:.6f} > threshold={args.fail_wer_above:.6f}",
-            file=sys.stderr,
-        )
+    failures = _threshold_failures(
+        wer=wer,
+        cer=cer,
+        fail_wer_above=args.fail_wer_above,
+        fail_cer_above=args.fail_cer_above,
+    )
+    if failures:
+        for msg in failures:
+            print(msg, file=sys.stderr)
         return 2
 
     return 0

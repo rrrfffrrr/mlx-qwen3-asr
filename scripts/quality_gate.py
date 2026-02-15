@@ -90,6 +90,32 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
                 _run([python_bin, "-m", "pytest", "-q", "tests/test_reference_parity.py"], repo)
             )
 
+        if os.environ.get("RUN_QUALITY_EVAL", "1") == "1":
+            quality_eval_cmd = [
+                python_bin,
+                str(repo / "scripts" / "eval_librispeech.py"),
+                "--model",
+                os.environ.get("QUALITY_EVAL_MODEL", "Qwen/Qwen3-ASR-0.6B"),
+                "--dtype",
+                os.environ.get("QUALITY_EVAL_DTYPE", "float16"),
+                "--subset",
+                os.environ.get("QUALITY_EVAL_SUBSET", "test-clean"),
+                "--samples",
+                os.environ.get("QUALITY_EVAL_SAMPLES", "20"),
+                "--sampling",
+                os.environ.get("QUALITY_EVAL_SAMPLING", "speaker_round_robin"),
+                "--max-new-tokens",
+                os.environ.get("QUALITY_EVAL_MAX_NEW_TOKENS", "256"),
+                "--fail-wer-above",
+                os.environ.get("QUALITY_EVAL_FAIL_WER_ABOVE", "0.10"),
+                "--fail-cer-above",
+                os.environ.get("QUALITY_EVAL_FAIL_CER_ABOVE", "0.06"),
+            ]
+            quality_json = os.environ.get("QUALITY_EVAL_JSON_OUTPUT")
+            if quality_json:
+                quality_eval_cmd.extend(["--json-output", quality_json])
+            steps.append(_run(quality_eval_cmd, repo))
+
         if os.environ.get("RUN_ALIGNER_PARITY") == "1":
             samples = os.environ.get("ALIGNER_PARITY_SAMPLES", "10")
             steps.append(

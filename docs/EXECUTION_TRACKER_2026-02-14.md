@@ -478,3 +478,61 @@ Static typing status snapshot:
 
 Post-change validation:
 - fast gate: PASS (`325 passed, 1 skipped`)
+
+### 30) Long-form parity scale-up (10 languages, serial shard execution)
+
+- Built deterministic long-form concatenation tooling:
+  - script: `scripts/build_longform_manifest.py`
+  - tests: `tests/test_build_longform_manifest.py`
+- Evaluator manifest parsing now preserves `source_sample_ids` metadata:
+  - `scripts/eval_reference_parity_suite.py`
+  - regression: `tests/test_eval_reference_parity_suite.py`
+- Created long-form manifests:
+  - `docs/benchmarks/2026-02-14-fleurs-longform-smoke2-manifest.jsonl`
+  - `docs/benchmarks/2026-02-14-fleurs-longform-10x75-manifest.jsonl`
+- Ran long-form smoke parity with high token budget:
+  - `docs/benchmarks/2026-02-14-reference-parity-suite-longform-smoke2-1024.json`
+- Ran full 10-sample long-form lane serially (2-sample shards) to avoid prior
+  process instability:
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard00.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard01.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard02.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard03.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10-shard04.json`
+- Aggregated run summary:
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10.json`
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-longform10.md`
+- Result snapshot:
+  - token parity: `0.0` (0/10)
+  - normalized text parity: `0.0` (0/10)
+  - first mismatch index: mean `14.6`, median `13.5`, min `0`, max `28`
+  - latency (mean): `mlx=11.55s`, `qwen_asr-ref=48.39s` (`4.19x` ref/mlx)
+
+Interpretation:
+- strict token parity is not a sufficient standalone long-form quality proxy;
+  long-sequence greedy decode can diverge early even when transcript quality is
+  close. This lane is now retained as a stress/parity signal, not a quality gate.
+
+### 31) WER/CER quality lane made default in release gate
+
+- Added explicit CER threshold support to `scripts/eval_librispeech.py`:
+  - new arg: `--fail-cer-above`
+  - shared threshold check helper for WER/CER.
+- Added unit tests for threshold behavior:
+  - `tests/test_eval_librispeech.py`
+- Updated release gate (`scripts/quality_gate.py`) to run deterministic quality
+  eval by default:
+  - `scripts/eval_librispeech.py`
+  - defaults:
+    - subset: `test-clean`
+    - samples: `20`
+    - sampling: `speaker_round_robin`
+    - thresholds: `WER<=0.10`, `CER<=0.06`
+  - disable override: `RUN_QUALITY_EVAL=0`
+- Updated docs:
+  - `docs/QUALITY_GATE.md`
+
+Intent:
+- token parity remains necessary for correctness drift detection,
+- WER/CER is now first-class in default release validation to prevent
+  over-indexing on token-exact metrics alone.
