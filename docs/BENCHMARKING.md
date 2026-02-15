@@ -143,6 +143,9 @@ python scripts/eval_manifest_head2head.py \
   --mlx-json docs/benchmarks/2026-02-15-manifest-quality-longform10.json \
   --model Qwen/Qwen3-ASR-0.6B \
   --max-new-tokens 1024 \
+  --progress-every 1 \
+  --checkpoint-json /tmp/longform10-head2head-checkpoint.json \
+  --checkpoint-every 1 \
   --json-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-longform10.json \
   --md-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-longform10.md
 ```
@@ -170,6 +173,9 @@ python scripts/eval_manifest_head2head.py \
   --mlx-json docs/benchmarks/2026-02-15-manifest-quality-realworld200-0p6b.json \
   --model Qwen/Qwen3-ASR-0.6B \
   --max-new-tokens 1024 \
+  --progress-every 5 \
+  --checkpoint-json /tmp/realworld200-head2head-checkpoint.json \
+  --checkpoint-every 10 \
   --json-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-realworld200.json \
   --md-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-realworld200.md
 
@@ -212,6 +218,9 @@ python scripts/eval_manifest_head2head.py \
   --mlx-json docs/benchmarks/2026-02-15-manifest-quality-earnings22-full-longform3-0p6b.json \
   --model Qwen/Qwen3-ASR-0.6B \
   --max-new-tokens 8192 \
+  --progress-every 1 \
+  --checkpoint-json /tmp/earnings22-full-longform3-head2head-checkpoint.json \
+  --checkpoint-every 1 \
   --json-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-earnings22-full-longform3.json \
   --md-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-earnings22-full-longform3.md
 ```

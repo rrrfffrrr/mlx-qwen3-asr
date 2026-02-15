@@ -126,7 +126,31 @@ def main() -> int:
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     parser.add_argument("--json-output", default=None)
     parser.add_argument("--md-output", default=None)
+    parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=1,
+        help="Print progress every N samples to stderr (0 disables).",
+    )
+    parser.add_argument(
+        "--checkpoint-json",
+        default=None,
+        help=(
+            "Optional path for incremental checkpoint payloads written during "
+            "evaluation."
+        ),
+    )
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=10,
+        help="Write checkpoint payload every N samples (requires --checkpoint-json).",
+    )
     args = parser.parse_args()
+    if args.progress_every < 0:
+        raise ValueError(f"--progress-every must be >= 0, got: {args.progress_every}")
+    if args.checkpoint_every <= 0:
+        raise ValueError(f"--checkpoint-every must be > 0, got: {args.checkpoint_every}")
 
     try:
         import qwen_asr
@@ -160,6 +184,14 @@ def main() -> int:
     ref_latencies: list[float] = []
     out_rows: list[dict] = []
     by_language: dict[str, dict] = {}
+    run_t0 = time.perf_counter()
+    checkpoint_path = (
+        Path(args.checkpoint_json).expanduser().resolve()
+        if args.checkpoint_json
+        else None
+    )
+    if checkpoint_path is not None:
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
 
     for i, row in enumerate(rows, start=1):
         lang = row.get("language")
@@ -251,6 +283,74 @@ def main() -> int:
                 "pytorch_primary_error_rate": _error_rate(r_primary_err, r_primary_den),
             }
         )
+
+        if args.progress_every > 0 and (i % args.progress_every == 0 or i == len(rows)):
+            elapsed = time.perf_counter() - run_t0
+            per_sample = elapsed / float(max(1, i))
+            eta = per_sample * float(len(rows) - i)
+            print(
+                (
+                    f"[{i}/{len(rows)}] "
+                    f"sample_id={row.get('sample_id')} "
+                    f"lang={lang_key} "
+                    f"ref_primary={_error_rate(r_primary_err, r_primary_den):.4f} "
+                    f"latency={dt:.2f}s "
+                    f"elapsed={elapsed:.1f}s eta={eta:.1f}s"
+                ),
+                file=sys.stderr,
+                flush=True,
+            )
+
+        if checkpoint_path is not None and (
+            i % args.checkpoint_every == 0 or i == len(rows)
+        ):
+            checkpoint_payload = {
+                "suite": "quality-head2head-manifest-v1",
+                "status": "partial" if i < len(rows) else "complete",
+                "source_mlx_artifact": str(src),
+                "model": args.model,
+                "processed_samples": i,
+                "samples_total": len(rows),
+                "systems_partial": {
+                    "mlx": {
+                        "wer": _error_rate(mlx_wer_err, mlx_wer_den),
+                        "cer": _error_rate(mlx_cer_err, mlx_cer_den),
+                        "primary_error_rate": _error_rate(mlx_primary_err, mlx_primary_den),
+                        "mean_latency_sec": float(
+                            np.mean(
+                                [
+                                    float(r.get("mlx_latency_sec", 0.0))
+                                    for r in out_rows
+                                ]
+                            )
+                        )
+                        if out_rows
+                        else 0.0,
+                    },
+                    "pytorch_ref": {
+                        "wer": _error_rate(ref_wer_err, ref_wer_den),
+                        "cer": _error_rate(ref_cer_err, ref_cer_den),
+                        "primary_error_rate": _error_rate(ref_primary_err, ref_primary_den),
+                        "mean_latency_sec": float(np.mean(ref_latencies))
+                        if ref_latencies
+                        else 0.0,
+                    },
+                },
+                "delta_partial": {
+                    "wer_mlx_minus_ref": _error_rate(mlx_wer_err, mlx_wer_den)
+                    - _error_rate(ref_wer_err, ref_wer_den),
+                    "cer_mlx_minus_ref": _error_rate(mlx_cer_err, mlx_cer_den)
+                    - _error_rate(ref_cer_err, ref_cer_den),
+                    "primary_mlx_minus_ref": _error_rate(mlx_primary_err, mlx_primary_den)
+                    - _error_rate(ref_primary_err, ref_primary_den),
+                },
+                "elapsed_sec": time.perf_counter() - run_t0,
+                "rows": out_rows,
+            }
+            checkpoint_path.write_text(
+                json.dumps(checkpoint_payload, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
 
     for stats in by_language.values():
         n = max(1, int(stats["samples"]))
