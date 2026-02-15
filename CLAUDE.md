@@ -25,7 +25,7 @@ Ground-up MLX reimplementation of Qwen3-ASR. Same HuggingFace weights, same outp
 
 ## Current Status (v0.1.0)
 
-Published on PyPI. 363 tests passing. Core pipeline stable.
+Published on PyPI. 441 tests passing. Core pipeline stable.
 
 ### What's next
 
@@ -169,7 +169,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 # Setup — existing venv at .venv (Python 3.11), no pip installed — use uv
 uv pip install -e ".[dev]"
 
-# Tests (363 passing)
+# Tests (441 passing)
 python -m pytest tests/              # full suite
 python -m pytest tests/ -x -q        # stop on first failure
 

@@ -28,7 +28,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - **Speculative decoding** — experimental opt-in path (0.6B drafts for 1.7B target), parity-verified
 - **Streaming** — KV-cache streaming with linear complexity, context trimming, and tail refinement
 - **Native WAV fast-path** — custom binary WAV parser bypasses ffmpeg for PCM/float WAV files
-- **439 tests** — every optimization is benchmark-gated with committed JSON artifacts
+- **441 tests** — every optimization is benchmark-gated with committed JSON artifacts
 - **Minimal dependencies** — mlx, numpy, regex, huggingface-hub
 
 ## Requirements
@@ -554,7 +554,7 @@ Frozen dataclass:
 This project enforces parity with the official PyTorch implementation. No optimization lands without passing quality gates and committing benchmark artifacts.
 
 ```bash
-# Unit tests (439 tests)
+# Unit tests (441 tests)
 pytest -q
 
 # Fast quality gate
@@ -634,7 +634,7 @@ mlx_qwen3_asr/           # 7,556 lines of source
 ├── eval_metrics.py       # WER/CER/BERTScore helpers (65 lines)
 └── cache_utils.py        # KV cache utilities (57 lines)
 
-tests/                    # 6,780 lines, 439 tests
+tests/                    # 6,822 lines, 441 tests
 scripts/                  # Benchmarks, evaluation, conversion, publishing
 docs/                     # Architecture, decisions, benchmarks, roadmap
 docs/benchmarks/          # 160+ committed artifacts for reproducibility
@@ -646,7 +646,7 @@ docs/benchmarks/          # 160+ committed artifacts for reproducibility
 git clone https://github.com/moona3k/mlx-qwen3-asr.git
 cd mlx-qwen3-asr
 pip install -e ".[dev]"
-pytest -q                 # 439 tests
+pytest -q                 # 441 tests
 ```
 
 ## Acknowledgments
