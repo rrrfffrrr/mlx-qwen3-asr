@@ -1,0 +1,28 @@
+{
+  "suite": "multilingual-triage-checkpoint-v1",
+  "quality_before": "docs/benchmarks/2026-02-15-manifest-quality-multilingual100.json",
+  "quality_after": "docs/benchmarks/2026-02-15-manifest-quality-multilingual100-post-langcanon.json",
+  "parity_before": "docs/benchmarks/2026-02-15-reference-parity-suite-multilingual100-post-refactor.json",
+  "parity_after": "docs/benchmarks/2026-02-15-reference-parity-suite-multilingual100-post-langcanon.json",
+  "parity_fp16_20": "docs/benchmarks/2026-02-15-reference-parity-suite-multilingual20-post-refactor.json",
+  "parity_fp32_20": "docs/benchmarks/2026-02-15-reference-parity-suite-multilingual20-fp32.json",
+  "deltas": {
+    "quality": {
+      "wer": 0.0,
+      "cer": 0.0,
+      "primary_error_rate": 0.0,
+      "latency_sec_mean": 0.36698970160941835
+    },
+    "parity": {
+      "token_match_rate": 0.0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 0.33490035870898294,
+      "latency_sec_ref_mean": 0.2409126754719182
+    },
+    "fp32_vs_fp16_multilingual20": {
+      "token_match_rate": 0.0,
+      "text_match_rate": 0.0,
+      "latency_sec_mlx_mean": 0.025989535546978138
+    }
+  }
+}

@@ -170,6 +170,14 @@ Manifest quality artifacts (2026-02-15):
 - `docs/benchmarks/2026-02-15-manifest-quality-longform10.md`
 - `docs/benchmarks/2026-02-15-manifest-quality-multilingual100.json`
 - `docs/benchmarks/2026-02-15-manifest-quality-multilingual100.md`
+- `docs/benchmarks/2026-02-15-manifest-quality-multilingual100-post-langcanon.json`
+
+Post-canonicalization multilingual triage artifacts (2026-02-15):
+
+- `docs/benchmarks/2026-02-15-reference-parity-suite-multilingual100-post-langcanon.json`
+- `docs/benchmarks/2026-02-15-reference-parity-suite-multilingual20-fp32.json`
+- `docs/benchmarks/2026-02-15-multilingual-triage-checkpoint.json`
+- `docs/benchmarks/2026-02-15-multilingual-triage-checkpoint.md`
 
 Generate with:
 

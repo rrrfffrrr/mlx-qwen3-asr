@@ -679,3 +679,52 @@ Why this matters:
 Validation:
 - targeted tests: PASS (`tests/test_tokenizer.py`, `tests/test_transcribe.py`),
 - full fast gate: PASS (`349 passed, 1 skipped`).
+
+### 37) Multilingual triage checkpoint: no aggregate movement after lang-canon
+
+Re-ran multilingual lanes after language canonicalization hardening:
+
+- manifest quality lane:
+  - `docs/benchmarks/2026-02-15-manifest-quality-multilingual100-post-langcanon.json`
+- parity lane:
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-multilingual100-post-langcanon.json`
+
+Result:
+- aggregate quality unchanged vs prior multilingual-100 baseline:
+  - WER delta: `+0.000000`
+  - CER delta: `+0.000000`
+  - primary error delta: `+0.000000`
+- aggregate parity unchanged:
+  - token-match delta: `+0.0000`
+  - text-match delta: `+0.0000`
+
+Interpretation:
+- canonicalized forced-language handling improves API robustness but does not
+  move multilingual benchmark aggregates on the current FLEURS-100 lane.
+
+### 38) Precision sensitivity check (fp16 vs fp32) for multilingual parity
+
+Ran parity suite on multilingual-20 with `dtype=float32`:
+
+- artifact:
+  - `docs/benchmarks/2026-02-15-reference-parity-suite-multilingual20-fp32.json`
+
+Compared against prior fp16 multilingual-20 artifact:
+- token match: `0.55` vs `0.55` (no change)
+- text match: `0.55` vs `0.55` (no change)
+- MLX latency: slightly slower in fp32.
+
+Conclusion:
+- residual multilingual parity gap is unlikely to be a simple floating-point
+  precision issue in current decode path.
+
+### 39) Checkpoint summary artifact for triage decisions
+
+Added machine/human-readable checkpoint comparison:
+
+- `docs/benchmarks/2026-02-15-multilingual-triage-checkpoint.json`
+- `docs/benchmarks/2026-02-15-multilingual-triage-checkpoint.md`
+
+Purpose:
+- keep decision history explicit before moving to deeper multilingual work
+  (likely model-path parity investigation rather than frontend/postprocess only).
