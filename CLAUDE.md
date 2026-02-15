@@ -113,7 +113,11 @@ mlx_qwen3_asr/
 
 ## Git Commit Messages
 
-Every commit is a self-contained unit of knowledge. The message is not just a changelog entry — it's the **DNA of the change**: the intent, the reasoning, and a seed prompt that encapsulates everything needed to reproduce the work from scratch. A well-written commit message means any future agent can reconstruct not just *what* changed, but *why* it had to change and *how* to arrive at the same solution independently.
+Every commit is a self-contained unit of knowledge. The message is not just a changelog entry — it's the **DNA of the change**: the intent, the reasoning, and a seed prompt that encapsulates everything needed to reproduce the work from scratch.
+
+A well-written commit message is **hydrated with the most pertinent context from every angle** — the problem that triggered it, the architectural constraints that shaped it, the alternatives that were rejected, and the precise technical details that make it work. It should carry all the traces: enough signal that any future agent can reconstruct not just *what* changed, but *why* it had to change, *what else was considered*, and *how* to arrive at the same solution independently.
+
+The goal is **maximum information density per line**. Every sentence should earn its place. No filler, no boilerplate — just distilled, essential context that compounds in value over time as the git history becomes the project's institutional memory.
 
 ### Structure
 
@@ -125,16 +129,21 @@ Detailed breakdown of every file/section modified.
 
 ## Root Intent
 Why this commit exists — the underlying problem or goal,
-not the mechanical description of what was done.
+not the mechanical description of what was done. Include
+the failure mode or gap that motivated the work.
 
 ## Seed Prompt
-The generative kernel of this change. Not a step-by-step
-script, but a dense, high-context instruction that carries
-enough architectural awareness and domain knowledge to
-reproduce an equivalent diff from first principles.
+The generative kernel of this change. A dense, high-context
+instruction that carries enough architectural awareness and
+domain knowledge to reproduce an equivalent diff from first
+principles. Not a step-by-step script — a briefing that
+transmits the essential understanding.
 
-Write it as if briefing a skilled engineer who has access
-to the codebase but no prior context on this specific task.
+Write it as if encoding the change's DNA into a single
+message: what to do, why it matters, what constraints to
+respect, and what pitfalls to avoid. A skilled engineer
+with codebase access but zero prior context should be able
+to produce an equivalent diff from this alone.
 
 ## Files Changed
 Summary with line counts for quick scanning.
