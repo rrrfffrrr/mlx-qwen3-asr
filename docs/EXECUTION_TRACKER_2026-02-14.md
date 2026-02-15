@@ -813,3 +813,28 @@ Result:
 Interpretation:
 - residual multilingual non-near mismatches are not caused by KV-cache update
   semantics in MLX decode.
+
+### 44) Audio encoder fp16 clamp parity fix (upstream alignment)
+
+Aligned `AudioEncoderLayer` with upstream torch behavior by adding the
+post-layer fp16 clamp (`finfo(float16).max - 1000`) in:
+
+- `mlx_qwen3_asr/encoder.py`
+
+Added regression coverage:
+
+- `tests/test_model.py::TestAudioEncoderLayer::test_float16_path_clamps_extreme_values`
+
+Follow-up probe on non-near subset:
+
+- `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp.json`
+- `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp.md`
+- comparison: `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp-compare.json`
+
+Observed on this subset:
+- mismatch index / top-token identity at probe step unchanged (`5/5` rows).
+
+Interpretation:
+- clamp alignment is still the correct upstream-compatibility fix and protects
+  fp16 stability, but it does not explain the current residual non-near
+  multilingual parity gap by itself.

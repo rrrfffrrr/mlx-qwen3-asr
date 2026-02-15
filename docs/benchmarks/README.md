@@ -186,6 +186,9 @@ Post-canonicalization multilingual triage artifacts (2026-02-15):
 - `docs/benchmarks/2026-02-15-nonnear5-stage-parity.md`
 - `docs/benchmarks/2026-02-15-cache-vs-recompute-nonnear5.json`
 - `docs/benchmarks/2026-02-15-cache-vs-recompute-nonnear5.md`
+- `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp.json`
+- `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp.md`
+- `docs/benchmarks/2026-02-15-logit-parity-probe-nonnear5-post-enc-clamp-compare.json`
 
 Generate with:
 

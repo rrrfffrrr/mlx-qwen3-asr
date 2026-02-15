@@ -162,6 +162,28 @@ class TestAudioEncoderLayer:
         mx.eval(result)
         assert result.shape == (1, 10, d_model)
 
+    def test_float16_path_clamps_extreme_values(self, monkeypatch):
+        layer = AudioEncoderLayer(d_model=8, num_heads=2, encoder_ffn_dim=16)
+
+        monkeypatch.setattr(layer, "self_attn_layer_norm", lambda x: x)
+        monkeypatch.setattr(
+            layer,
+            "self_attn",
+            lambda x, mask=None: mx.full(x.shape, 70000.0, dtype=x.dtype),
+        )
+        monkeypatch.setattr(layer, "final_layer_norm", lambda x: x)
+        monkeypatch.setattr(layer, "fc1", lambda x: x)
+        monkeypatch.setattr(layer, "fc2", lambda x: x)
+
+        x = mx.zeros((1, 2, 8), dtype=mx.float16)
+        out = layer(x)
+        mx.eval(out)
+
+        clamp = np.finfo(np.float16).max - 1000.0
+        assert bool(mx.all(mx.isfinite(out)).item())
+        assert float(mx.max(out).item()) <= clamp + 1e-3
+        assert float(mx.min(out).item()) >= -clamp - 1e-3
+
 
 # ---------------------------------------------------------------------------
 # AudioEncoder.get_output_lengths

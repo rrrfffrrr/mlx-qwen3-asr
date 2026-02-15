@@ -7,6 +7,7 @@ from typing import Optional
 
 import mlx.core as mx
 import mlx.nn as nn
+import numpy as np
 
 from .attention import _scaled_dot_product_attention
 from .config import AudioEncoderConfig
@@ -167,6 +168,12 @@ class AudioEncoderLayer(nn.Module):
         x = nn.gelu(x)
         x = self.fc2(x)
         x = residual + x
+
+        # Match upstream torch audio encoder behavior: clamp fp16 activations
+        # after each layer to avoid inf/nan propagation.
+        if x.dtype == mx.float16:
+            clamp_value = np.finfo(np.float16).max - 1000.0
+            x = mx.clip(x, -clamp_value, clamp_value)
 
         return x
 
