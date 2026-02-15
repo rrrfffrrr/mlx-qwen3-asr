@@ -118,13 +118,7 @@ def feed_audio(
     if pcm is None:
         raise ValueError("pcm must not be None")
 
-    x = np.asarray(pcm)
-    if x.ndim != 1:
-        x = x.reshape(-1)
-    if x.dtype == np.int16:
-        x = x.astype(np.float32) / 32768.0
-    else:
-        x = x.astype(np.float32, copy=False)
+    x = _sanitize_stream_pcm(pcm)
     if x.size == 0:
         return state
 
@@ -202,6 +196,43 @@ def finish_streaming(
     state.language = result.language
     state.stable_text = result.text
     return state
+
+
+def _sanitize_stream_pcm(pcm: np.ndarray) -> np.ndarray:
+    """Normalize streaming PCM to mono float32 waveform."""
+    x = np.asarray(pcm)
+    if x.ndim == 0:
+        raise ValueError("pcm must be 1-D or 2-D audio array")
+    if x.ndim > 2:
+        raise ValueError(f"pcm must be 1-D or 2-D, got shape {x.shape}")
+
+    if np.issubdtype(x.dtype, np.integer):
+        info = np.iinfo(x.dtype)
+        x = x.astype(np.float32)
+        if info.min >= 0:
+            midpoint = (info.max + 1) / 2.0
+            x = (x - midpoint) / midpoint
+        else:
+            x = x / float(max(abs(info.min), info.max))
+    else:
+        x = x.astype(np.float32, copy=False)
+
+    if x.ndim == 2:
+        n0, n1 = int(x.shape[0]), int(x.shape[1])
+        if n0 <= 8 and n1 <= 8:
+            if n0 == n1:
+                channel_axis = 1
+            else:
+                channel_axis = 0 if n0 < n1 else 1
+        elif n0 <= 8:
+            channel_axis = 0
+        elif n1 <= 8:
+            channel_axis = 1
+        else:
+            channel_axis = 1
+        x = x.mean(axis=channel_axis)
+
+    return np.asarray(x, dtype=np.float32)
 
 
 def _split_text_units(text: str) -> tuple[list[str], str]:

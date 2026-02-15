@@ -10,7 +10,7 @@ import numpy as np
 
 from mlx_qwen3_asr.config import DEFAULT_MODEL_ID
 from mlx_qwen3_asr.forced_aligner import AlignedWord
-from mlx_qwen3_asr.transcribe import transcribe
+from mlx_qwen3_asr.transcribe import _to_audio_np, transcribe
 
 
 class _DummyModel:
@@ -198,3 +198,15 @@ def test_transcribe_uses_speculative_path_when_draft_model_is_set(monkeypatch):
     assert result.text == "hello world"
     assert calls["spec"] == 1
     assert get_calls == ["Qwen/Qwen3-ASR-1.7B", "Qwen/Qwen3-ASR-0.6B"]
+
+
+def test_to_audio_np_uses_canonical_downmix_for_numpy():
+    stereo = np.array([[1.0, 3.0], [5.0, 7.0]], dtype=np.float32)
+    out = _to_audio_np(stereo)
+    np.testing.assert_allclose(out, np.array([2.0, 6.0], dtype=np.float32), atol=1e-6)
+
+
+def test_to_audio_np_normalizes_integer_pcm_numpy():
+    pcm = np.array([16384, -16384], dtype=np.int16)
+    out = _to_audio_np(pcm)
+    np.testing.assert_allclose(out, np.array([0.5, -0.5], dtype=np.float32), atol=1e-6)

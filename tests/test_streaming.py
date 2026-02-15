@@ -271,7 +271,7 @@ class TestFeedAudio:
         assert captured["dtype"] == np.float32
         assert np.isclose(captured["max_abs"], 0.5)
 
-    def test_feed_audio_flattens_non_1d_input(self, monkeypatch):
+    def test_feed_audio_downmixes_multichannel_input(self, monkeypatch):
         call_lengths = []
 
         def fake_transcribe(audio, model, verbose):  # noqa: ANN001
@@ -281,10 +281,10 @@ class TestFeedAudio:
         transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
         monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
 
-        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        state = init_streaming(chunk_size_sec=0.5, sample_rate=10)
         feed_audio(np.ones((2, 5), dtype=np.float32), state)
 
-        assert call_lengths == [10]
+        assert call_lengths == [5]
 
     def test_feed_audio_none_raises(self):
         state = init_streaming(chunk_size_sec=1.0, sample_rate=10)

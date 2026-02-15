@@ -50,11 +50,12 @@ class TestLoadAudioNumpy:
         result = load_audio(arr)
         assert result.size == 0
 
-    def test_integer_array_cast_to_float(self):
-        """Integer arrays should be cast to float32."""
-        arr = np.array([100, 200, 300], dtype=np.int16)
-        result = load_audio(arr)
-        assert result.dtype == mx.float32
+    def test_integer_array_normalized(self):
+        """Integer arrays should be scaled to float32 PCM range."""
+        arr = np.array([16384, -16384], dtype=np.int16)
+        result = np.array(load_audio(arr))
+        assert result.dtype == np.float32
+        np.testing.assert_allclose(result, np.array([0.5, -0.5], dtype=np.float32), atol=1e-6)
 
 
 class TestLoadAudioTuple:
@@ -74,6 +75,11 @@ class TestLoadAudioTuple:
         stereo = np.random.randn(16000, 2).astype(np.float32)
         result = load_audio((stereo, SAMPLE_RATE))
         assert result.ndim == 1
+
+    def test_integer_tuple_is_normalized(self):
+        arr = np.array([8192, -8192], dtype=np.int16)
+        result = np.array(load_audio((arr, SAMPLE_RATE)))
+        np.testing.assert_allclose(result, np.array([0.25, -0.25], dtype=np.float32), atol=1e-6)
 
 
 class TestLoadAudioErrors:
@@ -338,6 +344,11 @@ class TestLogMelSpectrogram:
     def test_raises_for_empty_audio(self):
         audio = mx.array(np.array([], dtype=np.float32))
         with pytest.raises(ValueError, match="empty audio"):
+            log_mel_spectrogram(audio)
+
+    def test_raises_for_too_short_audio(self):
+        audio = mx.array(np.array([0.0], dtype=np.float32))
+        with pytest.raises(ValueError, match="too short"):
             log_mel_spectrogram(audio)
 
     def test_output_dtype(self):

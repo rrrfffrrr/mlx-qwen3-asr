@@ -232,6 +232,34 @@ class TestGenerate:
         )
         assert out == [1]
 
+    def test_generate_handles_max_new_tokens_zero(self):
+        class _DummyModel:
+            def create_cache(self, max_seq_len=None):  # noqa: ANN001
+                raise AssertionError("create_cache() should not be called for max_new_tokens=0")
+
+        model = _DummyModel()
+        out = generate(
+            model=model,
+            input_ids=mx.array([[1, 2, 3]]),
+            audio_features=mx.zeros((1, 2, 4)),
+            position_ids=mx.zeros((1, 3, 3), dtype=mx.int32),
+            config=GenerationConfig(max_new_tokens=0, temperature=0.0),
+        )
+        assert out == []
+
+    def test_generate_rejects_negative_max_new_tokens(self):
+        class _DummyModel:
+            pass
+
+        with pytest.raises(ValueError, match="max_new_tokens"):
+            generate(
+                model=_DummyModel(),
+                input_ids=mx.array([[1, 2, 3]]),
+                audio_features=mx.zeros((1, 2, 4)),
+                position_ids=mx.zeros((1, 3, 3), dtype=mx.int32),
+                config=GenerationConfig(max_new_tokens=-1, temperature=0.0),
+            )
+
 
 class TestBuildDecodePositions:
     def test_returns_empty_tail_for_small_generation(self):
@@ -394,3 +422,39 @@ class TestGenerateSpeculative:
             config=cfg,
         )
         assert out == [1]
+
+    def test_handles_max_new_tokens_zero(self):
+        transitions = {i: i + 1 for i in range(0, 20)}
+        target = _SpecDummyModel(transitions=transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=transitions, first_token=1)
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(max_new_tokens=0, temperature=0.0, eos_token_ids=[999])
+
+        out = generate_speculative(
+            model=target,
+            draft_model=draft,
+            input_ids=input_ids,
+            audio_features=audio_features,
+            draft_audio_features=audio_features,
+            position_ids=position_ids,
+            config=cfg,
+        )
+        assert out == []
+
+    def test_rejects_negative_max_new_tokens(self):
+        transitions = {i: i + 1 for i in range(0, 20)}
+        target = _SpecDummyModel(transitions=transitions, first_token=1)
+        draft = _SpecDummyModel(transitions=transitions, first_token=1)
+        input_ids, audio_features, position_ids = self._dummy_inputs()
+        cfg = GenerationConfig(max_new_tokens=-1, temperature=0.0)
+
+        with pytest.raises(ValueError, match="max_new_tokens"):
+            generate_speculative(
+                model=target,
+                draft_model=draft,
+                input_ids=input_ids,
+                audio_features=audio_features,
+                draft_audio_features=audio_features,
+                position_ids=position_ids,
+                config=cfg,
+            )

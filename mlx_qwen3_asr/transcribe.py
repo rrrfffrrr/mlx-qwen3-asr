@@ -117,9 +117,9 @@ def transcribe(
 def _to_audio_np(audio: AudioInput) -> np.ndarray:
     """Convert supported audio inputs to float32 numpy waveform at 16kHz."""
     if isinstance(audio, mx.array):
-        return np.array(audio, dtype=np.float32)
+        return np.array(load_audio(np.array(audio)), dtype=np.float32)
     if isinstance(audio, np.ndarray):
-        return audio.astype(np.float32)
+        return np.array(load_audio(audio), dtype=np.float32)
     if isinstance(audio, tuple):
         return np.array(load_audio(audio), dtype=np.float32)
     return np.array(load_audio(audio), dtype=np.float32)

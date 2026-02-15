@@ -84,6 +84,16 @@ class TestSplitAudioIntoChunks:
         chunks = split_audio_into_chunks(audio, sr=sr, max_chunk_sec=max_sec)
         assert len(chunks) == 1
 
+    def test_invalid_max_chunk_sec_raises(self):
+        audio = np.random.randn(16000).astype(np.float32)
+        with np.testing.assert_raises(ValueError):
+            split_audio_into_chunks(audio, sr=16000, max_chunk_sec=0.0)
+
+    def test_invalid_sample_rate_raises(self):
+        audio = np.random.randn(16000).astype(np.float32)
+        with np.testing.assert_raises(ValueError):
+            split_audio_into_chunks(audio, sr=0, max_chunk_sec=5.0)
+
 
 # ---------------------------------------------------------------------------
 # _find_split_point

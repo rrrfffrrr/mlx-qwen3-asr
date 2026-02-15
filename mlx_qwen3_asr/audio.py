@@ -55,24 +55,13 @@ def load_audio(
     """
     if isinstance(source, tuple):
         audio_np, orig_sr = source
-        if not isinstance(audio_np, np.ndarray):
-            audio_np = np.array(audio_np)
-        if audio_np.size == 0:
-            return mx.array(np.array([], dtype=np.float32))
-        audio_np = audio_np.astype(np.float32)
-        # Ensure mono
-        if audio_np.ndim > 1:
-            audio_np = audio_np.mean(axis=-1)
+        audio_np = _sanitize_audio_array(audio_np)
         if orig_sr != sr:
             audio_np = _resample_via_ffmpeg(audio_np, orig_sr, sr)
         return mx.array(audio_np)
 
     if isinstance(source, np.ndarray):
-        if source.size == 0:
-            return mx.array(np.array([], dtype=np.float32))
-        audio_np = source.astype(np.float32)
-        if audio_np.ndim > 1:
-            audio_np = audio_np.mean(axis=-1)
+        audio_np = _sanitize_audio_array(source)
         return mx.array(audio_np)
 
     if isinstance(source, (str, Path)):
@@ -82,6 +71,51 @@ def load_audio(
         f"Unsupported source type: {type(source)}. "
         "Expected str, Path, np.ndarray, or (np.ndarray, int)."
     )
+
+
+def _sanitize_audio_array(source: np.ndarray) -> np.ndarray:
+    """Canonicalize in-memory audio arrays to mono float32 in [-1, 1]."""
+    audio_np = np.asarray(source)
+    if audio_np.size == 0:
+        return np.array([], dtype=np.float32)
+    if audio_np.ndim > 2:
+        raise ValueError(
+            f"Audio arrays must be 1-D or 2-D, got shape {audio_np.shape}"
+        )
+
+    # Normalize integer PCM to match file decode semantics.
+    if np.issubdtype(audio_np.dtype, np.integer):
+        audio_np = _normalize_integer_pcm(audio_np)
+    else:
+        audio_np = audio_np.astype(np.float32, copy=False)
+
+    if audio_np.ndim == 2:
+        n0, n1 = int(audio_np.shape[0]), int(audio_np.shape[1])
+        if n0 <= 8 and n1 <= 8:
+            if n0 == n1:
+                channel_axis = 1
+            else:
+                channel_axis = 0 if n0 < n1 else 1
+        elif n0 <= 8:
+            channel_axis = 0
+        elif n1 <= 8:
+            channel_axis = 1
+        else:
+            channel_axis = 1
+        audio_np = audio_np.mean(axis=channel_axis)
+
+    return np.asarray(audio_np, dtype=np.float32)
+
+
+def _normalize_integer_pcm(audio_np: np.ndarray) -> np.ndarray:
+    """Convert integer PCM arrays to float32 in approximately [-1, 1]."""
+    info = np.iinfo(audio_np.dtype)
+    x = audio_np.astype(np.float32)
+    if info.min >= 0:
+        midpoint = (info.max + 1) / 2.0
+        return (x - midpoint) / midpoint
+    scale = float(max(abs(info.min), info.max))
+    return x / scale
 
 
 def _load_audio_file(path: str, sr: int) -> mx.array:
@@ -510,6 +544,12 @@ def log_mel_spectrogram(
     # Mel filterbank projection
     filters = mel_filters(n_mels)  # (n_mels, n_fft // 2 + 1)
     mel_spec = filters @ magnitudes.T  # (n_mels, n_frames)
+    n_frames = int(mel_spec.shape[1])
+    if n_frames <= 1:
+        raise ValueError(
+            "Audio too short for log-mel extraction after Whisper frame trim: "
+            f"{int(audio.size)} samples produced {n_frames} STFT frame(s)."
+        )
 
     # Whisper feature extraction trims the final STFT frame before clamping.
     # This makes output length exactly len(audio) // hop_length for do_not_pad.

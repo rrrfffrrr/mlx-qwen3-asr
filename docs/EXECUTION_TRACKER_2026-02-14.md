@@ -440,3 +440,41 @@ Keep streaming marked experimental until:
   - long-form quality lane (`>30s`, multi-minute),
   - direct MLX-vs-PyTorch quality comparison lane,
   - real-world audio lane.
+
+### 29) External bug-audit triage + edge-case hardening
+
+Validated and addressed the latest external review claims against current `main`.
+
+Implemented fixes:
+- Canonicalized in-memory audio handling via `load_audio(...)` for all
+  `transcribe(...)` input types (including `np.ndarray`/`mx.array`), so array
+  inputs now follow the same mono + dtype normalization path as tuple/file
+  inputs.
+- Added integer PCM normalization for array/tuple audio sources in `audio.py`
+  to align with file decode semantics.
+- Added explicit short-audio validation in `log_mel_spectrogram(...)` before
+  clamping/reduction to avoid opaque zero-size reduction errors.
+- Added defensive validation in `split_audio_into_chunks(...)`:
+  - `sr > 0`
+  - `max_chunk_sec > 0`
+- Fixed generation boundary semantics:
+  - `max_new_tokens == 0` now returns zero generated tokens for both greedy
+    and speculative paths.
+  - `max_new_tokens < 0` now raises `ValueError`.
+- Streaming multichannel input now downmixes to mono instead of flattening
+  interleaved samples.
+
+Confirmed already-fixed / outdated claims:
+- speculative cache rollback trim mismatch: already fixed before this pass
+  (`target_cache.trim(...)` and `draft_cache.trim(...)` are symmetric).
+- streaming `max_context_sec >= chunk_size_sec` validation: already enforced.
+- streaming empty-array guard: already present (`feed_audio` no-op on empty).
+
+Static typing status snapshot:
+- Ran `mypy` baseline over `mlx_qwen3_asr scripts tests`.
+- Current result: `50` errors in `12` files.
+- This remains an advisory lane (not yet a required CI/release gate) until
+  baseline debt is reduced in focused follow-up work.
+
+Post-change validation:
+- fast gate: PASS (`325 passed, 1 skipped`)

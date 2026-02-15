@@ -47,6 +47,10 @@ def generate(
     """
     if config is None:
         config = GenerationConfig()
+    if config.max_new_tokens < 0:
+        raise ValueError(f"max_new_tokens must be >= 0, got {config.max_new_tokens}")
+    if config.max_new_tokens == 0:
+        return []
 
     max_seq_len = int(input_ids.shape[1] + config.max_new_tokens)
     cache = model.create_cache(max_seq_len=max_seq_len)
@@ -120,6 +124,10 @@ def generate_speculative(
     """
     if config is None:
         config = GenerationConfig()
+    if config.max_new_tokens < 0:
+        raise ValueError(f"max_new_tokens must be >= 0, got {config.max_new_tokens}")
+    if config.max_new_tokens == 0:
+        return []
     if config.temperature != 0.0:
         raise ValueError("Speculative decoding currently supports greedy mode only.")
     if config.num_draft_tokens < 1:

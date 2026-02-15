@@ -26,6 +26,11 @@ def split_audio_into_chunks(
     Returns:
         List of (chunk_waveform, offset_seconds) tuples
     """
+    if sr <= 0:
+        raise ValueError(f"sr must be > 0, got: {sr}")
+    if max_chunk_sec <= 0:
+        raise ValueError(f"max_chunk_sec must be > 0, got: {max_chunk_sec}")
+
     duration = len(audio) / sr
 
     if duration <= max_chunk_sec:
