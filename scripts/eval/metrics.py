@@ -1,8 +1,4 @@
-"""Compatibility metrics helpers.
-
-This module remains for backward compatibility with older imports.
-New script-side evaluation tooling uses ``scripts/eval/metrics.py``.
-"""
+"""Text normalization and error-rate metrics for local eval scripts."""
 
 from __future__ import annotations
 

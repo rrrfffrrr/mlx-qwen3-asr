@@ -18,6 +18,15 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+MYPY_TYPED_TARGETS = [
+    "mlx_qwen3_asr/config.py",
+    "mlx_qwen3_asr/chunking.py",
+    "mlx_qwen3_asr/attention.py",
+    "mlx_qwen3_asr/encoder.py",
+    "mlx_qwen3_asr/decoder.py",
+    "mlx_qwen3_asr/model.py",
+]
+
 
 @dataclass
 class StepResult:
@@ -50,7 +59,8 @@ def _tracked_py_files(repo: Path) -> list[str]:
         text=True,
         check=True,
     )
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    tracked = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return [path for path in tracked if (repo / path).exists()]
 
 
 def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], bool]:
@@ -71,6 +81,19 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
         return steps, False
 
     steps.append(_run([python_bin, "-m", "ruff", "check", *tracked], repo))
+    steps.append(
+        _run(
+            [
+                python_bin,
+                "-m",
+                "mypy",
+                "--follow-imports=skip",
+                "--ignore-missing-imports",
+                *MYPY_TYPED_TARGETS,
+            ],
+            repo,
+        )
+    )
     steps.append(_run([python_bin, "-m", "pytest", "-q"], repo))
 
     if mode == "release":

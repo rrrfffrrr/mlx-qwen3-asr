@@ -17,7 +17,12 @@ import mlx.core as mx
 import numpy as np
 
 from mlx_qwen3_asr import load_model, transcribe
-from mlx_qwen3_asr.eval_metrics import edit_distance
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from eval.metrics import edit_distance  # noqa: E402
 
 _WS_RE = re.compile(r"\s+")
 

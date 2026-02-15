@@ -16,7 +16,12 @@ import mlx.core as mx
 import numpy as np
 
 from mlx_qwen3_asr import load_model, transcribe
-from mlx_qwen3_asr.eval_metrics import compute_cer, compute_wer, normalize_text
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from eval.metrics import compute_cer, compute_wer, normalize_text  # noqa: E402
 
 OPENSLR_BASE = "https://www.openslr.org/resources/12"
 SPLIT_ARCHIVES = {
