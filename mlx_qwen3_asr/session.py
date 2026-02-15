@@ -18,11 +18,13 @@ from .transcribe import (
     AudioInput,
     ProgressCallback,
     TranscriptionResult,
+    _build_transcribe_options,
     _resolve_aligner,
     _resolve_diarization_config,
     _resolve_draft_model,
     _to_audio_np,
     _transcribe_loaded_components,
+    _transcribe_options_to_kwargs,
 )
 
 
@@ -81,16 +83,31 @@ class Session:
         on_progress: Optional[ProgressCallback] = None,
     ) -> TranscriptionResult:
         """Transcribe audio using this session's loaded model/tokenizer."""
-        diarization_config = _resolve_diarization_config(
+        options = _build_transcribe_options(
+            language=language,
+            return_timestamps=return_timestamps,
             diarize=diarize,
             diarization_num_speakers=diarization_num_speakers,
             diarization_min_speakers=diarization_min_speakers,
             diarization_max_speakers=diarization_max_speakers,
+            return_chunks=return_chunks,
+            forced_aligner=forced_aligner,
+            dtype=self.dtype,
+            max_new_tokens=max_new_tokens,
+            num_draft_tokens=num_draft_tokens,
+            verbose=verbose,
+            on_progress=on_progress,
+        )
+        diarization_config = _resolve_diarization_config(
+            diarize=options.diarize,
+            diarization_num_speakers=options.diarization_num_speakers,
+            diarization_min_speakers=options.diarization_min_speakers,
+            diarization_max_speakers=options.diarization_max_speakers,
         )
         effective_return_timestamps = bool(
-            return_timestamps or diarization_config is not None
+            options.return_timestamps or diarization_config is not None
         )
-        aligner = _resolve_aligner(effective_return_timestamps, forced_aligner)
+        aligner = _resolve_aligner(effective_return_timestamps, options.forced_aligner)
         draft_model_obj = _resolve_draft_model(
             draft_model=draft_model,
             dtype=self.dtype,
@@ -103,15 +120,15 @@ class Session:
             tokenizer=self.tokenizer,
             dtype=self.dtype,
             draft_model_obj=draft_model_obj,
-            language=language,
+            language=options.language,
             aligner=aligner,
-            return_timestamps=return_timestamps,
+            return_timestamps=options.return_timestamps,
             diarization_config=diarization_config,
-            return_chunks=return_chunks,
-            max_new_tokens=max_new_tokens,
-            num_draft_tokens=num_draft_tokens,
-            verbose=verbose,
-            on_progress=on_progress,
+            return_chunks=options.return_chunks,
+            max_new_tokens=options.max_new_tokens,
+            num_draft_tokens=options.num_draft_tokens,
+            verbose=options.verbose,
+            on_progress=options.on_progress,
         )
 
     async def transcribe_async(
@@ -133,10 +150,7 @@ class Session:
         on_progress: Optional[ProgressCallback] = None,
     ) -> TranscriptionResult:
         """Async wrapper for ``transcribe`` using ``asyncio.to_thread``."""
-        return await asyncio.to_thread(
-            self.transcribe,
-            audio,
-            draft_model=draft_model,
+        options = _build_transcribe_options(
             language=language,
             return_timestamps=return_timestamps,
             diarize=diarize,
@@ -145,10 +159,17 @@ class Session:
             diarization_max_speakers=diarization_max_speakers,
             return_chunks=return_chunks,
             forced_aligner=forced_aligner,
+            dtype=self.dtype,
             max_new_tokens=max_new_tokens,
             num_draft_tokens=num_draft_tokens,
             verbose=verbose,
             on_progress=on_progress,
+        )
+        return await asyncio.to_thread(
+            self.transcribe,
+            audio,
+            draft_model=draft_model,
+            **_transcribe_options_to_kwargs(options, include_dtype=False),
         )
 
     def init_streaming(

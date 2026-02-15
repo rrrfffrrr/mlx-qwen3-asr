@@ -73,6 +73,25 @@ class TranscriptionResult:
     speaker_segments: Optional[list[dict]] = None
 
 
+@dataclass(frozen=True)
+class TranscribeOptions:
+    """Shared transcribe runtime options used across sync/async/session entry points."""
+
+    language: Optional[str] = None
+    return_timestamps: bool = False
+    diarize: bool = False
+    diarization_num_speakers: Optional[int] = None
+    diarization_min_speakers: int = 1
+    diarization_max_speakers: int = 8
+    return_chunks: bool = False
+    forced_aligner: Optional[Union[str, ForcedAligner]] = None
+    dtype: mx.Dtype = mx.float16
+    max_new_tokens: int = 1024
+    num_draft_tokens: int = 4
+    verbose: bool = False
+    on_progress: Optional[ProgressCallback] = None
+
+
 def _join_chunk_texts(texts: list[str], language: str) -> str:
     """Join per-chunk text while preserving languages without whitespace delimiters."""
     if not texts:
@@ -80,6 +99,93 @@ def _join_chunk_texts(texts: list[str], language: str) -> str:
     normalized = (language or "").strip().lower()
     joiner = "" if normalized in CJK_LANG_ALIASES else " "
     return joiner.join(texts)
+
+
+def _build_transcribe_options(
+    *,
+    language: Optional[str] = None,
+    return_timestamps: bool = False,
+    diarize: bool = False,
+    diarization_num_speakers: Optional[int] = None,
+    diarization_min_speakers: int = 1,
+    diarization_max_speakers: int = 8,
+    return_chunks: bool = False,
+    forced_aligner: Optional[Union[str, ForcedAligner]] = None,
+    dtype: mx.Dtype = mx.float16,
+    max_new_tokens: int = 1024,
+    num_draft_tokens: int = 4,
+    verbose: bool = False,
+    on_progress: Optional[ProgressCallback] = None,
+) -> TranscribeOptions:
+    return TranscribeOptions(
+        language=language,
+        return_timestamps=return_timestamps,
+        diarize=diarize,
+        diarization_num_speakers=diarization_num_speakers,
+        diarization_min_speakers=diarization_min_speakers,
+        diarization_max_speakers=diarization_max_speakers,
+        return_chunks=return_chunks,
+        forced_aligner=forced_aligner,
+        dtype=dtype,
+        max_new_tokens=max_new_tokens,
+        num_draft_tokens=num_draft_tokens,
+        verbose=verbose,
+        on_progress=on_progress,
+    )
+
+
+def _transcribe_options_to_kwargs(
+    options: TranscribeOptions,
+    *,
+    include_dtype: bool = True,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "language": options.language,
+        "return_timestamps": options.return_timestamps,
+        "diarize": options.diarize,
+        "diarization_num_speakers": options.diarization_num_speakers,
+        "diarization_min_speakers": options.diarization_min_speakers,
+        "diarization_max_speakers": options.diarization_max_speakers,
+        "return_chunks": options.return_chunks,
+        "forced_aligner": options.forced_aligner,
+        "max_new_tokens": options.max_new_tokens,
+        "num_draft_tokens": options.num_draft_tokens,
+        "verbose": options.verbose,
+        "on_progress": options.on_progress,
+    }
+    if include_dtype:
+        kwargs["dtype"] = options.dtype
+    return kwargs
+
+
+def _resolve_model_components(
+    model: Union[str, Qwen3ASRModel],
+    *,
+    dtype: mx.Dtype,
+) -> tuple[Qwen3ASRModel, str]:
+    if isinstance(model, str):
+        model_obj, _ = _ModelHolder.get(model, dtype=dtype)
+        model_path = _ModelHolder.get_resolved_path(model, dtype=dtype)
+    else:
+        model_obj = model
+        model_path = DEFAULT_MODEL_ID
+    return model_obj, model_path
+
+
+def _resolve_runtime_options(
+    options: TranscribeOptions,
+) -> tuple[bool, Optional[ForcedAligner], Optional[DiarizationConfig]]:
+    diarization_config = _resolve_diarization_config(
+        diarize=options.diarize,
+        diarization_num_speakers=options.diarization_num_speakers,
+        diarization_min_speakers=options.diarization_min_speakers,
+        diarization_max_speakers=options.diarization_max_speakers,
+    )
+    effective_return_timestamps = bool(
+        options.return_timestamps or diarization_config is not None
+    )
+    aligner = _resolve_aligner(effective_return_timestamps, options.forced_aligner)
+    return effective_return_timestamps, aligner, diarization_config
 
 
 def transcribe(
@@ -133,26 +239,29 @@ def transcribe(
     Returns:
         TranscriptionResult with text, language, and optional segments
     """
-    diarization_config = _resolve_diarization_config(
+    options = _build_transcribe_options(
+        language=language,
+        return_timestamps=return_timestamps,
         diarize=diarize,
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
+        return_chunks=return_chunks,
+        forced_aligner=forced_aligner,
+        dtype=dtype,
+        max_new_tokens=max_new_tokens,
+        num_draft_tokens=num_draft_tokens,
+        verbose=verbose,
+        on_progress=on_progress,
     )
-    effective_return_timestamps = bool(return_timestamps or diarization_config is not None)
-    aligner = _resolve_aligner(effective_return_timestamps, forced_aligner)
+    _, aligner, diarization_config = _resolve_runtime_options(options)
 
     # Load model
-    if isinstance(model, str):
-        model_obj, _ = _ModelHolder.get(model, dtype=dtype)
-        model_path = _ModelHolder.get_resolved_path(model, dtype=dtype)
-    else:
-        model_obj = model
-        model_path = DEFAULT_MODEL_ID
+    model_obj, model_path = _resolve_model_components(model, dtype=options.dtype)
 
     draft_model_obj = _resolve_draft_model(
         draft_model=draft_model,
-        dtype=dtype,
+        dtype=options.dtype,
         target_model=model_obj,
     )
 
@@ -162,7 +271,7 @@ def transcribe(
     # Load audio
     audio_np = _to_audio_np(audio)
 
-    if verbose:
+    if options.verbose:
         duration = len(audio_np) / SAMPLE_RATE
         print(f"Audio duration: {duration:.1f}s ({len(audio_np)} samples)")
 
@@ -170,17 +279,17 @@ def transcribe(
         audio_np=audio_np,
         model_obj=model_obj,
         tokenizer=tokenizer,
-        dtype=dtype,
+        dtype=options.dtype,
         draft_model_obj=draft_model_obj,
-        language=language,
+        language=options.language,
         aligner=aligner,
-        return_timestamps=return_timestamps,
+        return_timestamps=options.return_timestamps,
         diarization_config=diarization_config,
-        return_chunks=return_chunks,
-        max_new_tokens=max_new_tokens,
-        num_draft_tokens=num_draft_tokens,
-        verbose=verbose,
-        on_progress=on_progress,
+        return_chunks=options.return_chunks,
+        max_new_tokens=options.max_new_tokens,
+        num_draft_tokens=options.num_draft_tokens,
+        verbose=options.verbose,
+        on_progress=options.on_progress,
     )
 
 
@@ -204,11 +313,7 @@ async def transcribe_async(
     on_progress: Optional[ProgressCallback] = None,
 ) -> TranscriptionResult:
     """Async wrapper for ``transcribe`` using ``asyncio.to_thread``."""
-    return await asyncio.to_thread(
-        transcribe,
-        audio,
-        model=model,
-        draft_model=draft_model,
+    options = _build_transcribe_options(
         language=language,
         return_timestamps=return_timestamps,
         diarize=diarize,
@@ -222,6 +327,13 @@ async def transcribe_async(
         num_draft_tokens=num_draft_tokens,
         verbose=verbose,
         on_progress=on_progress,
+    )
+    return await asyncio.to_thread(
+        transcribe,
+        audio,
+        model=model,
+        draft_model=draft_model,
+        **_transcribe_options_to_kwargs(options),
     )
 
 
@@ -248,25 +360,27 @@ def transcribe_batch(
     if not audios:
         return []
 
-    diarization_config = _resolve_diarization_config(
+    options = _build_transcribe_options(
+        language=language,
+        return_timestamps=return_timestamps,
         diarize=diarize,
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
+        return_chunks=return_chunks,
+        forced_aligner=forced_aligner,
+        dtype=dtype,
+        max_new_tokens=max_new_tokens,
+        num_draft_tokens=num_draft_tokens,
+        verbose=verbose,
+        on_progress=on_progress,
     )
-    effective_return_timestamps = bool(return_timestamps or diarization_config is not None)
-    aligner = _resolve_aligner(effective_return_timestamps, forced_aligner)
-
-    if isinstance(model, str):
-        model_obj, _ = _ModelHolder.get(model, dtype=dtype)
-        model_path = _ModelHolder.get_resolved_path(model, dtype=dtype)
-    else:
-        model_obj = model
-        model_path = DEFAULT_MODEL_ID
+    _, aligner, diarization_config = _resolve_runtime_options(options)
+    model_obj, model_path = _resolve_model_components(model, dtype=options.dtype)
 
     draft_model_obj = _resolve_draft_model(
         draft_model=draft_model,
-        dtype=dtype,
+        dtype=options.dtype,
         target_model=model_obj,
     )
     tokenizer = _TokenizerHolder.get(model_path)
@@ -274,9 +388,9 @@ def transcribe_batch(
     outputs: list[TranscriptionResult] = []
     total = len(audios)
     for index, audio in enumerate(audios, start=1):
-        if on_progress is not None:
+        if options.on_progress is not None:
             _emit_progress(
-                on_progress,
+                options.on_progress,
                 {
                     "event": "batch_file_started",
                     "file_index": index,
@@ -288,26 +402,26 @@ def transcribe_batch(
             audio_np=audio_np,
             model_obj=model_obj,
             tokenizer=tokenizer,
-            dtype=dtype,
+            dtype=options.dtype,
             draft_model_obj=draft_model_obj,
-            language=language,
+            language=options.language,
             aligner=aligner,
-            return_timestamps=return_timestamps,
+            return_timestamps=options.return_timestamps,
             diarization_config=diarization_config,
-            return_chunks=return_chunks,
-            max_new_tokens=max_new_tokens,
-            num_draft_tokens=num_draft_tokens,
-            verbose=verbose,
+            return_chunks=options.return_chunks,
+            max_new_tokens=options.max_new_tokens,
+            num_draft_tokens=options.num_draft_tokens,
+            verbose=options.verbose,
             on_progress=_batch_progress_adapter(
-                on_progress=on_progress,
+                on_progress=options.on_progress,
                 file_index=index,
                 file_total=total,
             ),
         )
         outputs.append(result)
-        if on_progress is not None:
+        if options.on_progress is not None:
             _emit_progress(
-                on_progress,
+                options.on_progress,
                 {
                     "event": "batch_file_completed",
                     "file_index": index,
@@ -337,11 +451,7 @@ async def transcribe_batch_async(
     on_progress: Optional[ProgressCallback] = None,
 ) -> list[TranscriptionResult]:
     """Async wrapper for ``transcribe_batch`` using ``asyncio.to_thread``."""
-    return await asyncio.to_thread(
-        transcribe_batch,
-        audios,
-        model=model,
-        draft_model=draft_model,
+    options = _build_transcribe_options(
         language=language,
         return_timestamps=return_timestamps,
         diarize=diarize,
@@ -355,6 +465,13 @@ async def transcribe_batch_async(
         num_draft_tokens=num_draft_tokens,
         verbose=verbose,
         on_progress=on_progress,
+    )
+    return await asyncio.to_thread(
+        transcribe_batch,
+        audios,
+        model=model,
+        draft_model=draft_model,
+        **_transcribe_options_to_kwargs(options),
     )
 
 
