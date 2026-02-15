@@ -38,6 +38,10 @@ def split_audio_into_chunks(
 
     # Find split point at lowest energy near the midpoint
     split_sample = _find_split_point(audio, sr)
+    if split_sample <= 0 or split_sample >= len(audio):
+        # Degenerate split points can occur on pathological inputs or buggy
+        # split heuristics. Fall back to midpoint to guarantee progress.
+        split_sample = max(1, len(audio) // 2)
 
     # Split
     left = audio[:split_sample]

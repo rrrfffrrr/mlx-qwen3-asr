@@ -125,6 +125,8 @@ def feed_audio(
     # Accumulate audio
     state.buffer = np.concatenate([state.buffer, x])
     state.audio_accum = np.concatenate([state.audio_accum, x])
+    if len(state.audio_accum) > state.max_context_samples:
+        state.audio_accum = state.audio_accum[-state.max_context_samples:]
 
     # Check if we have enough audio for a new chunk
     if len(state.buffer) < state.chunk_size_samples:
@@ -135,8 +137,6 @@ def feed_audio(
 
     # Process: transcribe all accumulated audio
     decode_audio = state.audio_accum
-    if len(decode_audio) > state.max_context_samples:
-        decode_audio = decode_audio[-state.max_context_samples:]
 
     result = transcribe(
         audio=decode_audio,
@@ -180,6 +180,11 @@ def finish_streaming(
         Final streaming state
     """
     if len(state.audio_accum) == 0:
+        return state
+
+    # Nothing pending: keep current streaming hypothesis and avoid redundant decode.
+    if len(state.buffer) == 0:
+        state.stable_text = state.text
         return state
 
     from .transcribe import transcribe

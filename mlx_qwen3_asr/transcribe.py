@@ -16,9 +16,28 @@ from .forced_aligner import ForcedAligner
 from .generate import GenerationConfig, generate, generate_speculative
 from .load_models import _ModelHolder
 from .model import Qwen3ASRModel
-from .tokenizer import Tokenizer, _TokenizerHolder, parse_asr_output
+from .tokenizer import (
+    Tokenizer,
+    _TokenizerHolder,
+    canonicalize_language,
+    parse_asr_output,
+)
 
 AudioInput = Union[str, Path, np.ndarray, mx.array, tuple[np.ndarray, int]]
+CJK_LANG_ALIASES = {
+    "chinese",
+    "zh",
+    "zh-cn",
+    "zh-tw",
+    "cantonese",
+    "yue",
+    "japanese",
+    "ja",
+    "jp",
+    "korean",
+    "ko",
+    "kr",
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +52,15 @@ class TranscriptionResult:
     text: str
     language: str
     segments: Optional[list[dict]] = None
+
+
+def _join_chunk_texts(texts: list[str], language: str) -> str:
+    """Join per-chunk text while preserving languages without whitespace delimiters."""
+    if not texts:
+        return ""
+    normalized = (language or "").strip().lower()
+    joiner = "" if normalized in CJK_LANG_ALIASES else " "
+    return joiner.join(texts)
 
 
 def transcribe(
@@ -184,13 +212,14 @@ def _transcribe_loaded_components(
 ) -> TranscriptionResult:
     """Transcribe using already-loaded model/tokenizer components."""
     chunks = split_audio_into_chunks(audio_np, sr=SAMPLE_RATE)
+    forced_language = canonicalize_language(language)
 
     if verbose and len(chunks) > 1:
         print(f"Split into {len(chunks)} chunks")
 
     all_texts = []
     all_segments: list[dict] = []
-    detected_language = language or "unknown"
+    detected_language = forced_language or "unknown"
 
     gen_config = GenerationConfig(
         max_new_tokens=max_new_tokens,
@@ -219,7 +248,7 @@ def _transcribe_loaded_components(
 
         prompt_tokens = tokenizer.build_prompt_tokens(
             n_audio_tokens=n_audio_tokens,
-            language=language,
+            language=forced_language,
         )
         input_ids = mx.array([prompt_tokens])
 
@@ -247,7 +276,7 @@ def _transcribe_loaded_components(
             )
 
         raw_text = tokenizer.decode(output_tokens)
-        lang, text = parse_asr_output(raw_text, user_language=language)
+        lang, text = parse_asr_output(raw_text, user_language=forced_language)
 
         if detected_language == "unknown":
             detected_language = lang
@@ -255,7 +284,7 @@ def _transcribe_loaded_components(
         all_texts.append(text)
 
         if return_timestamps and aligner is not None and text.strip():
-            align_lang = language or lang
+            align_lang = forced_language or lang
             if align_lang and align_lang != "unknown":
                 aligned = aligner.align(chunk_audio, text, align_lang)
                 for item in aligned:
@@ -271,7 +300,7 @@ def _transcribe_loaded_components(
             print(f"  [{lang}] {text[:100]}{'...' if len(text) > 100 else ''}")
 
     return TranscriptionResult(
-        text=" ".join(all_texts),
+        text=_join_chunk_texts(all_texts, detected_language),
         language=detected_language,
         segments=all_segments if return_timestamps else None,
     )

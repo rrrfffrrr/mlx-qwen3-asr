@@ -6,7 +6,11 @@ Only tests parse_asr_output() -- the Tokenizer class requires HF download.
 import sys
 
 import mlx_qwen3_asr.tokenizer as tokmod
-from mlx_qwen3_asr.tokenizer import _TokenizerHolder, parse_asr_output
+from mlx_qwen3_asr.tokenizer import (
+    _TokenizerHolder,
+    canonicalize_language,
+    parse_asr_output,
+)
 
 
 class TestParseASROutputStandard:
@@ -48,6 +52,11 @@ class TestParseASROutputSpecialTokens:
         text = "language English<asr_text>hello world<|im_end|><|endoftext|>"
         lang, transcript = parse_asr_output(text)
         assert transcript == "hello world"
+
+    def test_does_not_strip_non_trailing_special_tokens(self):
+        text = "language English<asr_text>hello<|im_end|>world"
+        lang, transcript = parse_asr_output(text)
+        assert transcript == "hello<|im_end|>world"
 
 
 class TestParseASROutputFallback:
@@ -103,6 +112,18 @@ class TestParseASROutputEdgeCases:
         assert lang == "English"
         assert transcript == "hello world"
 
+    def test_forced_language_canonicalizes_common_aliases(self):
+        text = "hello world<|im_end|>"
+        lang, transcript = parse_asr_output(text, user_language="de_de")
+        assert lang == "German"
+        assert transcript == "hello world"
+
+    def test_forced_language_strips_asr_prefix_if_present(self):
+        text = "language German<asr_text>hallo welt<|im_end|>"
+        lang, transcript = parse_asr_output(text, user_language="de")
+        assert lang == "German"
+        assert transcript == "hallo welt"
+
     def test_char_repetition_cleanup(self):
         text = "language English<asr_text>" + ("a" * 30)
         lang, transcript = parse_asr_output(text)
@@ -134,6 +155,13 @@ def test_tokenizer_holder_caches_by_model_path(monkeypatch):
     assert t1 is t2
     assert t1 is not t3
     assert created == ["repo/a", "repo/b"]
+
+
+def test_canonicalize_language_handles_codes_and_names():
+    assert canonicalize_language("de") == "German"
+    assert canonicalize_language("fr_fr") == "French"
+    assert canonicalize_language("English") == "English"
+    assert canonicalize_language("xx") == "xx"
 
 
 def test_load_hf_tokenizer_uses_fix_mistral_regex(monkeypatch):

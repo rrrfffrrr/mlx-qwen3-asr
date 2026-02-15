@@ -11,6 +11,7 @@ from mlx_qwen3_asr.streaming import (
     StreamingState,
     _split_stable_unstable,
     feed_audio,
+    finish_streaming,
     init_streaming,
 )
 
@@ -232,6 +233,20 @@ class TestFeedAudio:
 
         assert call_lengths == [10, 20, 20]
 
+    def test_feed_audio_caps_audio_accum_memory(self, monkeypatch):
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            return SimpleNamespace(text="a b c d e f g", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, max_context_sec=2.0, sample_rate=10)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+        feed_audio(np.ones(10, dtype=np.float32), state)
+
+        assert len(state.audio_accum) == 20
+
     def test_feed_audio_honors_unfixed_chunk_warmup(self, monkeypatch):
         def fake_transcribe(audio, model, verbose):  # noqa: ANN001
             return SimpleNamespace(text="one two three four five six", language="English")
@@ -307,3 +322,52 @@ class TestFeedAudio:
         assert len(state.buffer) == 0
         assert len(state.audio_accum) == 0
         assert calls == []
+
+
+class TestFinishStreaming:
+    """Test finalization behavior for streaming decode state."""
+
+    def test_finish_streaming_skips_decode_when_no_pending_buffer(self, monkeypatch):
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            raise AssertionError("finish_streaming should not decode without pending buffer")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(chunk_size_sec=1.0, sample_rate=10)
+        state.audio_accum = np.ones(10, dtype=np.float32)
+        state.buffer = np.array([], dtype=np.float32)
+        state.text = "hello world"
+        state.stable_text = "hello world"
+
+        out = finish_streaming(state)
+        assert out is state
+        assert state.text == "hello world"
+        assert state.stable_text == "hello world"
+
+    def test_finish_streaming_decodes_pending_tail(self, monkeypatch):
+        calls = []
+
+        def fake_transcribe(audio, model, verbose):  # noqa: ANN001
+            calls.append(len(audio))
+            return SimpleNamespace(text="tail text", language="English")
+
+        transcribe_module = importlib.import_module("mlx_qwen3_asr.transcribe")
+        monkeypatch.setattr(transcribe_module, "transcribe", fake_transcribe)
+
+        state = init_streaming(
+            chunk_size_sec=1.0,
+            sample_rate=10,
+            unfixed_chunk_num=0,
+            unfixed_token_num=1,
+        )
+        state.buffer = np.ones(5, dtype=np.float32)
+        state.audio_accum = np.ones(5, dtype=np.float32)
+        state.stable_text = "prefix"
+
+        out = finish_streaming(state)
+        assert out is state
+        assert calls == [5]
+        assert len(state.buffer) == 0
+        assert state.language == "English"
+        assert state.stable_text == state.text

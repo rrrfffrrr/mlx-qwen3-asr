@@ -5,6 +5,79 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+_LANGUAGE_CANONICAL: dict[str, str] = {
+    # English
+    "en": "English",
+    "en-us": "English",
+    "en-gb": "English",
+    "english": "English",
+    # Chinese
+    "zh": "Chinese",
+    "zh-cn": "Chinese",
+    "zh-tw": "Chinese",
+    "cmn": "Chinese",
+    "mandarin": "Chinese",
+    "chinese": "Chinese",
+    # Japanese
+    "ja": "Japanese",
+    "ja-jp": "Japanese",
+    "japanese": "Japanese",
+    # Korean
+    "ko": "Korean",
+    "ko-kr": "Korean",
+    "korean": "Korean",
+    # German
+    "de": "German",
+    "de-de": "German",
+    "german": "German",
+    # French
+    "fr": "French",
+    "fr-fr": "French",
+    "french": "French",
+    # Spanish
+    "es": "Spanish",
+    "es-es": "Spanish",
+    "es-419": "Spanish",
+    "spanish": "Spanish",
+    # Russian
+    "ru": "Russian",
+    "ru-ru": "Russian",
+    "russian": "Russian",
+    # Arabic
+    "ar": "Arabic",
+    "ar-eg": "Arabic",
+    "arabic": "Arabic",
+    # Hindi
+    "hi": "Hindi",
+    "hi-in": "Hindi",
+    "hindi": "Hindi",
+    # Common additional languages
+    "it": "Italian",
+    "it-it": "Italian",
+    "italian": "Italian",
+    "pt": "Portuguese",
+    "pt-br": "Portuguese",
+    "pt-pt": "Portuguese",
+    "portuguese": "Portuguese",
+    "tr": "Turkish",
+    "tr-tr": "Turkish",
+    "turkish": "Turkish",
+    "nl": "Dutch",
+    "nl-nl": "Dutch",
+    "dutch": "Dutch",
+}
+
+
+def canonicalize_language(language: Optional[str]) -> Optional[str]:
+    """Normalize common language aliases/codes to canonical prompt names."""
+    if language is None:
+        return None
+    value = str(language).strip()
+    if not value:
+        return None
+    key = value.casefold().replace("_", "-")
+    return _LANGUAGE_CANONICAL.get(key, value)
+
 
 def _from_pretrained_with_fix_flag(loader_cls, model_path: str):  # noqa: ANN001
     """Load a tokenizer class with optional mistral-regex compatibility flag."""
@@ -118,7 +191,9 @@ class Tokenizer:
 
         # Optional language forcing
         if language:
-            tokens.extend(self.encode(f"language {language}<asr_text>"))
+            canon_lang = canonicalize_language(language)
+            if canon_lang:
+                tokens.extend(self.encode(f"language {canon_lang}<asr_text>"))
 
         return tokens
 
@@ -208,9 +283,15 @@ def _detect_and_fix_repetitions(text: str, threshold: int = 20) -> str:
 
 
 def _strip_trailing_special_tokens(s: str) -> str:
-    out = s
-    for token in ["<|im_end|>", "<|endoftext|>"]:
-        out = out.replace(token, "")
+    out = s.rstrip()
+    trailing_tokens = ("<|im_end|>", "<|endoftext|>")
+    changed = True
+    while changed:
+        changed = False
+        for token in trailing_tokens:
+            if out.endswith(token):
+                out = out[: -len(token)].rstrip()
+                changed = True
     return out.strip()
 
 
@@ -240,7 +321,11 @@ def parse_asr_output(
     s = _detect_and_fix_repetitions(s)
 
     if user_language:
-        return user_language, _strip_trailing_special_tokens(s)
+        forced = canonicalize_language(user_language) or user_language
+        if "<asr_text>" in s:
+            transcript = _strip_trailing_special_tokens(s.split("<asr_text>", 1)[1])
+            return forced, transcript
+        return forced, _strip_trailing_special_tokens(s)
 
     if "<asr_text>" in s:
         parts = s.split("<asr_text>", 1)

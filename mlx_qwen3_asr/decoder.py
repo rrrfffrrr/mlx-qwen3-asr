@@ -257,8 +257,17 @@ class TextDecoder(nn.Module):
         if attention_mask is None:
             L = h.shape[1]
             if cache is not None and cache.offset > 0:
-                # During generation, single-token step -- no mask needed
-                attention_mask = None
+                # Single-token decode with prefix cache does not need an explicit mask.
+                # Multi-token decode (e.g., speculative verification) must preserve
+                # causality within the newly appended token block.
+                if L == 1:
+                    attention_mask = None
+                else:
+                    attention_mask = _create_causal_mask_with_prefix(
+                        seq_len=L,
+                        prefix_len=cache.offset,
+                        dtype=h.dtype,
+                    )
             else:
                 # Full causal mask
                 attention_mask = _create_causal_mask(L, h.dtype)
@@ -423,3 +432,33 @@ def _create_causal_mask(seq_len: int, dtype: mx.Dtype = mx.float32) -> mx.array:
 
 
 _CAUSAL_MASK_CACHE: dict[tuple[int, str], mx.array] = {}
+
+
+def _create_causal_mask_with_prefix(
+    seq_len: int,
+    prefix_len: int,
+    dtype: mx.Dtype = mx.float32,
+) -> mx.array:
+    """Create causal mask for appending ``seq_len`` tokens after cached prefix.
+
+    The prefix region (already in cache) is fully visible to all new queries.
+    Causality is enforced only among the newly appended tokens.
+    """
+    cache_key = (seq_len, prefix_len, str(dtype))
+    cached = _CAUSAL_MASK_WITH_PREFIX_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # Left block: cached prefix keys, always visible.
+    left = mx.zeros((seq_len, prefix_len), dtype=dtype)
+
+    # Right block: causal mask among new tokens.
+    right = mx.full((seq_len, seq_len), -1e9, dtype=dtype)
+    right = mx.triu(right, k=1)
+
+    mask = mx.concatenate([left, right], axis=1)[None, None, :, :]
+    _CAUSAL_MASK_WITH_PREFIX_CACHE[cache_key] = mask
+    return mask
+
+
+_CAUSAL_MASK_WITH_PREFIX_CACHE: dict[tuple[int, int, str], mx.array] = {}

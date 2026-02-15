@@ -191,6 +191,20 @@ class TestWriteTsv:
         assert parts[1] == "-1"
         assert parts[2] == "Hello world"
 
+    def test_rounds_milliseconds(self, tmp_path):
+        result = TranscriptionResult(
+            text="x",
+            language="English",
+            segments=[{"text": "x", "start": 1.2346, "end": 2.3456}],
+        )
+        path = str(tmp_path / "output.tsv")
+        write_tsv(result, path)
+        with open(path) as f:
+            lines = f.readlines()
+        parts = lines[1].strip().split("\t")
+        assert parts[0] == "1235"
+        assert parts[1] == "2346"
+
 
 # ---------------------------------------------------------------------------
 # get_writer
@@ -244,6 +258,9 @@ class TestFormatTimestampSrt:
         # 99 hours, 59 minutes, 59 seconds, 999 millis
         assert _format_timestamp_srt(359999.999) == "99:59:59,999"
 
+    def test_rounding_carries_to_next_second(self):
+        assert _format_timestamp_srt(1.9996) == "00:00:02,000"
+
 
 class TestFormatTimestampVtt:
     """Test _format_timestamp_vtt() correctness."""
@@ -262,3 +279,6 @@ class TestFormatTimestampVtt:
         result = _format_timestamp_vtt(1.5)
         assert "." in result
         assert "," not in result
+
+    def test_rounding_carries_to_next_second(self):
+        assert _format_timestamp_vtt(1.9996) == "00:00:02.000"

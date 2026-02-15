@@ -77,8 +77,8 @@ def write_tsv(result: TranscriptionResult, output_path: str) -> None:
             return
 
         for seg in result.segments:
-            start_ms = int(seg["start"] * 1000)
-            end_ms = int(seg["end"] * 1000)
+            start_ms = int(round(seg["start"] * 1000))
+            end_ms = int(round(seg["end"] * 1000))
             f.write(f"{start_ms}\t{end_ms}\t{seg['text']}\n")
 
 
@@ -105,17 +105,17 @@ def get_writer(fmt: str) -> Callable:
 
 def _format_timestamp_srt(seconds: float) -> str:
     """Format seconds as SRT timestamp: HH:MM:SS,mmm"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = int((seconds % 1) * 1000)
+    total_ms = max(0, int(round(seconds * 1000.0)))
+    hours, rem_ms = divmod(total_ms, 3_600_000)
+    minutes, rem_ms = divmod(rem_ms, 60_000)
+    secs, millis = divmod(rem_ms, 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
 
 
 def _format_timestamp_vtt(seconds: float) -> str:
     """Format seconds as VTT timestamp: HH:MM:SS.mmm"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = int((seconds % 1) * 1000)
+    total_ms = max(0, int(round(seconds * 1000.0)))
+    hours, rem_ms = divmod(total_ms, 3_600_000)
+    minutes, rem_ms = divmod(rem_ms, 60_000)
+    secs, millis = divmod(rem_ms, 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"

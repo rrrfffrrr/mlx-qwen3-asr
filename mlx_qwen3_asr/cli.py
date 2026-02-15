@@ -170,7 +170,7 @@ def main():
                 num_draft_tokens=args.num_draft_tokens,
                 verbose=args.verbose,
             )
-        except RuntimeError as e:
+        except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             had_error = True
             continue

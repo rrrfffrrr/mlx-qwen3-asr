@@ -35,6 +35,16 @@ class _DummyTokenizer:
         return "language English<asr_text>hello world"
 
 
+class _RecordingLanguageTokenizer(_DummyTokenizer):
+    def __init__(self, model_path: str):
+        super().__init__(model_path)
+        self.languages: list[str | None] = []
+
+    def build_prompt_tokens(self, n_audio_tokens: int, language: str | None = None) -> list[int]:
+        self.languages.append(language)
+        return [1, 2, 3]
+
+
 class _DummyTokenizerHolder:
     @staticmethod
     def get(model_path: str):
@@ -103,6 +113,41 @@ def test_transcribe_with_timestamps(monkeypatch):
     ]
 
 
+def test_transcribe_joins_cjk_chunks_without_spaces(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
+    monkeypatch.setattr(tmod._ModelHolder, "get", lambda *a, **k: (_DummyModel(), None))
+    monkeypatch.setattr(
+        tmod._ModelHolder,
+        "get_resolved_path",
+        lambda path, dtype=mx.float16: path,
+    )
+    monkeypatch.setattr(
+        tmod,
+        "compute_features",
+        lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
+    )
+    monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+    monkeypatch.setattr(
+        tmod,
+        "split_audio_into_chunks",
+        lambda audio, sr: [
+            (np.zeros(16000, dtype=np.float32), 0.0),
+            (np.zeros(16000, dtype=np.float32), 1.0),
+        ],
+    )
+    monkeypatch.setattr(
+        tmod,
+        "parse_asr_output",
+        lambda raw, user_language=None: ("Chinese", "你好"),
+    )
+
+    result = transcribe(np.zeros(32000, dtype=np.float32))
+    assert result.language == "Chinese"
+    assert result.text == "你好你好"
+
+
 def test_transcribe_uses_default_model_id(monkeypatch):
     tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
     called_paths = []
@@ -155,6 +200,41 @@ def test_transcribe_uses_resolved_model_path_for_tokenizer(monkeypatch):
 
     _ = transcribe(np.zeros(3200, dtype=np.float32))
     assert token_paths == ["/tmp/qwen3-resolved-model"]
+
+
+def test_transcribe_canonicalizes_forced_language(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+    tokenizer = _RecordingLanguageTokenizer("repo/a")
+
+    class _RecordingTokenizerHolder:
+        @staticmethod
+        def get(model_path: str):
+            return tokenizer
+
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _RecordingTokenizerHolder)
+    monkeypatch.setattr(tmod._ModelHolder, "get", lambda *a, **k: (_DummyModel(), None))
+    monkeypatch.setattr(
+        tmod._ModelHolder,
+        "get_resolved_path",
+        lambda path, dtype=mx.float16: path,
+    )
+    monkeypatch.setattr(
+        tmod,
+        "compute_features",
+        lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
+    )
+    monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+    monkeypatch.setattr(
+        tmod,
+        "parse_asr_output",
+        lambda raw, user_language=None: (user_language or "unknown", "hallo welt"),
+    )
+
+    result = transcribe(np.zeros(3200, dtype=np.float32), language="de_de")
+
+    assert tokenizer.languages == ["German"]
+    assert result.language == "German"
+    assert result.text == "hallo welt"
 
 
 def test_transcribe_uses_speculative_path_when_draft_model_is_set(monkeypatch):

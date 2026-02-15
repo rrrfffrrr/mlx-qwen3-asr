@@ -2,6 +2,7 @@
 
 import numpy as np
 
+import mlx_qwen3_asr.chunking as chunkmod
 from mlx_qwen3_asr.chunking import (
     _find_split_point,
     split_audio_into_chunks,
@@ -93,6 +94,17 @@ class TestSplitAudioIntoChunks:
         audio = np.random.randn(16000).astype(np.float32)
         with np.testing.assert_raises(ValueError):
             split_audio_into_chunks(audio, sr=0, max_chunk_sec=5.0)
+
+    def test_degenerate_split_point_still_makes_progress(self, monkeypatch):
+        sr = 10
+        audio = np.random.randn(100).astype(np.float32)  # 10 seconds
+
+        monkeypatch.setattr(chunkmod, "_find_split_point", lambda _a, _sr: 0)
+        chunks = split_audio_into_chunks(audio, sr=sr, max_chunk_sec=2.0)
+
+        assert len(chunks) > 1
+        assert sum(len(chunk) for chunk, _ in chunks) == len(audio)
+        assert all(len(chunk) <= 20 for chunk, _ in chunks)
 
 
 # ---------------------------------------------------------------------------
