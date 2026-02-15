@@ -184,6 +184,26 @@ Artifacts:
 - `2026-02-15-manifest-quality-realworld200-0p6b.json`
 - `2026-02-15-manifest-quality-realworld200-0p6b.md`
 
+### Real-world long-form quality (Earnings22 full, n=3)
+
+Deterministic non-synthetic full-recording lane from Earnings22 (`850s-1400s` filter; `~65 min` total audio).
+
+| Metric | MLX (0.6B fp16) |
+|---|---:|
+| Primary error (WER) | 13.22% |
+| WER | 13.22% |
+| CER | 6.98% |
+| Mean latency | 296.74s |
+| Real-time factor | 0.228 |
+
+Artifacts:
+- `2026-02-15-earnings22-full-longform3-manifest.jsonl`
+- `2026-02-15-manifest-quality-earnings22-full-longform3-0p6b.json`
+- `2026-02-15-manifest-quality-earnings22-full-longform3-0p6b.md`
+
+Head-to-head artifact:
+- `2026-02-15-quality-head2head-mlx-vs-pytorch-earnings22-full-longform3.md` (in progress)
+
 ### MLX vs PyTorch Head-to-Head (Real-world manifest, n=200)
 
 | Metric | MLX | PyTorch | Delta (MLX - Ref) |

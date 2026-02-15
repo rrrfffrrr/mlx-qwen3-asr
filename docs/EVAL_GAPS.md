@@ -31,11 +31,15 @@ make broad "production-grade across languages/conditions" quality claims.
     - 10 synthetic concatenated clips (~75-90s each, 10 languages),
     - Unicode-safe WER/CER with language-aware primary metric
       (CER for zh/ja/ko; WER otherwise).
-  - Real-world manifest-quality lane:
+ - Real-world manifest-quality lane:
     - 200 real-world English clips (AMI IHM meetings + Earnings22 chunked),
     - deterministic speaker-balanced curation
       (100 clips/source, 16 AMI speakers + 50 Earnings22 speakers),
     - committed WER/CER + latency artifact.
+  - Real-world non-synthetic long-form lane:
+    - 3 full Earnings22 recordings (~65 min total; 15-23 min/clip),
+    - deterministic family-aware sampling with committed manifest,
+    - MLX quality artifact committed; head-to-head pending.
 - MLX-vs-PyTorch head-to-head:
   - Multilingual-100 direct comparison (MLX: 15.99% WER vs PyTorch: 16.69% WER).
   - LibriSpeech test-other direct comparison (MLX: 4.20% WER vs PyTorch: 4.41% WER).
@@ -81,7 +85,8 @@ make broad "production-grade across languages/conditions" quality claims.
 
 1. `P1` Real-world long-form lane (multi-minute, non-synthetic)
    - Why: synthetic concatenation doesn't capture real discourse patterns.
-   - Status: synthetic lane exists; real-world recordings needed.
+   - Status: deterministic full-recording lane is now in place (Earnings22 full);
+     MLX quality artifacts are committed and MLX-vs-PyTorch comparison is in progress.
 
 2. `P2` Streaming quality dataset lane (committed artifacts)
    - Why: instrumentation is in place but no versioned benchmark dataset.
