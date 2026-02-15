@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -350,6 +351,17 @@ def _build_position_ids(start: int, length: int, dtype: mx.Dtype = mx.int32) -> 
     return mx.stack([positions, positions, positions], axis=1)
 
 
+def _supports_validate_kwarg(callable_obj: object) -> bool:
+    """Return True when callable supports ``validate_input_ids`` kwarg."""
+    if callable_obj is None:
+        return False
+    try:
+        sig = inspect.signature(callable_obj)
+    except (TypeError, ValueError):
+        return False
+    return "validate_input_ids" in sig.parameters
+
+
 def _decode_tokens_incremental(
     *,
     model: Qwen3ASRModel,
@@ -363,6 +375,7 @@ def _decode_tokens_incremental(
     logits = initial_logits
     generated: list[int] = []
     position = int(start_pos)
+    supports_unchecked_step = _supports_validate_kwarg(getattr(model, "step", None))
 
     for _ in range(max_new_tokens):
         token = int(mx.argmax(logits.reshape(-1)).item())
@@ -379,6 +392,7 @@ def _decode_tokens_incremental(
             input_ids=next_ids,
             position_ids=next_pos,
             cache=cache,
+            **({"validate_input_ids": False} if supports_unchecked_step else {}),
         )
         position += 1
 
