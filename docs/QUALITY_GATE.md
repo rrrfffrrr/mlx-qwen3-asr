@@ -67,6 +67,15 @@ python scripts/quality_gate.py --mode release
 
 What strict profile turns on by default:
 - Manifest quality lane (`RUN_MANIFEST_QUALITY_EVAL=1`) with required manifest.
+- Real-world long-form quality lane (`RUN_REALWORLD_LONGFORM_EVAL=1`) via
+  `scripts/eval_manifest_quality.py`:
+  - defaults to `docs/benchmarks/2026-02-15-earnings22-full-longform3-manifest.jsonl`
+    when present,
+  - requires referenced local audio paths to exist,
+  - default strict threshold:
+    - `REALWORLD_LONGFORM_EVAL_FAIL_PRIMARY_ABOVE=0.20`
+  - disable only when intentionally running lightweight strict checks:
+    - `RUN_REALWORLD_LONGFORM_EVAL=0`
 - Reference parity suite (`RUN_REFERENCE_PARITY_SUITE=1`) with multilingual defaults:
   - `REFERENCE_PARITY_SUITE_SUBSETS=''`
   - `REFERENCE_PARITY_SUITE_MANIFEST_JSONL` defaults to
@@ -213,6 +222,31 @@ Optional envs:
 - `MANIFEST_QUALITY_EVAL_FAIL_PRIMARY_ABOVE` (default `0.35`)
 - `MANIFEST_QUALITY_EVAL_LIMIT` (evaluate first N rows)
 - `MANIFEST_QUALITY_EVAL_JSON_OUTPUT`
+
+### Optional Real-World Long-Form Quality Gate
+
+Use this to enforce quality on multi-minute non-synthetic recordings
+(Earnings22 full-length lane):
+
+```bash
+python scripts/build_earnings22_longform_manifest.py \
+  --output-manifest docs/benchmarks/2026-02-15-earnings22-full-longform3-manifest.jsonl
+
+RUN_REALWORLD_LONGFORM_EVAL=1 \
+REALWORLD_LONGFORM_EVAL_JSONL=docs/benchmarks/2026-02-15-earnings22-full-longform3-manifest.jsonl \
+python scripts/quality_gate.py --mode release
+```
+
+Optional envs:
+- `REALWORLD_LONGFORM_EVAL_JSONL`
+- `REALWORLD_LONGFORM_EVAL_MODEL` (default `Qwen/Qwen3-ASR-0.6B`)
+- `REALWORLD_LONGFORM_EVAL_DTYPE` (default `float16`)
+- `REALWORLD_LONGFORM_EVAL_MAX_NEW_TOKENS` (default `1024`)
+- `REALWORLD_LONGFORM_EVAL_FAIL_PRIMARY_ABOVE` (default strict `0.20`, else `0.35`)
+- `REALWORLD_LONGFORM_EVAL_FAIL_WER_ABOVE`
+- `REALWORLD_LONGFORM_EVAL_FAIL_CER_ABOVE`
+- `REALWORLD_LONGFORM_EVAL_LIMIT`
+- `REALWORLD_LONGFORM_EVAL_JSON_OUTPUT`
 
 ### Optional Diarization Quality Gate (DER/JER)
 

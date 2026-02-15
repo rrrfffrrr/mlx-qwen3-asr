@@ -39,7 +39,10 @@ make broad "production-grade across languages/conditions" quality claims.
   - Real-world non-synthetic long-form lane:
     - 3 full Earnings22 recordings (~65 min total; 15-23 min/clip),
     - deterministic family-aware sampling with committed manifest,
-    - MLX quality artifact committed; head-to-head pending.
+    - MLX quality artifact committed,
+    - strict release profile now includes dedicated long-form quality gate
+      (`RUN_REALWORLD_LONGFORM_EVAL=1` by default under strict profile),
+    - MLX-vs-PyTorch head-to-head on this lane remains pending.
 - MLX-vs-PyTorch head-to-head:
   - Multilingual-100 direct comparison (MLX: 15.99% WER vs PyTorch: 16.69% WER).
   - LibriSpeech test-other direct comparison (MLX: 4.20% WER vs PyTorch: 4.41% WER).
@@ -83,10 +86,10 @@ make broad "production-grade across languages/conditions" quality claims.
 
 ## Remaining Gaps (prioritized)
 
-1. `P1` Real-world long-form lane (multi-minute, non-synthetic)
-   - Why: synthetic concatenation doesn't capture real discourse patterns.
-   - Status: deterministic full-recording lane is now in place (Earnings22 full);
-     MLX quality artifacts are committed and MLX-vs-PyTorch comparison is in progress.
+1. `P1` Real-world long-form MLX-vs-PyTorch head-to-head completion
+   - Why: long-form MLX quality is now gated; we still need direct backend
+     comparison evidence on the same full-recording lane.
+   - Status: pending committed comparison artifact for the Earnings22 full lane.
 
 2. `P2` Streaming quality dataset lane (committed artifacts)
    - Why: instrumentation is in place but no versioned benchmark dataset.
@@ -95,5 +98,5 @@ make broad "production-grade across languages/conditions" quality claims.
 
 ## Follow-up Order
 
-1. Add real-world long-form recordings (meetings, podcasts, lectures).
+1. Commit real-world long-form MLX-vs-PyTorch comparison artifacts.
 2. Commit streaming-quality versioned artifacts.

@@ -330,6 +330,134 @@ def _run_streaming_quality_gate(
     )
 
 
+def _missing_manifest_audio_paths(
+    manifest_jsonl: Path,
+    *,
+    max_examples: int = 3,
+) -> list[Path]:
+    missing: list[Path] = []
+    for line_no, raw in enumerate(
+        manifest_jsonl.read_text(encoding="utf-8").splitlines(),
+        start=1,
+    ):
+        row = raw.strip()
+        if not row:
+            continue
+        try:
+            obj = json.loads(row)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Invalid JSON in manifest row {line_no}: {manifest_jsonl}"
+            ) from exc
+        audio_path_value = obj.get("audio_path")
+        if not audio_path_value:
+            raise RuntimeError(
+                f"Manifest row {line_no} missing audio_path: {manifest_jsonl}"
+            )
+        audio_path = Path(str(audio_path_value)).expanduser().resolve()
+        if not audio_path.exists():
+            missing.append(audio_path)
+            if len(missing) >= max_examples:
+                break
+    return missing
+
+
+def _run_realworld_longform_quality_gate(
+    *,
+    repo: Path,
+    python_bin: str,
+    strict_release: bool,
+) -> StepResult:
+    manifest_jsonl = os.environ.get("REALWORLD_LONGFORM_EVAL_JSONL")
+    if not manifest_jsonl and strict_release:
+        default_manifest = (
+            repo / "docs" / "benchmarks" / "2026-02-15-earnings22-full-longform3-manifest.jsonl"
+        )
+        if default_manifest.exists():
+            manifest_jsonl = str(default_manifest)
+
+    if not manifest_jsonl:
+        return StepResult(
+            name="realworld-longform-quality",
+            cmd="scripts/eval_manifest_quality.py --manifest-jsonl <path>",
+            passed=False,
+            duration_sec=0.0,
+            returncode=1,
+            note=(
+                "RUN_REALWORLD_LONGFORM_EVAL=1 requires REALWORLD_LONGFORM_EVAL_JSONL."
+            ),
+        )
+
+    manifest_path = Path(manifest_jsonl).expanduser().resolve()
+    if not manifest_path.exists():
+        return StepResult(
+            name="realworld-longform-quality",
+            cmd="scripts/eval_manifest_quality.py --manifest-jsonl <path>",
+            passed=False,
+            duration_sec=0.0,
+            returncode=1,
+            note=f"Manifest not found: {manifest_path}",
+        )
+
+    try:
+        missing_audio = _missing_manifest_audio_paths(manifest_path)
+    except RuntimeError as exc:
+        return StepResult(
+            name="realworld-longform-quality",
+            cmd="scripts/eval_manifest_quality.py --manifest-jsonl <path>",
+            passed=False,
+            duration_sec=0.0,
+            returncode=1,
+            note=str(exc),
+        )
+
+    if missing_audio:
+        first_missing = missing_audio[0]
+        return StepResult(
+            name="realworld-longform-quality",
+            cmd="scripts/eval_manifest_quality.py --manifest-jsonl <path>",
+            passed=False,
+            duration_sec=0.0,
+            returncode=1,
+            note=(
+                "Real-world long-form manifest references missing local audio files "
+                f"(example: {first_missing}). Build/cache the dataset with: "
+                "python scripts/build_earnings22_longform_manifest.py"
+            ),
+        )
+
+    cmd = [
+        python_bin,
+        str(repo / "scripts" / "eval_manifest_quality.py"),
+        "--manifest-jsonl",
+        str(manifest_path),
+        "--model",
+        os.environ.get("REALWORLD_LONGFORM_EVAL_MODEL", "Qwen/Qwen3-ASR-0.6B"),
+        "--dtype",
+        os.environ.get("REALWORLD_LONGFORM_EVAL_DTYPE", "float16"),
+        "--max-new-tokens",
+        os.environ.get("REALWORLD_LONGFORM_EVAL_MAX_NEW_TOKENS", "1024"),
+        "--fail-primary-above",
+        os.environ.get(
+            "REALWORLD_LONGFORM_EVAL_FAIL_PRIMARY_ABOVE",
+            "0.20" if strict_release else "0.35",
+        ),
+    ]
+    fail_wer = os.environ.get("REALWORLD_LONGFORM_EVAL_FAIL_WER_ABOVE")
+    if fail_wer:
+        cmd.extend(["--fail-wer-above", fail_wer])
+    fail_cer = os.environ.get("REALWORLD_LONGFORM_EVAL_FAIL_CER_ABOVE")
+    if fail_cer:
+        cmd.extend(["--fail-cer-above", fail_cer])
+    limit = os.environ.get("REALWORLD_LONGFORM_EVAL_LIMIT")
+    if limit:
+        cmd.extend(["--limit", limit])
+    json_output = os.environ.get("REALWORLD_LONGFORM_EVAL_JSON_OUTPUT")
+    if json_output:
+        cmd.extend(["--json-output", json_output])
+    return _run(cmd, repo)
+
+
 def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], bool]:
     steps: list[StepResult] = []
     strict_release = mode == "release" and os.environ.get("RUN_STRICT_RELEASE", "0") == "1"
@@ -476,6 +604,18 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
                 if quality_json:
                     manifest_quality_cmd.extend(["--json-output", quality_json])
                 steps.append(_run(manifest_quality_cmd, repo))
+
+        if os.environ.get(
+            "RUN_REALWORLD_LONGFORM_EVAL",
+            "1" if strict_release else "0",
+        ) == "1":
+            steps.append(
+                _run_realworld_longform_quality_gate(
+                    repo=repo,
+                    python_bin=python_bin,
+                    strict_release=strict_release,
+                )
+            )
 
         if os.environ.get("RUN_DIARIZATION_QUALITY_EVAL", "0") == "1":
             diar_manifest_jsonl = os.environ.get("DIARIZATION_QUALITY_EVAL_JSONL")

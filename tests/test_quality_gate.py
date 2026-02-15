@@ -131,3 +131,89 @@ def test_streaming_quality_gate_fails_threshold(monkeypatch, tmp_path):
 
     assert not step.passed
     assert "partial_stability=0.2000 < 0.9000" in step.note
+
+
+def test_realworld_longform_quality_gate_requires_manifest(monkeypatch, tmp_path):
+    qg = _load_quality_gate_module()
+    monkeypatch.delenv("REALWORLD_LONGFORM_EVAL_JSONL", raising=False)
+
+    step = qg._run_realworld_longform_quality_gate(
+        repo=tmp_path,
+        python_bin="python",
+        strict_release=False,
+    )
+
+    assert not step.passed
+    assert "requires REALWORLD_LONGFORM_EVAL_JSONL" in step.note
+
+
+def test_realworld_longform_quality_gate_fails_missing_audio(monkeypatch, tmp_path):
+    qg = _load_quality_gate_module()
+    manifest = tmp_path / "longform.jsonl"
+    missing_audio = tmp_path / "missing.wav"
+    row = {
+        "sample_id": "s1",
+        "subset": "earnings22-full-test",
+        "speaker_id": "spk",
+        "language": "English",
+        "audio_path": str(missing_audio),
+        "reference_text": "hello world",
+    }
+    manifest.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    monkeypatch.setenv("REALWORLD_LONGFORM_EVAL_JSONL", str(manifest))
+
+    step = qg._run_realworld_longform_quality_gate(
+        repo=tmp_path,
+        python_bin="python",
+        strict_release=False,
+    )
+
+    assert not step.passed
+    assert "missing local audio files" in step.note
+    assert "build_earnings22_longform_manifest.py" in step.note
+
+
+def test_realworld_longform_quality_gate_passes_and_uses_strict_default(
+    monkeypatch,
+    tmp_path,
+):
+    qg = _load_quality_gate_module()
+    manifest = tmp_path / "longform.jsonl"
+    audio = tmp_path / "sample.wav"
+    audio.write_bytes(b"RIFF")
+    row = {
+        "sample_id": "s1",
+        "subset": "earnings22-full-test",
+        "speaker_id": "spk",
+        "language": "English",
+        "audio_path": str(audio),
+        "reference_text": "hello world",
+    }
+    manifest.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    monkeypatch.setenv("REALWORLD_LONGFORM_EVAL_JSONL", str(manifest))
+
+    called: dict[str, object] = {}
+
+    def _fake_run(cmd, _cwd, env=None):  # noqa: ANN001, ANN002, ARG001
+        called["cmd"] = cmd
+        return qg.StepResult(
+            name="python",
+            cmd=" ".join(cmd),
+            passed=True,
+            duration_sec=0.01,
+            returncode=0,
+        )
+
+    monkeypatch.setattr(qg, "_run", _fake_run)
+
+    step = qg._run_realworld_longform_quality_gate(
+        repo=tmp_path,
+        python_bin="python",
+        strict_release=True,
+    )
+
+    assert step.passed
+    cmd = called["cmd"]
+    assert isinstance(cmd, list)
+    idx = cmd.index("--fail-primary-above")
+    assert cmd[idx + 1] == "0.20"
