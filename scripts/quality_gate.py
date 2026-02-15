@@ -116,6 +116,48 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
                 quality_eval_cmd.extend(["--json-output", quality_json])
             steps.append(_run(quality_eval_cmd, repo))
 
+        if os.environ.get("RUN_MANIFEST_QUALITY_EVAL", "0") == "1":
+            manifest_jsonl = os.environ.get("MANIFEST_QUALITY_EVAL_JSONL")
+            if not manifest_jsonl:
+                steps.append(
+                    StepResult(
+                        name="manifest-quality-eval",
+                        cmd="scripts/eval_manifest_quality.py --manifest-jsonl <path>",
+                        passed=False,
+                        duration_sec=0.0,
+                        returncode=1,
+                        note="RUN_MANIFEST_QUALITY_EVAL=1 requires MANIFEST_QUALITY_EVAL_JSONL",
+                    )
+                )
+            else:
+                manifest_quality_cmd = [
+                    python_bin,
+                    str(repo / "scripts" / "eval_manifest_quality.py"),
+                    "--manifest-jsonl",
+                    manifest_jsonl,
+                    "--model",
+                    os.environ.get("MANIFEST_QUALITY_EVAL_MODEL", "Qwen/Qwen3-ASR-0.6B"),
+                    "--dtype",
+                    os.environ.get("MANIFEST_QUALITY_EVAL_DTYPE", "float16"),
+                    "--max-new-tokens",
+                    os.environ.get("MANIFEST_QUALITY_EVAL_MAX_NEW_TOKENS", "1024"),
+                    "--fail-primary-above",
+                    os.environ.get("MANIFEST_QUALITY_EVAL_FAIL_PRIMARY_ABOVE", "0.35"),
+                ]
+                fail_wer = os.environ.get("MANIFEST_QUALITY_EVAL_FAIL_WER_ABOVE")
+                if fail_wer:
+                    manifest_quality_cmd.extend(["--fail-wer-above", fail_wer])
+                fail_cer = os.environ.get("MANIFEST_QUALITY_EVAL_FAIL_CER_ABOVE")
+                if fail_cer:
+                    manifest_quality_cmd.extend(["--fail-cer-above", fail_cer])
+                limit = os.environ.get("MANIFEST_QUALITY_EVAL_LIMIT")
+                if limit:
+                    manifest_quality_cmd.extend(["--limit", limit])
+                quality_json = os.environ.get("MANIFEST_QUALITY_EVAL_JSON_OUTPUT")
+                if quality_json:
+                    manifest_quality_cmd.extend(["--json-output", quality_json])
+                steps.append(_run(manifest_quality_cmd, repo))
+
         if os.environ.get("RUN_ALIGNER_PARITY") == "1":
             samples = os.environ.get("ALIGNER_PARITY_SAMPLES", "10")
             steps.append(

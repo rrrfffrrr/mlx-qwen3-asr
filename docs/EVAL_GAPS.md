@@ -19,6 +19,10 @@ make broad "production-grade across languages/conditions" quality claims.
 - WER/CER lane:
   - LibriSpeech test-clean, 100 samples, speaker-balanced, 0.6B model
     (`fp16`, `4-bit`, `8-bit`).
+  - Long-form multilingual manifest-quality lane:
+    - 10 synthetic concatenated clips (~75-90s each, 10 languages),
+    - Unicode-safe WER/CER with language-aware primary metric
+      (CER for zh/ja/ko; WER otherwise).
 
 ## Valid Gaps (prioritized)
 
@@ -32,12 +36,14 @@ make broad "production-grade across languages/conditions" quality claims.
 
 3. `P0` Non-English quality lane (beyond token parity)
 - Why: token parity != ground-truth accuracy. Need quality metrics per language.
-- Status: multilingual parity present; multilingual quality metrics lane missing.
+- Status: partial. Long-form synthetic multilingual WER/CER is now measured
+  (`n=10`, 10 languages), but we still need larger short-form multilingual
+  ground-truth lanes for statistical confidence.
 
 4. `P0` Long-form quality lane (`>30s`, multi-minute)
 - Why: chunking/context behavior can drift differently than short utterances.
-- Status: synthetic long parity now expanded to 10 clips, but quality lane
-  against ground-truth (WER/CER) is still missing.
+- Status: partial. Synthetic long-form quality lane now exists (`n=10`), but
+  we still need larger and/or real-world long-form ground-truth datasets.
 
 5. `P1` Direct MLX-vs-PyTorch quality comparison on same samples
 - Why: closes the loop on backend parity at transcript quality level.

@@ -120,6 +120,35 @@ Current status:
 - this lane is exploratory and intended for gap discovery before promotion to a
   required release gate.
 
+### Optional Manifest Quality Gate (multilingual/long-form WER/CER)
+
+Use this when you have a JSONL manifest with `audio_path` + `reference_text`
+and want direct quality metrics instead of token parity:
+
+```bash
+RUN_MANIFEST_QUALITY_EVAL=1 \
+MANIFEST_QUALITY_EVAL_JSONL=docs/benchmarks/2026-02-14-fleurs-longform-10x75-manifest.jsonl \
+MANIFEST_QUALITY_EVAL_FAIL_PRIMARY_ABOVE=0.35 \
+python scripts/quality_gate.py --mode release
+```
+
+Behavior:
+- runs `scripts/eval_manifest_quality.py`,
+- computes Unicode-safe WER and CER,
+- uses language-aware primary metric:
+  - CER for Chinese/Japanese/Korean,
+  - WER otherwise.
+
+Optional envs:
+- `MANIFEST_QUALITY_EVAL_MODEL` (default `Qwen/Qwen3-ASR-0.6B`)
+- `MANIFEST_QUALITY_EVAL_DTYPE` (default `float16`)
+- `MANIFEST_QUALITY_EVAL_MAX_NEW_TOKENS` (default `1024`)
+- `MANIFEST_QUALITY_EVAL_FAIL_WER_ABOVE`
+- `MANIFEST_QUALITY_EVAL_FAIL_CER_ABOVE`
+- `MANIFEST_QUALITY_EVAL_FAIL_PRIMARY_ABOVE` (default `0.35`)
+- `MANIFEST_QUALITY_EVAL_LIMIT` (evaluate first N rows)
+- `MANIFEST_QUALITY_EVAL_JSON_OUTPUT`
+
 ## Pass Criteria
 
 - `fast` gate must pass on every pull request.

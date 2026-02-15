@@ -554,3 +554,47 @@ python scripts/quality_gate.py --mode release
   - mean latency: `1.40s` per sample
 - Saved standalone artifact:
   - `docs/benchmarks/2026-02-15-librispeech-release-gate-20.json`
+
+### 33) Manifest-based multilingual/long-form quality lane (WER/CER)
+
+- Added `scripts/eval_manifest_quality.py`:
+  - evaluates JSONL manifests containing `audio_path` + `reference_text`,
+  - uses Unicode-safe normalization for multilingual text,
+  - computes both WER and CER,
+  - computes language-aware primary metric:
+    - CER for Chinese/Japanese/Korean,
+    - WER for other languages.
+- Added helper tests:
+  - `tests/test_eval_manifest_quality.py`
+- Wired optional release-gate lane:
+  - env flag: `RUN_MANIFEST_QUALITY_EVAL=1`
+  - required manifest: `MANIFEST_QUALITY_EVAL_JSONL=...`
+  - integrated via `scripts/quality_gate.py`
+  - documented in `docs/QUALITY_GATE.md`
+
+Run executed on long-form multilingual manifest (`n=10`):
+
+```bash
+python scripts/eval_manifest_quality.py \
+  --manifest-jsonl docs/benchmarks/2026-02-14-fleurs-longform-10x75-manifest.jsonl \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --dtype float16 \
+  --max-new-tokens 1024 \
+  --json-output docs/benchmarks/2026-02-15-manifest-quality-longform10.json
+```
+
+Results snapshot:
+- samples: `10`
+- WER: `0.1671`
+- CER: `0.0704`
+- primary error rate: `0.1156`
+- mean latency: `11.13s`
+
+Artifacts:
+- `docs/benchmarks/2026-02-15-manifest-quality-longform10.json`
+- `docs/benchmarks/2026-02-15-manifest-quality-longform10.md`
+
+Interpretation:
+- this closes a major gap where long-form quality was inferred only from token
+  parity; we now have direct WER/CER for multilingual long-form synthetic data.
+- remaining gap is scale/domain breadth (real-world audio + larger sample size).

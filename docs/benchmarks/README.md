@@ -158,6 +158,11 @@ Release-gate quality-lane artifact (2026-02-15):
 
 - `docs/benchmarks/2026-02-15-librispeech-release-gate-20.json`
 
+Manifest quality artifacts (2026-02-15):
+
+- `docs/benchmarks/2026-02-15-manifest-quality-longform10.json`
+- `docs/benchmarks/2026-02-15-manifest-quality-longform10.md`
+
 Generate with:
 
 ```bash
