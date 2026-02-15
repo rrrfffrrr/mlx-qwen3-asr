@@ -374,6 +374,27 @@ Current status:
   `--diarization-window-sec`, `--diarization-hop-sec`). Speaker-count controls
   remain (`--num-speakers`, `--min-speakers`, `--max-speakers`).
 
+### Diarization setup troubleshooting
+
+1. Install optional diarization dependencies:
+   ```bash
+   pip install "mlx-qwen3-asr[diarize]"
+   ```
+2. Set a Hugging Face token if your selected diarization model is gated:
+   ```bash
+   export PYANNOTE_AUTH_TOKEN=hf_...
+   ```
+3. Run a quick smoke test:
+   ```bash
+   mlx-qwen3-asr meeting.wav --diarize -f json
+   ```
+
+Common errors and fixes:
+- `requires optional dependency 'pyannote.audio'`: install `[diarize]` extra.
+- `requires PyTorch via pyannote dependencies`: reinstall `[diarize]` extra in the active environment.
+- `Failed to initialize pyannote pipeline ...`: accept model terms on Hugging Face and set `PYANNOTE_AUTH_TOKEN` (or `HF_TOKEN`).
+- `--streaming does not support --diarize` / `--mic does not support --diarize`: use offline file transcription mode for diarization.
+
 ## Quantization
 
 Convert and run a quantized model:
