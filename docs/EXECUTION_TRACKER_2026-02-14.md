@@ -838,3 +838,24 @@ Interpretation:
 - clamp alignment is still the correct upstream-compatibility fix and protects
   fp16 stability, but it does not explain the current residual non-near
   multilingual parity gap by itself.
+
+### 45) Audio encoder layerwise drift localization (non-near subset)
+
+Added layerwise audio-encoder parity artifact:
+
+- `docs/benchmarks/2026-02-15-audio-encoder-layerwise-parity-nonnear5.json`
+- `docs/benchmarks/2026-02-15-audio-encoder-layerwise-parity-nonnear5.md`
+
+Method:
+- compared MLX and reference audio encoder hidden states per layer (L1..L18)
+  on the five non-near mismatch rows, using identical preprocessed features.
+
+Observed trend:
+- high similarity at shallow layers (often `~0.99` cosine at L1),
+- gradual cosine decay across depth,
+- largest decay on the Japanese sample:
+  - L1 `0.9889` → L18 `0.9100` → final `0.8933`.
+
+Interpretation:
+- residual non-near mismatches are consistent with gradual encoder
+  representation drift, not a single decode/cache failure point.
