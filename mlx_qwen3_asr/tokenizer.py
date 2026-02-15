@@ -68,6 +68,9 @@ _LANGUAGE_CANONICAL: dict[str, str] = {
 }
 
 
+_KNOWN_LANGUAGE_NAMES = tuple(sorted(set(_LANGUAGE_CANONICAL.values())))
+
+
 def canonicalize_language(language: Optional[str]) -> Optional[str]:
     """Normalize common language aliases/codes to canonical prompt names."""
     if language is None:
@@ -77,6 +80,22 @@ def canonicalize_language(language: Optional[str]) -> Optional[str]:
         return None
     key = value.casefold().replace("_", "-")
     return _LANGUAGE_CANONICAL.get(key, value)
+
+
+def language_is_known(language: Optional[str]) -> bool:
+    """Return True when a language maps through known aliases/codes."""
+    if language is None:
+        return False
+    value = str(language).strip()
+    if not value:
+        return False
+    key = value.casefold().replace("_", "-")
+    return key in _LANGUAGE_CANONICAL
+
+
+def known_language_names() -> tuple[str, ...]:
+    """Return known canonical language names used for prompt forcing."""
+    return _KNOWN_LANGUAGE_NAMES
 
 
 def _from_pretrained_with_fix_flag(loader_cls, model_path: str):  # noqa: ANN001

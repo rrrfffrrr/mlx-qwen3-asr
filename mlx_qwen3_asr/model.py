@@ -165,6 +165,9 @@ class Qwen3ASRModel(nn.Module):
         audio_counts = mx.sum(audio_mask.astype(mx.int32), axis=1)
         max_count = int(mx.max(audio_counts).item())
         max_audio_tokens = int(audio_features.shape[1])
+        if max_count == 0:
+            # Nothing to inject; avoid gather() on empty audio feature tensors.
+            return embeds
         if max_count > max_audio_tokens:
             raise ValueError(
                 "Audio injection out of bounds: "
@@ -178,6 +181,15 @@ class Qwen3ASRModel(nn.Module):
         # valid audio feature, but those positions won't be selected anyway).
         cum_idx = mx.cumsum(audio_mask.astype(mx.int32), axis=1) - 1
         cum_idx = mx.maximum(cum_idx, 0)  # (B, L)
+        masked_cum_idx = mx.where(audio_mask, cum_idx, mx.zeros_like(cum_idx))
+        max_masked_idx = int(mx.max(masked_cum_idx).item())
+        if max_masked_idx >= max_audio_tokens:
+            raise AssertionError(
+                "Audio injection index overflow: "
+                f"max_cum_idx={max_masked_idx}, "
+                f"audio_features_tokens={max_audio_tokens}. "
+                "This indicates prompt/audio token count drift."
+            )
 
         # Gather audio features for every position using cum_idx.
         # audio_features[b, cum_idx[b]] gives shape (L, D) for each batch element.

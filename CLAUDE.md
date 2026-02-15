@@ -24,9 +24,9 @@ This is a ground-up reimplementation of the official PyTorch model using Apple's
 
 Everything above matters. The order is about what unblocks what:
 
-1. **Ship what works** — PyPI publish, pre-quantized models on HuggingFace, 1.7B validation
-2. **Harden** — integration tests, bounds checks, dependency pins, debug cleanup
-3. **Remove training wheels** — custom mel spectrogram (drop transformers for feature extraction), fully native forced aligner (drop PyTorch bridge)
+1. ~~**Ship what works** — PyPI publish, pre-quantized models on HuggingFace, 1.7B validation~~ **DONE** (v0.1.0 on PyPI, 1.7B validated, pre-quantized models deferred as nice-to-have)
+2. ~~**Harden** — integration tests, bounds checks, dependency pins, debug cleanup~~ **MOSTLY DONE** (bounds checks, cache eviction, bare except all fixed; language validation partial — missing warning for unknown languages)
+3. ~~**Remove training wheels** — custom mel spectrogram (drop transformers for feature extraction)~~, fully native forced aligner (drop PyTorch bridge) **MEL DONE** (custom mel is default, HF is fallback only; forced aligner still uses PyTorch bridge)
 4. **Real streaming** — incremental encoder, KV cache reuse across chunks, CJK-aware prefix rollback
 5. **Zero external deps** — custom BPE tokenizer (drop transformers entirely), native audio decoding
 6. **Swift port** — native Metal, system-level integration, app-embeddable framework
@@ -46,7 +46,7 @@ This is an **MLX reimplementation of Qwen3-ASR** — the SOTA open-source ASR mo
 - **Python + MLX only** — all compute runs through MLX's Metal backend
 - **Core ASR path has no PyTorch dependency at runtime**
 - **Timestamps currently use optional `qwen-asr` (PyTorch) backend**
-- **Minimal dependencies** — mlx, numpy, huggingface-hub, transformers (tokenizer only)
+- **Minimal dependencies** — mlx, numpy, huggingface-hub, transformers (tokenizer only; custom mel is default)
 - **Correctness first** — proper MRoPE implementation (interleaved, not chunked)
 - **Single-model focus** — only Qwen3-ASR, not a multi-model toolkit
 
@@ -242,35 +242,17 @@ Model modules are now separated by responsibility:
 - `decoder.py` — `TextAttention`, `SwiGLU`, `TextDecoderLayer`, `TextDecoder`, `KVCache`, `_create_causal_mask`
 - `model.py` — `Qwen3ASRModel` (top-level glue, audio injection, lm_head, compatibility re-exports)
 
-### Add model.prefill() and model.step() methods
+### Completed: model.prefill() and model.step() methods
 
-Currently `generate()` reaches into model internals: `model.model.embed_tokens()`, `model._inject_audio_features()`, `model.lm_head()`. Instead, add:
-- `model.prefill(input_ids, audio_features, feature_lens, position_ids)` → returns logits + populated KV cache
-- `model.step(token_id, position_ids, cache)` → returns logits + updated cache
+`generate()` now uses clean `model.prefill()` / `model.step()` / `model.step_many()` interface. No more reaching into model internals.
 
-Then `generate()` becomes a simple loop calling `step()` with no knowledge of model internals. This also enables real streaming (carry KV cache across chunks).
+### Completed: Session object
 
-### Replace singletons with Session object
+`Session` class in `session.py` holds model, tokenizer, config. `_ModelHolder` upgraded to multi-slot dict cache keyed by `(path, dtype)`. Both explicit session and convenience `transcribe()` paths work.
 
-`_ModelHolder` and `_TokenizerHolder` are class-level mutable singletons that hide state, cause cache eviction bugs (aligner evicts ASR model), and make testing painful. Target API:
+### Completed: Custom mel spectrogram
 
-```python
-# Power user path (explicit, testable, no hidden state)
-session = mlx_qwen3_asr.Session(model="Qwen/Qwen3-ASR-0.6B")
-result = session.transcribe("audio.wav")
-
-# Convenience path (uses a default session internally)
-result = mlx_qwen3_asr.transcribe("audio.wav")
-```
-
-The `Session` holds model, tokenizer, and optional aligner. Multiple sessions can coexist. The convenience `transcribe()` uses a module-level default session.
-
-### Wire custom mel spectrogram to drop transformers for feature extraction
-
-`log_mel_spectrogram()`, `stft()`, `_reflect_pad()`, `mel_filters()` exist in audio.py but are unused — the pipeline uses HF `WhisperFeatureExtractor` via `compute_features()`. Target:
-1. Validate custom mel output matches `WhisperFeatureExtractor` output (bit-level parity on test fixtures)
-2. Once proven, swap `compute_features()` to use custom implementation
-3. `transformers` dependency becomes tokenizer-only (and eventually removable with custom BPE)
+Custom `log_mel_spectrogram()` / `stft()` in `audio.py` is now the default path. HF `WhisperFeatureExtractor` retained only as compatibility fallback for non-16kHz sample rates. `transformers` dependency is now tokenizer-only at runtime.
 
 ### Design streaming around resumable KV cache
 
@@ -279,9 +261,9 @@ Current streaming re-transcribes ALL accumulated audio every chunk — O(n²) an
 - Streaming feeds new audio chunks through encoder, extends existing cache, decodes incrementally
 - `_split_stable_unstable` must handle CJK (no whitespace splitting)
 
-### Eliminate audio load round-trip
+### Completed: Eliminate audio load round-trip
 
-Currently: `load_audio()` → `mx.array` → `transcribe()` converts back to numpy → `compute_features()`. Unnecessary round-trip. Keep audio as numpy through the feature extraction pipeline, convert to `mx.array` only when entering the model.
+Audio stays as numpy through feature extraction pipeline, converts to `mx.array` only at model entry. No redundant conversions.
 
 ## Working with This Codebase
 
@@ -307,7 +289,7 @@ Currently: `load_audio()` → `mx.array` → `transcribe()` converts back to num
 | Audio loading | ffmpeg subprocess | Same as mlx-whisper, handles all formats |
 | Weight format | safetensors | Standard for MLX ecosystem |
 | RoPE | Custom interleaved MRoPE | MLX's nn.RoPE doesn't support 3D interleaved |
-| Mel spectrogram | HF WhisperFeatureExtractor (for now) | Custom MLX implementation exists but needs parity validation before swapping in |
+| Mel spectrogram | Custom MLX implementation (default) | HF WhisperFeatureExtractor retained as fallback for non-16kHz |
 
 ### Critical Correctness Rules
 
@@ -319,10 +301,10 @@ Currently: `load_audio()` → `mx.array` → `transcribe()` converts back to num
 
 ### Known Bugs to Fix
 
-1. **Audio injection bounds check** (model.py `_inject_audio_features`) — `cum_idx` can exceed `audio_features.shape[1]` if prompt token count doesn't match encoder output. Add assertion.
-2. **Model cache eviction** (load_models.py `_ModelHolder`) — single-slot cache; loading aligner evicts ASR model. Change to dict keyed by `(path, dtype)` as interim fix before Session refactor.
-3. **Bare except on fused attention** (model.py `_scaled_dot_product_attention`) — `except Exception` swallows real errors. Narrow to `(TypeError, ValueError)`.
-4. **No language validation** (tokenizer.py `build_prompt_tokens`) — unsupported language strings silently degrade quality. Add warning against known language list.
+1. ~~**Audio injection bounds check**~~ **FIXED** — `ValueError` raised if placeholders exceed available audio features
+2. ~~**Model cache eviction**~~ **FIXED** — `_ModelHolder` is now a multi-slot dict keyed by `(path, dtype)`
+3. ~~**Bare except on fused attention**~~ **FIXED** — narrowed to `(TypeError, ValueError)` + selective `RuntimeError`
+4. **No language validation** (tokenizer.py) — `canonicalize_language()` exists with 14-language map, but unknown languages pass through silently. Add `warnings.warn()` for unrecognized language codes.
 
 ## Verification Commands
 
@@ -387,6 +369,43 @@ After completing non-trivial work, record:
 1. What was the root cause?
 2. What did I try that didn't work?
 3. Would a future agent hit the same wall? If yes, document it.
+
+## Publishing to PyPI
+
+### Prerequisites
+
+- PyPI account: https://pypi.org (username: moona3k@gmail.com)
+- API token: create at https://pypi.org/manage/account/token/ (scope to `mlx-qwen3-asr` project)
+
+### Release Checklist
+
+1. **Bump version** in `mlx_qwen3_asr/_version.py`
+2. **Run quality gate**: `python scripts/quality_gate.py --mode fast`
+3. **Build**: `uv build` (creates `dist/*.whl` + `dist/*.tar.gz`)
+4. **Verify wheel contents**:
+   ```python
+   python -c "
+   import zipfile
+   zf = zipfile.ZipFile('dist/mlx_qwen3_asr-VERSION-py3-none-any.whl')
+   for n in sorted(zf.namelist()): print(n)
+   "
+   ```
+   Confirm: all 22 modules, `py.typed`, `assets/mel_filters.npz`, `assets/korean_dict_jieba.dict`
+5. **Upload**: `TWINE_USERNAME=__token__ TWINE_PASSWORD=<token> uv tool run twine upload dist/*`
+6. **Verify**: `pip install mlx-qwen3-asr==VERSION && mlx-qwen3-asr --help`
+7. **Git tag**: `git tag v<VERSION> && git push origin v<VERSION>`
+
+### Build Tools
+
+- `uv build` — preferred (fast, no venv needed)
+- `python -m build` — fallback (needs `pip install build`)
+- `twine upload` — PyPI upload (via `uv tool run twine` or `pip install twine`)
+
+### Notes
+
+- Package is `py3-none-any` (pure Python wheel)
+- License format: `license = "Apache-2.0"` (string, not table — avoids setuptools deprecation)
+- First published: v0.1.0, 2026-02-14
 
 ## Key References
 

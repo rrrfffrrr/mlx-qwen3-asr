@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
@@ -9,7 +10,7 @@ from typing import Optional, Union
 import mlx.core as mx
 import numpy as np
 
-from .audio import SAMPLE_RATE, compute_features, load_audio
+from .audio import SAMPLE_RATE, compute_features, load_audio_np
 from .chunking import split_audio_into_chunks
 from .config import DEFAULT_MODEL_ID
 from .forced_aligner import ForcedAligner
@@ -20,6 +21,8 @@ from .tokenizer import (
     Tokenizer,
     _TokenizerHolder,
     canonicalize_language,
+    known_language_names,
+    language_is_known,
     parse_asr_output,
 )
 
@@ -145,12 +148,36 @@ def transcribe(
 def _to_audio_np(audio: AudioInput) -> np.ndarray:
     """Convert supported audio inputs to float32 numpy waveform at 16kHz."""
     if isinstance(audio, mx.array):
-        return np.array(load_audio(np.array(audio)), dtype=np.float32)
-    if isinstance(audio, np.ndarray):
-        return np.array(load_audio(audio), dtype=np.float32)
-    if isinstance(audio, tuple):
-        return np.array(load_audio(audio), dtype=np.float32)
-    return np.array(load_audio(audio), dtype=np.float32)
+        return load_audio_np(np.array(audio), sr=SAMPLE_RATE)
+    return load_audio_np(audio, sr=SAMPLE_RATE)
+
+
+def _warn_if_unsupported_language(language: Optional[str], model_obj: Qwen3ASRModel) -> None:
+    if language is None:
+        return
+    raw = str(language).strip()
+    if not raw:
+        return
+    if language_is_known(raw):
+        return
+
+    # Preserve flexibility for model-provided language-code lists in config.
+    support_languages = getattr(model_obj.config, "support_languages", None) or []
+    normalized = raw.casefold().replace("_", "-")
+    supported_codes = {
+        str(code).strip().casefold().replace("_", "-")
+        for code in support_languages
+        if str(code).strip()
+    }
+    if normalized in supported_codes:
+        return
+
+    known = ", ".join(known_language_names())
+    warnings.warn(
+        f"Unsupported language '{raw}'. Known language aliases map to: {known}. "
+        "Continuing anyway; recognition quality may degrade.",
+        stacklevel=3,
+    )
 
 
 def _resolve_aligner(
@@ -213,6 +240,7 @@ def _transcribe_loaded_components(
     """Transcribe using already-loaded model/tokenizer components."""
     chunks = split_audio_into_chunks(audio_np, sr=SAMPLE_RATE)
     forced_language = canonicalize_language(language)
+    _warn_if_unsupported_language(language, model_obj)
 
     if verbose and len(chunks) > 1:
         print(f"Split into {len(chunks)} chunks")

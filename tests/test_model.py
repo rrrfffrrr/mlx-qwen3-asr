@@ -617,3 +617,16 @@ class TestQwen3ASRModelInstantiation:
 
         with pytest.raises(ValueError, match="Audio injection channel mismatch"):
             model._inject_audio_features(embeds, audio_features, audio_mask)
+
+    def test_inject_audio_features_no_audio_placeholders_is_noop(self):
+        cfg = _tiny_asr_config()
+        cfg.text_config.head_dim = 128
+        model = Qwen3ASRModel(cfg)
+
+        embeds = mx.random.normal((1, 5, cfg.text_config.hidden_size))
+        audio_features = mx.zeros((1, 0, cfg.text_config.hidden_size))
+        audio_mask = mx.array([[False, False, False, False, False]])
+
+        out = model._inject_audio_features(embeds, audio_features, audio_mask)
+        mx.eval(out)
+        np.testing.assert_allclose(np.array(out), np.array(embeds), atol=0.0, rtol=0.0)

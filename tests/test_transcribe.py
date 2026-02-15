@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import mlx.core as mx
 import numpy as np
+import pytest
 
 from mlx_qwen3_asr.config import DEFAULT_MODEL_ID
 from mlx_qwen3_asr.forced_aligner import AlignedWord
@@ -290,3 +291,41 @@ def test_to_audio_np_normalizes_integer_pcm_numpy():
     pcm = np.array([16384, -16384], dtype=np.int16)
     out = _to_audio_np(pcm)
     np.testing.assert_allclose(out, np.array([0.5, -0.5], dtype=np.float32), atol=1e-6)
+
+
+def test_to_audio_np_uses_numpy_loader_path(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+    calls = []
+
+    def _fake_load_audio_np(source, sr):  # noqa: ANN001
+        calls.append((type(source).__name__, sr))
+        return np.array([0.25, -0.25], dtype=np.float32)
+
+    monkeypatch.setattr(tmod, "load_audio_np", _fake_load_audio_np)
+    out = tmod._to_audio_np(np.array([1.0, -1.0], dtype=np.float32))
+
+    np.testing.assert_allclose(out, np.array([0.25, -0.25], dtype=np.float32), atol=1e-6)
+    assert calls == [("ndarray", 16000)]
+
+
+def test_transcribe_warns_on_unknown_forced_language(monkeypatch):
+    tmod = importlib.import_module("mlx_qwen3_asr.transcribe")
+
+    monkeypatch.setattr(tmod, "_TokenizerHolder", _DummyTokenizerHolder)
+    monkeypatch.setattr(tmod._ModelHolder, "get", lambda *a, **k: (_DummyModel(), None))
+    monkeypatch.setattr(
+        tmod._ModelHolder,
+        "get_resolved_path",
+        lambda path, dtype=mx.float16: path,
+    )
+    monkeypatch.setattr(
+        tmod,
+        "compute_features",
+        lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
+    )
+    monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+
+    with pytest.warns(UserWarning, match="Unsupported language"):
+        result = transcribe(np.zeros(3200, dtype=np.float32), language="xx_unsupported")
+
+    assert result.language == "xx_unsupported"

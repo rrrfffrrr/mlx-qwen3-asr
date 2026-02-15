@@ -30,14 +30,14 @@ NUM_MEL_BINS = 128
 WHISPER_MAX_FRAMES = 3000  # 30s at 10ms hop
 
 
-def load_audio(
-    source: Union[str, Path, np.ndarray, Tuple[np.ndarray, int]],
-    sr: int = SAMPLE_RATE,
-) -> mx.array:
-    """Load audio from file path, numpy array, or (array, sample_rate) tuple.
+AudioSource = Union[str, Path, np.ndarray, Tuple[np.ndarray, int]]
 
-    Returns mono float32 mx.array at the target sample rate. For file paths,
-    uses ffmpeg subprocess (same pattern as mlx-whisper).
+
+def load_audio_np(
+    source: AudioSource,
+    sr: int = SAMPLE_RATE,
+) -> np.ndarray:
+    """Load audio as mono float32 numpy array at the target sample rate.
 
     Args:
         source: One of:
@@ -47,7 +47,7 @@ def load_audio(
         sr: Target sample rate. Default 16000.
 
     Returns:
-        Mono float32 mx.array of shape (n_samples,).
+        Mono float32 numpy array of shape (n_samples,).
 
     Raises:
         RuntimeError: If ffmpeg fails or is not installed.
@@ -58,11 +58,11 @@ def load_audio(
         audio_np = _sanitize_audio_array(audio_np)
         if orig_sr != sr:
             audio_np = _resample_via_ffmpeg(audio_np, orig_sr, sr)
-        return mx.array(audio_np)
+        return np.asarray(audio_np, dtype=np.float32)
 
     if isinstance(source, np.ndarray):
         audio_np = _sanitize_audio_array(source)
-        return mx.array(audio_np)
+        return np.asarray(audio_np, dtype=np.float32)
 
     if isinstance(source, (str, Path)):
         return _load_audio_file(str(source), sr)
@@ -71,6 +71,14 @@ def load_audio(
         f"Unsupported source type: {type(source)}. "
         "Expected str, Path, np.ndarray, or (np.ndarray, int)."
     )
+
+
+def load_audio(
+    source: AudioSource,
+    sr: int = SAMPLE_RATE,
+) -> mx.array:
+    """Backward-compatible wrapper that returns an MLX array."""
+    return mx.array(load_audio_np(source, sr=sr))
 
 
 def _sanitize_audio_array(source: np.ndarray) -> np.ndarray:
@@ -118,11 +126,11 @@ def _normalize_integer_pcm(audio_np: np.ndarray) -> np.ndarray:
     return x / scale
 
 
-def _load_audio_file(path: str, sr: int) -> mx.array:
+def _load_audio_file(path: str, sr: int) -> np.ndarray:
     """Load audio file using ffmpeg, returning mono float32 at target sample rate."""
     wav_audio = _try_load_wav_fast(path, sr)
     if wav_audio is not None:
-        return mx.array(wav_audio)
+        return wav_audio.astype(np.float32, copy=False)
 
     cmd = [
         "ffmpeg",
@@ -150,8 +158,7 @@ def _load_audio_file(path: str, sr: int) -> mx.array:
             "ffmpeg not found. Install with: brew install ffmpeg"
         )
 
-    audio_np = np.frombuffer(result.stdout, np.int16).astype(np.float32) / 32768.0
-    return mx.array(audio_np)
+    return np.frombuffer(result.stdout, np.int16).astype(np.float32) / 32768.0
 
 
 def _try_load_wav_fast(path: str, target_sr: int) -> np.ndarray | None:
