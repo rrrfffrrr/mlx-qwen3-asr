@@ -255,22 +255,28 @@ use `qwen-asr` only in optional parity scripts.
 - Preserves scientific comparability by keeping explicit reference-lane scripts.
 - Aligns with project north-star of fully native MLX runtime paths.
 
-## Decision 21: Speaker Diarization Must Be Native and Optional
+## Decision 21: Diarization Is Optional and pyannote-First
 
-**Choice:** If diarization ships in runtime, implement it natively on MLX and
-package it as an optional extra (`mlx-qwen3-asr[diarize]`).
-**Alternatives:** (1) wrap pyannote/silero or other PyTorch diarization stacks
-in runtime, (2) add diarization dependencies to core install.
+**Choice:** Use `pyannote.audio` as the runtime diarization backend behind the
+optional extra (`mlx-qwen3-asr[diarize]`), while keeping the core ASR path
+native MLX and torch-free.
+**Alternatives:** (1) keep/expand the native heuristic diarization path, (2)
+remove diarization support entirely.
 
 **Rationale:**
-- Preserves project identity: fully native Apple Silicon inference paths.
-- Avoids dependency bloat and fragile mixed-runtime support in the core package.
-- Keeps default install fast/lean for users who only need ASR.
-- Enables deeper ASR+timestamp+speaker integration under one owned pipeline.
-- Maintains quality rigor by requiring explicit diarization gates (DER/JER +
-  latency), consistent with existing parity-gated engineering practice.
+- Delivers materially better diarization quality now.
+- Concentrates engineering effort on the core ASR competency.
+- Keeps default install lean and unchanged for users who do not need diarization.
+- Preserves project identity where it matters most: the core ASR inference path.
 
-**References:**
-- Strategy/review: `docs/DIARIZATION_NATIVE_PLAN_2026-02-15.md`
-- Source survey: `docs/DIARIZATION_RESEARCH_2026-02-15.md`
-- Execution plan: `docs/DIARIZATION_IMPLEMENTATION_SPEC_2026-02-15.md`
+## Decision 22: Remove Speculative Native Diarization Scaffolding
+
+**Choice:** Delete speculative native diarization scaffolding (unused candidate
+embedding backends, conversion scripts, and governance registries) until there
+is a clear funded plan to pursue native model-based diarization.
+**Alternatives:** keep scaffolding in-tree for a potential future roadmap.
+
+**Rationale:**
+- Reduces maintenance burden and cognitive overhead.
+- Avoids dead-code drift and false signals about supported runtime paths.
+- Keeps code and docs aligned with actual product direction.

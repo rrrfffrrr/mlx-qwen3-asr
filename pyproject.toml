@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 aligner = ["nagisa", "soynlp"]
-diarize = []
+diarize = ["pyannote.audio>=3.3.2"]
 mic = ["sounddevice>=0.4.6"]
 dev = ["pytest", "ruff", "mypy"]
 eval = ["soundfile>=0.12.1", "pyarrow>=18.0.0"]

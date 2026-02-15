@@ -388,8 +388,6 @@ def main() -> int:
     parser.add_argument("--num-speakers", type=int, default=None)
     parser.add_argument("--min-speakers", type=int, default=1)
     parser.add_argument("--max-speakers", type=int, default=8)
-    parser.add_argument("--diarization-window-sec", type=float, default=1.5)
-    parser.add_argument("--diarization-hop-sec", type=float, default=0.75)
     parser.add_argument("--frame-step-sec", type=float, default=0.02)
     parser.add_argument("--collar-sec", type=float, default=0.25)
     parser.add_argument(
@@ -439,8 +437,6 @@ def main() -> int:
             diarization_num_speakers=args.num_speakers,
             diarization_min_speakers=args.min_speakers,
             diarization_max_speakers=args.max_speakers,
-            diarization_window_sec=args.diarization_window_sec,
-            diarization_hop_sec=args.diarization_hop_sec,
             max_new_tokens=args.max_new_tokens,
             verbose=False,
         )

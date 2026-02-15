@@ -21,14 +21,14 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - **Both model sizes** — 0.6B (fast, default) and 1.7B (higher accuracy)
 - **Long audio support** — energy-based chunking up to 20 minutes per chunk, no 30-second feature truncation
 - **Word-level timestamps** — native MLX forced aligner (default, 2.6x faster than PyTorch alternative) with O(n log n) LIS-based timestamp correction
-- **Speaker diarization baseline (experimental)** — offline speaker-labeled outputs via native pipeline integration (`--diarize`)
+- **Speaker diarization (optional)** — offline speaker-labeled outputs via `pyannote` integration (`--diarize`)
 - **4-bit and 8-bit quantization** — up to 4.7x speedup with measured quality reporting on 100 speaker-balanced samples
 - **Multiple output formats** — txt, json, srt, vtt, tsv
 - **Session API** — explicit model/tokenizer ownership with no hidden global state
 - **Speculative decoding** — experimental opt-in path (0.6B drafts for 1.7B target), parity-verified
 - **Streaming** — KV-cache streaming with linear complexity, context trimming, and tail refinement
 - **Native WAV fast-path** — custom binary WAV parser bypasses ffmpeg for PCM/float WAV files
-- **441 tests** — every optimization is benchmark-gated with committed JSON artifacts
+- **400+ tests** — every optimization is benchmark-gated with committed JSON artifacts
 - **Minimal dependencies** — mlx, numpy, regex, huggingface-hub
 
 ## Requirements
@@ -349,9 +349,10 @@ The aligner uses O(n log n) LIS-based timestamp correction (Fenwick tree) for mo
 
 For Japanese/Korean timestamp alignment, install the `[aligner]` extra so `nagisa`/`soynlp` tokenization matches the official path.
 
-## Speaker diarization (experimental)
+## Speaker diarization (optional)
 
-Speaker attribution is available as an offline experimental path:
+Speaker attribution is available as an offline optional path powered by
+`pyannote.audio`:
 
 ```python
 result = transcribe("meeting.wav", diarize=True)
@@ -364,8 +365,9 @@ mlx-qwen3-asr meeting.wav --diarize -f json
 
 Current status:
 - The public API/CLI and output schema are stable.
-- The runtime path uses a native baseline (windowed acoustic embeddings +
-  cosine clustering) and should be treated as experimental quality.
+- The diarization backend is `pyannote` (installed via `[diarize]` extra).
+- Some pyannote models require Hugging Face token/terms acceptance. Configure
+  `PYANNOTE_AUTH_TOKEN` (or `HF_TOKEN`) when needed.
 - `--diarize` auto-enables timestamps and is not supported in `--streaming`/`--mic` mode.
 
 ## Quantization
@@ -505,7 +507,7 @@ Optional microphone flags: `--mic-device`, `--mic-duration-sec`, `--mic-sample-r
 
 ## API reference
 
-### `transcribe(audio, *, model, draft_model, language, return_timestamps, diarize, diarization_num_speakers, diarization_min_speakers, diarization_max_speakers, diarization_window_sec, diarization_hop_sec, return_chunks, forced_aligner, dtype, max_new_tokens, num_draft_tokens, verbose, on_progress)`
+### `transcribe(audio, *, model, draft_model, language, return_timestamps, diarize, diarization_num_speakers, diarization_min_speakers, diarization_max_speakers, return_chunks, forced_aligner, dtype, max_new_tokens, num_draft_tokens, verbose, on_progress)`
 
 Transcribe audio to text. Accepts a file path, numpy array, `mx.array`, or `(array, sample_rate)` tuple. Returns a `TranscriptionResult`.
 
@@ -616,7 +618,7 @@ mlx_qwen3_asr/           # 7,556 lines of source
 ├── cli.py                # CLI entry point and UX guardrails (664 lines)
 ├── streaming.py          # KV-cache streaming + context trimming (624 lines)
 ├── tokenizer.py          # Native BPE tokenizer + output parsing (607 lines)
-├── diarization.py        # Native baseline diarization (769 lines)
+├── diarization.py        # Optional pyannote integration + attribution helpers
 ├── audio.py              # Mel spectrogram + audio I/O (526 lines)
 ├── encoder.py            # Audio encoder (512 lines)
 ├── decoder.py            # Text decoder + KV cache (464 lines)

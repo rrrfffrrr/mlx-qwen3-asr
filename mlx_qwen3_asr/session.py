@@ -73,8 +73,6 @@ class Session:
         diarization_num_speakers: Optional[int] = None,
         diarization_min_speakers: int = 1,
         diarization_max_speakers: int = 8,
-        diarization_window_sec: float = 1.5,
-        diarization_hop_sec: float = 0.75,
         return_chunks: bool = False,
         forced_aligner: Optional[Union[str, ForcedAligner]] = None,
         max_new_tokens: int = 1024,
@@ -88,8 +86,6 @@ class Session:
             diarization_num_speakers=diarization_num_speakers,
             diarization_min_speakers=diarization_min_speakers,
             diarization_max_speakers=diarization_max_speakers,
-            diarization_window_sec=diarization_window_sec,
-            diarization_hop_sec=diarization_hop_sec,
         )
         effective_return_timestamps = bool(
             return_timestamps or diarization_config is not None
@@ -129,8 +125,6 @@ class Session:
         diarization_num_speakers: Optional[int] = None,
         diarization_min_speakers: int = 1,
         diarization_max_speakers: int = 8,
-        diarization_window_sec: float = 1.5,
-        diarization_hop_sec: float = 0.75,
         return_chunks: bool = False,
         forced_aligner: Optional[Union[str, ForcedAligner]] = None,
         max_new_tokens: int = 1024,
@@ -149,8 +143,6 @@ class Session:
             diarization_num_speakers=diarization_num_speakers,
             diarization_min_speakers=diarization_min_speakers,
             diarization_max_speakers=diarization_max_speakers,
-            diarization_window_sec=diarization_window_sec,
-            diarization_hop_sec=diarization_hop_sec,
             return_chunks=return_chunks,
             forced_aligner=forced_aligner,
             max_new_tokens=max_new_tokens,

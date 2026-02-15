@@ -93,8 +93,6 @@ def transcribe(
     diarization_num_speakers: Optional[int] = None,
     diarization_min_speakers: int = 1,
     diarization_max_speakers: int = 8,
-    diarization_window_sec: float = 1.5,
-    diarization_hop_sec: float = 0.75,
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
@@ -124,8 +122,6 @@ def transcribe(
         diarization_num_speakers: Optional fixed speaker count override.
         diarization_min_speakers: Lower bound for auto speaker estimation.
         diarization_max_speakers: Upper bound for auto speaker estimation.
-        diarization_window_sec: Speaker embedding analysis window size in seconds.
-        diarization_hop_sec: Speaker embedding analysis hop size in seconds.
         return_chunks: Whether to return chunk-level transcript metadata.
         forced_aligner: Path/name of forced aligner model or prebuilt aligner object.
         dtype: Model dtype
@@ -142,8 +138,6 @@ def transcribe(
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
-        diarization_window_sec=diarization_window_sec,
-        diarization_hop_sec=diarization_hop_sec,
     )
     effective_return_timestamps = bool(return_timestamps or diarization_config is not None)
     aligner = _resolve_aligner(effective_return_timestamps, forced_aligner)
@@ -201,8 +195,6 @@ async def transcribe_async(
     diarization_num_speakers: Optional[int] = None,
     diarization_min_speakers: int = 1,
     diarization_max_speakers: int = 8,
-    diarization_window_sec: float = 1.5,
-    diarization_hop_sec: float = 0.75,
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
@@ -223,8 +215,6 @@ async def transcribe_async(
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
-        diarization_window_sec=diarization_window_sec,
-        diarization_hop_sec=diarization_hop_sec,
         return_chunks=return_chunks,
         forced_aligner=forced_aligner,
         dtype=dtype,
@@ -246,8 +236,6 @@ def transcribe_batch(
     diarization_num_speakers: Optional[int] = None,
     diarization_min_speakers: int = 1,
     diarization_max_speakers: int = 8,
-    diarization_window_sec: float = 1.5,
-    diarization_hop_sec: float = 0.75,
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
@@ -265,8 +253,6 @@ def transcribe_batch(
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
-        diarization_window_sec=diarization_window_sec,
-        diarization_hop_sec=diarization_hop_sec,
     )
     effective_return_timestamps = bool(return_timestamps or diarization_config is not None)
     aligner = _resolve_aligner(effective_return_timestamps, forced_aligner)
@@ -342,8 +328,6 @@ async def transcribe_batch_async(
     diarization_num_speakers: Optional[int] = None,
     diarization_min_speakers: int = 1,
     diarization_max_speakers: int = 8,
-    diarization_window_sec: float = 1.5,
-    diarization_hop_sec: float = 0.75,
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
@@ -364,8 +348,6 @@ async def transcribe_batch_async(
         diarization_num_speakers=diarization_num_speakers,
         diarization_min_speakers=diarization_min_speakers,
         diarization_max_speakers=diarization_max_speakers,
-        diarization_window_sec=diarization_window_sec,
-        diarization_hop_sec=diarization_hop_sec,
         return_chunks=return_chunks,
         forced_aligner=forced_aligner,
         dtype=dtype,
@@ -460,8 +442,6 @@ def _resolve_diarization_config(
     diarization_num_speakers: Optional[int],
     diarization_min_speakers: int,
     diarization_max_speakers: int,
-    diarization_window_sec: float,
-    diarization_hop_sec: float,
 ) -> Optional[DiarizationConfig]:
     if not diarize:
         if diarization_num_speakers is not None:
@@ -473,8 +453,6 @@ def _resolve_diarization_config(
         num_speakers=diarization_num_speakers,
         min_speakers=diarization_min_speakers,
         max_speakers=diarization_max_speakers,
-        window_sec=diarization_window_sec,
-        hop_sec=diarization_hop_sec,
     )
 
 

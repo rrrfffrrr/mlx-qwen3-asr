@@ -139,6 +139,13 @@ def test_transcribe_diarize_returns_speaker_segments(monkeypatch):
         "parse_asr_output",
         lambda raw, user_language=None: ("English", "hello world"),
     )
+    monkeypatch.setattr(
+        tmod,
+        "infer_speaker_turns",
+        lambda audio, sr, config: [
+            {"speaker": "SPEAKER_00", "start": 0.0, "end": float(len(audio) / sr)}
+        ],
+    )
 
     result = transcribe(
         np.zeros(32000, dtype=np.float32),
@@ -174,6 +181,13 @@ def test_transcribe_diarize_labels_word_segments_when_return_timestamps(monkeypa
         tmod,
         "parse_asr_output",
         lambda raw, user_language=None: ("English", "hello world"),
+    )
+    monkeypatch.setattr(
+        tmod,
+        "infer_speaker_turns",
+        lambda audio, sr, config: [
+            {"speaker": "SPEAKER_00", "start": 0.0, "end": float(len(audio) / sr)}
+        ],
     )
 
     result = transcribe(
@@ -585,6 +599,13 @@ def test_transcribe_diarize_progress_emits_diarization_event(monkeypatch):
         lambda audio: (mx.zeros((1, 128, 100), dtype=mx.float32), mx.array([100], dtype=mx.int32)),
     )
     monkeypatch.setattr(tmod, "generate", lambda **kwargs: [10, 11, 12])
+    monkeypatch.setattr(
+        tmod,
+        "infer_speaker_turns",
+        lambda audio, sr, config: [
+            {"speaker": "SPEAKER_00", "start": 0.0, "end": float(len(audio) / sr)}
+        ],
+    )
 
     events: list[dict] = []
     _ = transcribe(

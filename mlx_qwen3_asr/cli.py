@@ -153,18 +153,6 @@ def main():
         help="Maximum speaker count for --diarize auto mode (default: 8).",
     )
     parser.add_argument(
-        "--diarization-window-sec",
-        type=float,
-        default=1.5,
-        help="Diarization analysis window size in seconds (default: 1.5).",
-    )
-    parser.add_argument(
-        "--diarization-hop-sec",
-        type=float,
-        default=0.75,
-        help="Diarization analysis hop size in seconds (default: 0.75).",
-    )
-    parser.add_argument(
         "--forced-aligner",
         default="Qwen/Qwen3-ForcedAligner-0.6B",
         help="Forced aligner model (default: Qwen/Qwen3-ForcedAligner-0.6B)",
@@ -352,12 +340,6 @@ def main():
             "Error: --max-speakers must be >= --min-speakers.",
             file=sys.stderr,
         )
-        raise SystemExit(1)
-    if args.diarization_window_sec <= 0:
-        print("Error: --diarization-window-sec must be > 0.", file=sys.stderr)
-        raise SystemExit(1)
-    if args.diarization_hop_sec <= 0:
-        print("Error: --diarization-hop-sec must be > 0.", file=sys.stderr)
         raise SystemExit(1)
 
     # Lazy imports for faster --help
@@ -555,8 +537,6 @@ def main():
                     diarization_num_speakers=args.num_speakers,
                     diarization_min_speakers=args.min_speakers,
                     diarization_max_speakers=args.max_speakers,
-                    diarization_window_sec=args.diarization_window_sec,
-                    diarization_hop_sec=args.diarization_hop_sec,
                     return_chunks=True,
                     forced_aligner=aligner,
                     dtype=dtype,

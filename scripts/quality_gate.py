@@ -517,12 +517,6 @@ def run_gate(mode: str, repo: Path, python_bin: str) -> tuple[list[StepResult], 
                 num_speakers = os.environ.get("DIARIZATION_QUALITY_EVAL_NUM_SPEAKERS")
                 if num_speakers:
                     diar_quality_cmd.extend(["--num-speakers", num_speakers])
-                window_sec = os.environ.get("DIARIZATION_QUALITY_EVAL_WINDOW_SEC")
-                if window_sec:
-                    diar_quality_cmd.extend(["--diarization-window-sec", window_sec])
-                hop_sec = os.environ.get("DIARIZATION_QUALITY_EVAL_HOP_SEC")
-                if hop_sec:
-                    diar_quality_cmd.extend(["--diarization-hop-sec", hop_sec])
                 limit = os.environ.get("DIARIZATION_QUALITY_EVAL_LIMIT")
                 if limit:
                     diar_quality_cmd.extend(["--limit", limit])

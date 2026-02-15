@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib
+
 import numpy as np
 import pytest
 
@@ -15,15 +17,151 @@ from mlx_qwen3_asr.diarization import (
 )
 
 
+class _FakeSegment:
+    def __init__(self, start: float, end: float):
+        self.start = start
+        self.end = end
+
+
+class _FakeAnnotation:
+    def __init__(self, turns: list[tuple[float, float, str]]):
+        self._turns = turns
+
+    def itertracks(self, yield_label: bool = False):
+        _ = yield_label
+        for start, end, label in self._turns:
+            yield _FakeSegment(start, end), None, label
+
+
+class _RecordingPipeline:
+    def __init__(self, annotation):
+        self.annotation = annotation
+        self.calls: list[tuple[dict, dict]] = []
+
+    def __call__(self, payload, **kwargs):  # noqa: ANN001
+        self.calls.append((payload, kwargs))
+        return self.annotation
+
+
 def test_validate_diarization_config_rejects_invalid_bounds():
     with pytest.raises(ValueError, match="diarization_max_speakers"):
         validate_diarization_config(
             num_speakers=None,
             min_speakers=3,
             max_speakers=2,
-            window_sec=1.5,
-            hop_sec=0.75,
         )
+
+
+def test_infer_speaker_turns_fixed_speaker_count_forwards_num_speakers(monkeypatch):
+    dmod = importlib.import_module("mlx_qwen3_asr.diarization")
+    monkeypatch.setattr(
+        dmod,
+        "_pyannote_input",
+        lambda audio, sr: {"waveform": audio[None, :], "sample_rate": sr},
+    )
+
+    audio = np.zeros((16000,), dtype=np.float32)
+    cfg = validate_diarization_config(
+        num_speakers=2,
+        min_speakers=1,
+        max_speakers=4,
+    )
+    pipe = _RecordingPipeline(_FakeAnnotation([(0.0, 0.5, "A"), (0.5, 1.0, "B")]))
+    turns = infer_speaker_turns(audio, sr=16000, config=cfg, _pipeline=pipe)
+
+    assert len(turns) == 2
+    assert turns[0]["speaker"] == "SPEAKER_00"
+    assert turns[1]["speaker"] == "SPEAKER_01"
+    assert pipe.calls[0][1] == {"num_speakers": 2}
+
+
+def test_infer_speaker_turns_auto_mode_forwards_min_max_speakers(monkeypatch):
+    dmod = importlib.import_module("mlx_qwen3_asr.diarization")
+    monkeypatch.setattr(
+        dmod,
+        "_pyannote_input",
+        lambda audio, sr: {"waveform": audio[None, :], "sample_rate": sr},
+    )
+
+    audio = np.zeros((16000,), dtype=np.float32)
+    cfg = validate_diarization_config(
+        num_speakers=None,
+        min_speakers=1,
+        max_speakers=3,
+    )
+    pipe = _RecordingPipeline(_FakeAnnotation([(0.0, 1.0, "speaker-a")]))
+    turns = infer_speaker_turns(audio, sr=16000, config=cfg, _pipeline=pipe)
+
+    assert len(turns) == 1
+    assert turns[0]["speaker"] == "SPEAKER_00"
+    assert pipe.calls[0][1] == {"min_speakers": 1, "max_speakers": 3}
+
+
+def test_infer_speaker_turns_returns_default_when_annotation_is_empty(monkeypatch):
+    dmod = importlib.import_module("mlx_qwen3_asr.diarization")
+    monkeypatch.setattr(
+        dmod,
+        "_pyannote_input",
+        lambda audio, sr: {"waveform": audio[None, :], "sample_rate": sr},
+    )
+
+    audio = np.zeros((8000,), dtype=np.float32)
+    cfg = validate_diarization_config(
+        num_speakers=None,
+        min_speakers=1,
+        max_speakers=2,
+    )
+    pipe = _RecordingPipeline(_FakeAnnotation([]))
+
+    turns = infer_speaker_turns(audio, sr=8000, config=cfg, _pipeline=pipe)
+
+    assert turns == [{"speaker": DEFAULT_SPEAKER_LABEL, "start": 0.0, "end": 1.0}]
+
+
+def test_infer_speaker_turns_merges_adjacent_same_speaker(monkeypatch):
+    dmod = importlib.import_module("mlx_qwen3_asr.diarization")
+    monkeypatch.setattr(
+        dmod,
+        "_pyannote_input",
+        lambda audio, sr: {"waveform": audio[None, :], "sample_rate": sr},
+    )
+
+    audio = np.zeros((16000,), dtype=np.float32)
+    cfg = validate_diarization_config(
+        num_speakers=1,
+        min_speakers=1,
+        max_speakers=2,
+    )
+    pipe = _RecordingPipeline(
+        _FakeAnnotation(
+            [
+                (0.0, 0.4, "same"),
+                (0.45, 0.8, "same"),
+            ]
+        )
+    )
+
+    turns = infer_speaker_turns(audio, sr=16000, config=cfg, _pipeline=pipe)
+
+    assert turns == [{"speaker": "SPEAKER_00", "start": 0.0, "end": 0.8}]
+
+
+def test_infer_speaker_turns_raises_helpful_error_when_dependency_missing(monkeypatch):
+    dmod = importlib.import_module("mlx_qwen3_asr.diarization")
+
+    def _raise_import_error():
+        raise ImportError("missing pyannote")
+
+    monkeypatch.setattr(dmod, "_load_pyannote_pipeline", _raise_import_error)
+
+    cfg = validate_diarization_config(
+        num_speakers=1,
+        min_speakers=1,
+        max_speakers=2,
+    )
+
+    with pytest.raises(ImportError, match="missing pyannote"):
+        infer_speaker_turns(np.zeros((8000,), dtype=np.float32), sr=8000, config=cfg)
 
 
 def test_diarize_word_segments_adds_speaker_labels():
@@ -31,8 +169,6 @@ def test_diarize_word_segments_adds_speaker_labels():
         num_speakers=None,
         min_speakers=1,
         max_speakers=8,
-        window_sec=1.5,
-        hop_sec=0.75,
     )
     words = [
         {"text": "hello", "start": 0.1, "end": 0.3},
@@ -49,8 +185,6 @@ def test_diarize_chunk_items_returns_fallback_speaker_segments():
         num_speakers=None,
         min_speakers=1,
         max_speakers=8,
-        window_sec=1.5,
-        hop_sec=0.75,
     )
     chunks = [
         {"text": "hello", "start": 0.0, "end": 0.8},
@@ -62,53 +196,11 @@ def test_diarize_chunk_items_returns_fallback_speaker_segments():
     assert speaker_segments[0]["text"] == "hello world"
 
 
-def test_infer_speaker_turns_splits_simple_two_tone_audio():
-    sr = 16000
-    dur = 1.0
-    t = np.linspace(0.0, dur, int(sr * dur), endpoint=False, dtype=np.float32)
-    low = 0.4 * np.sin(2.0 * np.pi * 180.0 * t)
-    high = 0.4 * np.sin(2.0 * np.pi * 820.0 * t)
-    audio = np.concatenate([low, high]).astype(np.float32)
-
-    cfg = validate_diarization_config(
-        num_speakers=2,
-        min_speakers=1,
-        max_speakers=4,
-        window_sec=0.5,
-        hop_sec=0.25,
-    )
-    turns = infer_speaker_turns(audio, sr=sr, config=cfg)
-    speakers = {t["speaker"] for t in turns}
-    assert len(speakers) == 2
-
-
-def test_infer_speaker_turns_auto_mode_splits_simple_two_tone_audio():
-    sr = 16000
-    dur = 1.0
-    t = np.linspace(0.0, dur, int(sr * dur), endpoint=False, dtype=np.float32)
-    low = 0.4 * np.sin(2.0 * np.pi * 180.0 * t)
-    high = 0.4 * np.sin(2.0 * np.pi * 820.0 * t)
-    audio = np.concatenate([low, high]).astype(np.float32)
-
-    cfg = validate_diarization_config(
-        num_speakers=None,
-        min_speakers=1,
-        max_speakers=4,
-        window_sec=0.5,
-        hop_sec=0.25,
-    )
-    turns = infer_speaker_turns(audio, sr=sr, config=cfg)
-    speakers = {t["speaker"] for t in turns}
-    assert len(speakers) == 2
-
-
 def test_diarize_word_segments_uses_turn_overlap():
     cfg = validate_diarization_config(
         num_speakers=2,
         min_speakers=1,
         max_speakers=4,
-        window_sec=0.5,
-        hop_sec=0.25,
     )
     turns = [
         {"speaker": "SPEAKER_00", "start": 0.0, "end": 1.0},
