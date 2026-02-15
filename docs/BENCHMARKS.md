@@ -196,6 +196,16 @@ No language shows a systematic quality gap. Differences are within expected nois
 
 Artifact: `2026-02-15-quality-head2head-mlx-vs-pytorch-multilingual100.md`
 
+### MLX vs PyTorch Head-to-Head (LibriSpeech test-other, n=100)
+
+| Metric | MLX | PyTorch | Delta (MLX - Ref) |
+|---|---:|---:|---:|
+| WER | 4.20% | 4.41% | -0.21pp |
+| CER | 2.09% | 2.14% | -0.05pp |
+| Mean latency | 0.71s | 2.16s | 3.05x faster |
+
+Artifact: `2026-02-15-quality-head2head-mlx-vs-pytorch-test-other100.md`
+
 ### Token-Level Parity Analysis
 
 | Category | Count |
@@ -314,9 +324,11 @@ All benchmark artifacts are committed under `docs/benchmarks/`. Key files:
 | Artifact | Description |
 |---|---|
 | `2026-02-14-quant-matrix-speaker100.md` | Quantization quality + latency matrix |
-| `2026-02-15-manifest-quality-multilingual100.md` | 0.6B multilingual quality |
-| `2026-02-15-manifest-quality-multilingual100-compare-0p6b-vs-1p7b.md` | 0.6B vs 1.7B comparison |
+| `2026-02-15-quant-matrix-test-other-speaker100.md` | Quantization quality + latency on LibriSpeech test-other |
+| `2026-02-15-manifest-quality-multilingual100-0p6b-refresh.json` | 0.6B multilingual quality |
+| `2026-02-15-manifest-quality-multilingual100-1p7b-refresh.json` | 1.7B multilingual quality |
 | `2026-02-15-quality-head2head-mlx-vs-pytorch-multilingual100.md` | MLX vs PyTorch parity |
+| `2026-02-15-quality-head2head-mlx-vs-pytorch-test-other100.md` | MLX vs PyTorch parity on test-other |
 | `2026-02-15-manifest-quality-longform10.md` | Long-form quality |
 | `2026-02-15-reference-parity-suite-longform10.md` | Long-form speed (MLX vs PyTorch) |
 | `2026-02-14-aligner-parity-50.md` | Forced aligner parity |

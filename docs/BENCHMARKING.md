@@ -106,6 +106,14 @@ python scripts/eval_librispeech.py \
   --samples 100 \
   --sampling speaker_round_robin \
   --json-output docs/benchmarks/2026-02-15-librispeech-test-other-100.json
+
+# Optional backend comparison on the same evaluated rows
+python scripts/eval_librispeech_head2head.py \
+  --mlx-json docs/benchmarks/2026-02-15-librispeech-test-other-100.json \
+  --model Qwen/Qwen3-ASR-0.6B \
+  --language English \
+  --json-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-test-other100.json \
+  --md-output docs/benchmarks/2026-02-15-quality-head2head-mlx-vs-pytorch-test-other100.md
 ```
 
 Multilingual manifest parity benchmark:

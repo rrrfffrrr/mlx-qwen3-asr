@@ -33,6 +33,7 @@ make broad "production-grade across languages/conditions" quality claims.
       (CER for zh/ja/ko; WER otherwise).
 - MLX-vs-PyTorch head-to-head:
   - Multilingual-100 direct comparison (MLX: 15.99% WER vs PyTorch: 16.69% WER).
+  - LibriSpeech test-other direct comparison (MLX: 4.20% WER vs PyTorch: 4.41% WER).
   - 138 benchmark artifacts across 13 eval scripts.
 - Streaming diagnostics lane:
   - Per-session quality metrics exposed from runtime state:
@@ -59,8 +60,10 @@ make broad "production-grade across languages/conditions" quality claims.
    clips (~75-90s each, 10 languages) with quality metrics. Real-world
    long-form remains a stretch goal.
 
-3. **MLX-vs-PyTorch quality comparison** — CLOSED. Multilingual-100
-   head-to-head artifact exists. MLX wins (15.99% vs 16.69% WER).
+3. **MLX-vs-PyTorch quality comparison** — PARTIALLY CLOSED.
+   Multilingual-100 and test-other head-to-head artifacts exist. MLX wins on
+   both lanes (15.99% vs 16.69% WER; 4.20% vs 4.41% WER). Long-form
+   head-to-head remains open.
 
 4. **Streaming quality instrumentation** — CLOSED. Full instrumentation with
    `partial_stability`, `rewrite_rate`, `finalization_delta_chars`. KV-cache
@@ -82,12 +85,12 @@ make broad "production-grade across languages/conditions" quality claims.
      is multi-file versioned dataset artifacts.
 
 4. `P2` Broader MLX-vs-PyTorch comparison
-   - Why: head-to-head only covers multilingual-100; test-other and long-form missing.
-   - Status: infrastructure exists; just needs more runs.
+   - Why: long-form and real-world head-to-head lanes are still missing.
+   - Status: multilingual-100 + test-other are now covered.
 
 ## Follow-up Order
 
 1. Curate real-world audio lane with fixed artifact set and versioned manifests.
 2. Add real-world long-form recordings (meetings, podcasts, lectures).
 3. Commit streaming-quality versioned artifacts.
-4. Expand MLX-vs-PyTorch comparison to test-other and long-form.
+4. Expand MLX-vs-PyTorch comparison to long-form and real-world lanes.
