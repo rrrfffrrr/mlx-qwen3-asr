@@ -1,0 +1,189 @@
+{
+  "suite": "quality-head2head-v1",
+  "source_parity_artifact": "docs/benchmarks/2026-02-15-reference-parity-suite-multilingual100-post-refactor.json",
+  "source_manifest": "docs/benchmarks/2026-02-14-fleurs-multilingual-100-manifest.jsonl",
+  "samples": 100,
+  "systems": {
+    "mlx": {
+      "samples": 100,
+      "wer": 0.15997859818084537,
+      "cer": 0.0542995985632791,
+      "primary_error_rate": 0.09535040431266846,
+      "wer_err": 299,
+      "wer_den": 1869,
+      "cer_err": 514,
+      "cer_den": 9466,
+      "primary_err": 283,
+      "primary_den": 2968
+    },
+    "pytorch_ref": {
+      "samples": 100,
+      "wer": 0.16693418940609953,
+      "cer": 0.056412423410099305,
+      "primary_error_rate": 0.1034366576819407,
+      "wer_err": 312,
+      "wer_den": 1869,
+      "cer_err": 534,
+      "cer_den": 9466,
+      "primary_err": 307,
+      "primary_den": 2968
+    }
+  },
+  "by_language": {
+    "Arabic": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.215,
+        "cer": 0.06827309236947791,
+        "primary_error_rate": 0.215
+      },
+      "pytorch_ref": {
+        "wer": 0.24,
+        "cer": 0.07931726907630522,
+        "primary_error_rate": 0.24
+      },
+      "delta_primary_mlx_minus_ref": -0.024999999999999994
+    },
+    "Chinese": {
+      "samples": 10,
+      "char_primary": true,
+      "mlx": {
+        "wer": 0.9166666666666666,
+        "cer": 0.04956268221574344,
+        "primary_error_rate": 0.04956268221574344
+      },
+      "pytorch_ref": {
+        "wer": 0.9,
+        "cer": 0.05539358600583091,
+        "primary_error_rate": 0.05539358600583091
+      },
+      "delta_primary_mlx_minus_ref": -0.005830903790087466
+    },
+    "English": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.046296296296296294,
+        "cer": 0.015763546798029555,
+        "primary_error_rate": 0.046296296296296294
+      },
+      "pytorch_ref": {
+        "wer": 0.06018518518518518,
+        "cer": 0.03152709359605911,
+        "primary_error_rate": 0.06018518518518518
+      },
+      "delta_primary_mlx_minus_ref": -0.013888888888888888
+    },
+    "French": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.17272727272727273,
+        "cer": 0.09162303664921466,
+        "primary_error_rate": 0.17272727272727273
+      },
+      "pytorch_ref": {
+        "wer": 0.15454545454545454,
+        "cer": 0.07417102966841187,
+        "primary_error_rate": 0.15454545454545454
+      },
+      "delta_primary_mlx_minus_ref": 0.018181818181818188
+    },
+    "German": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.08035714285714286,
+        "cer": 0.04695919938414165,
+        "primary_error_rate": 0.08035714285714286
+      },
+      "pytorch_ref": {
+        "wer": 0.06696428571428571,
+        "cer": 0.029253271747498075,
+        "primary_error_rate": 0.06696428571428571
+      },
+      "delta_primary_mlx_minus_ref": 0.01339285714285715
+    },
+    "Hindi": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.16666666666666666,
+        "cer": 0.09914529914529914,
+        "primary_error_rate": 0.16666666666666666
+      },
+      "pytorch_ref": {
+        "wer": 0.21180555555555555,
+        "cer": 0.1170940170940171,
+        "primary_error_rate": 0.21180555555555555
+      },
+      "delta_primary_mlx_minus_ref": -0.045138888888888895
+    },
+    "Japanese": {
+      "samples": 10,
+      "char_primary": true,
+      "mlx": {
+        "wer": 0.8974358974358975,
+        "cer": 0.09306260575296109,
+        "primary_error_rate": 0.09306260575296109
+      },
+      "pytorch_ref": {
+        "wer": 0.9230769230769231,
+        "cer": 0.10829103214890017,
+        "primary_error_rate": 0.10829103214890017
+      },
+      "delta_primary_mlx_minus_ref": -0.015228426395939076
+    },
+    "Korean": {
+      "samples": 10,
+      "char_primary": true,
+      "mlx": {
+        "wer": 0.17218543046357615,
+        "cer": 0.06746987951807229,
+        "primary_error_rate": 0.06746987951807229
+      },
+      "pytorch_ref": {
+        "wer": 0.16556291390728478,
+        "cer": 0.06506024096385542,
+        "primary_error_rate": 0.06506024096385542
+      },
+      "delta_primary_mlx_minus_ref": 0.0024096385542168725
+    },
+    "Russian": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.08823529411764706,
+        "cer": 0.03369839932603201,
+        "primary_error_rate": 0.08823529411764706
+      },
+      "pytorch_ref": {
+        "wer": 0.09313725490196079,
+        "cer": 0.03538331929233361,
+        "primary_error_rate": 0.09313725490196079
+      },
+      "delta_primary_mlx_minus_ref": -0.004901960784313722
+    },
+    "Spanish": {
+      "samples": 10,
+      "char_primary": false,
+      "mlx": {
+        "wer": 0.0299625468164794,
+        "cer": 0.006134969325153374,
+        "primary_error_rate": 0.0299625468164794
+      },
+      "pytorch_ref": {
+        "wer": 0.026217228464419477,
+        "cer": 0.00843558282208589,
+        "primary_error_rate": 0.026217228464419477
+      },
+      "delta_primary_mlx_minus_ref": 0.003745318352059924
+    }
+  },
+  "delta": {
+    "wer_mlx_minus_ref": -0.00695559122525416,
+    "cer_mlx_minus_ref": -0.0021128248468202035,
+    "primary_mlx_minus_ref": -0.00808625336927224
+  }
+}
