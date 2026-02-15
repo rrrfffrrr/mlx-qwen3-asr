@@ -194,14 +194,37 @@ Full benchmark report: `docs/benchmarks/2026-02-14-quant-matrix-speaker100.md`. 
 
 ## Model quality
 
-Official word error rates from the [Qwen3-ASR technical report](https://huggingface.co/Qwen/Qwen3-ASR-1.7B) (lower is better):
+Word error rates from the [Qwen3-ASR technical report](https://arxiv.org/abs/2601.21337) compared against current open-source and proprietary leaders (lower is better):
 
-| Benchmark | Qwen3-ASR 1.7B | Whisper-large-v3 |
-|---|---|---|
-| LibriSpeech test-clean | **1.51** | 2.02 |
-| LibriSpeech test-other | **3.04** | 4.28 |
-| WenetSpeech test-net | **4.97** | 9.68 |
-| Fleurs (avg 30 langs) | **5.2** | 8.1 |
+### English benchmarks
+
+| Benchmark | GPT-4o-Transcribe | Parakeet-TDT-0.6B | Whisper-large-v3 | Qwen3-ASR-0.6B | **Qwen3-ASR-1.7B** |
+|---|---:|---:|---:|---:|---:|
+| LibriSpeech test-clean | **1.39** | 1.93 | 1.51 | 2.11 | 1.63 |
+| LibriSpeech test-other | 3.75 | 3.59 | 3.97 | 4.55 | **3.38** |
+| FLEURS-en | 2.40 | 4.85 | 4.08 | 4.39 | **3.35** |
+| GigaSpeech | 25.50 | — | 9.76 | 8.88 | **8.45** |
+
+### Chinese + multilingual benchmarks
+
+| Benchmark | GPT-4o-Transcribe | Whisper-large-v3 | Qwen3-ASR-0.6B | **Qwen3-ASR-1.7B** |
+|---|---:|---:|---:|---:|
+| WenetSpeech test-net | 15.30 | 9.86 | 5.97 | **4.97** |
+| AISHELL-2 test | 4.24 | 5.06 | 3.15 | **2.71** |
+| FLEURS (12-lang avg) | — | 5.27 | 7.57 | **4.90** |
+| CommonVoice | — | 10.77 | 12.75 | **9.18** |
+
+### Robustness benchmarks
+
+| Benchmark | GPT-4o-Transcribe | Whisper-large-v3 | Qwen3-ASR-0.6B | **Qwen3-ASR-1.7B** |
+|---|---:|---:|---:|---:|
+| Accented English | 28.56 | 21.30 | 16.62 | **16.07** |
+| Extreme Noise | 36.11 | 63.17 | 17.88 | **16.17** |
+| Elders & Kids (Mandarin) | 14.27 | 10.61 | 4.48 | **3.81** |
+
+GPT-4o-Transcribe leads on clean English read speech (1.39 WER). Parakeet-TDT-0.6B is strong on English. But Qwen3-ASR dominates on Chinese, multilingual, noisy, and accented speech — and is the only open-source model competitive across all categories.
+
+*Parakeet numbers from [model card](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3). All other numbers from the Qwen3-ASR paper. Robustness benchmarks are Qwen3-ASR internal test sets.*
 
 ### Correctness validation
 
