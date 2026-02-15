@@ -99,6 +99,7 @@ class Qwen3ASRModel(nn.Module):
         Returns:
             Logits, shape (B, L, vocab_size).
         """
+        self._validate_input_ids_for_embed(input_ids)
         # Get text embeddings
         embeds = self.model.embed_tokens(input_ids)
 
@@ -121,6 +122,26 @@ class Qwen3ASRModel(nn.Module):
         # Project to vocabulary logits
         logits = self.lm_head(hidden)
         return logits
+
+    def _validate_input_ids_for_embed(self, input_ids: mx.array) -> None:
+        """Validate token IDs before embedding lookup."""
+        if input_ids.size == 0:
+            return
+        dtype_name = str(input_ids.dtype).lower()
+        if "int" not in dtype_name and "uint" not in dtype_name:
+            raise ValueError(
+                "input_ids must use an integer dtype for embed_tokens, "
+                f"got dtype={input_ids.dtype}"
+            )
+
+        vocab_size = int(self.config.text_config.vocab_size)
+        min_id = int(mx.min(input_ids).item())
+        max_id = int(mx.max(input_ids).item())
+        if min_id < 0 or max_id >= vocab_size:
+            raise ValueError(
+                "input_ids out of bounds for embed_tokens: "
+                f"min_token_id={min_id}, max_token_id={max_id}, vocab_size={vocab_size}"
+            )
 
     def _inject_audio_features(
         self,
@@ -223,6 +244,7 @@ class Qwen3ASRModel(nn.Module):
         Returns:
             Logits for the final prompt position, shape (B, 1, vocab_size).
         """
+        self._validate_input_ids_for_embed(input_ids)
         embeds = self.model.embed_tokens(input_ids)
         audio_mask = cast(mx.array, input_ids == self.audio_token_id)
         embeds = self._inject_audio_features(embeds, audio_features, audio_mask)
@@ -251,6 +273,7 @@ class Qwen3ASRModel(nn.Module):
         Returns:
             Step logits, shape (B, 1, vocab_size).
         """
+        self._validate_input_ids_for_embed(input_ids)
         embeds = self.model.embed_tokens(input_ids)
         hidden = self.model(
             inputs_embeds=embeds,
@@ -296,6 +319,7 @@ class Qwen3ASRModel(nn.Module):
                 f"input_ids={input_ids.shape}, position_ids={position_ids.shape}"
             )
 
+        self._validate_input_ids_for_embed(input_ids)
         embeds = self.model.embed_tokens(input_ids)
         hidden = self.model(
             inputs_embeds=embeds,

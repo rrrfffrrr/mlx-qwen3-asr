@@ -416,6 +416,9 @@ mlx-qwen3-asr --streaming --stream-endpointing-mode energy audio.wav
 - Incremental decoder KV-cache reuse across chunk turns (avoids O(n²) re-transcription)
 - Bounded context window (default 30s) for stable memory/runtime
 - Prefix rollback controls (`unfixed_chunk_num`, `unfixed_token_num`)
+- `stable_text` is monotonic by design: corrections that would shorten already-stable
+  prefix text are intentionally not applied to the stable prefix (favoring stability
+  over maximal editability in partial output)
 - Optional speech-aware endpointing (`endpointing_mode="energy"`) that selects
   low-energy boundaries near chunk edges
 - Configurable finalization policy: `finalization_mode="accuracy"` (default) or `"latency"`

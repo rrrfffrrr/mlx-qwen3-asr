@@ -6,7 +6,6 @@ import argparse
 import sys
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 from ._version import __version__
 from .config import DEFAULT_MODEL_ID
@@ -140,7 +139,7 @@ def main():
     from .audio import SAMPLE_RATE, load_audio
     from .forced_aligner import ForcedAligner
     from .streaming import feed_audio, finish_streaming, init_streaming
-    from .transcribe import transcribe
+    from .transcribe import TranscriptionResult, transcribe
     from .writers import get_writer
 
     # Parse dtype
@@ -212,7 +211,7 @@ def main():
                 for i in range(0, len(audio_np), chunk_samples):
                     state = feed_audio(audio_np[i : i + chunk_samples], state)
                 state = finish_streaming(state)
-                result = SimpleNamespace(
+                result = TranscriptionResult(
                     text=state.text,
                     language=state.language,
                     segments=None,

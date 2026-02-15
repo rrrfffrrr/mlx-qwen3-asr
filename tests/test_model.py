@@ -630,3 +630,26 @@ class TestQwen3ASRModelInstantiation:
         out = model._inject_audio_features(embeds, audio_features, audio_mask)
         mx.eval(out)
         np.testing.assert_allclose(np.array(out), np.array(embeds), atol=0.0, rtol=0.0)
+
+    def test_step_rejects_out_of_vocab_token_ids(self):
+        cfg = _tiny_asr_config()
+        cfg.text_config.head_dim = 128
+        model = Qwen3ASRModel(cfg)
+        cache = model.create_cache()
+        bad_token = cfg.text_config.vocab_size
+        input_ids = mx.array([[bad_token]], dtype=mx.int32)
+        position_ids = mx.zeros((1, 3, 1), dtype=mx.int32)
+
+        with pytest.raises(ValueError, match="input_ids out of bounds for embed_tokens"):
+            model.step(input_ids=input_ids, position_ids=position_ids, cache=cache)
+
+    def test_step_rejects_non_integer_input_ids(self):
+        cfg = _tiny_asr_config()
+        cfg.text_config.head_dim = 128
+        model = Qwen3ASRModel(cfg)
+        cache = model.create_cache()
+        input_ids = mx.array([[1.0]], dtype=mx.float32)
+        position_ids = mx.zeros((1, 3, 1), dtype=mx.int32)
+
+        with pytest.raises(ValueError, match="input_ids must use an integer dtype"):
+            model.step(input_ids=input_ids, position_ids=position_ids, cache=cache)

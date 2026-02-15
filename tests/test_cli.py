@@ -113,6 +113,7 @@ def test_cli_streaming_mode_uses_streaming_pipeline(monkeypatch, capsys, tmp_pat
     cli = __import__("mlx_qwen3_asr.cli", fromlist=["main"])
     audio_mod = importlib.import_module("mlx_qwen3_asr.audio")
     stream_mod = importlib.import_module("mlx_qwen3_asr.streaming")
+    transcribe_mod = importlib.import_module("mlx_qwen3_asr.transcribe")
     writers_mod = importlib.import_module("mlx_qwen3_asr.writers")
 
     audio_path = tmp_path / "audio.wav"
@@ -161,7 +162,11 @@ def test_cli_streaming_mode_uses_streaming_pipeline(monkeypatch, capsys, tmp_pat
     monkeypatch.setattr(stream_mod, "init_streaming", fake_init_streaming)
     monkeypatch.setattr(stream_mod, "feed_audio", fake_feed_audio)
     monkeypatch.setattr(stream_mod, "finish_streaming", fake_finish_streaming)
-    monkeypatch.setattr(writers_mod, "get_writer", lambda fmt: (lambda result, out_path: None))
+
+    def _fake_writer(result, out_path):  # noqa: ANN001, ARG001
+        assert isinstance(result, transcribe_mod.TranscriptionResult)
+
+    monkeypatch.setattr(writers_mod, "get_writer", lambda fmt: _fake_writer)
 
     cli.main()
     out = capsys.readouterr()
