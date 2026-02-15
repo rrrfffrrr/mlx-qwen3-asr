@@ -27,7 +27,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - **Speculative decoding** — experimental opt-in path (0.6B drafts for 1.7B target), parity-verified
 - **Streaming** — experimental rolling decode with bounded context window
 - **Native WAV fast-path** — custom binary WAV parser bypasses ffmpeg for PCM/float WAV files
-- **310 tests** — every optimization is benchmark-gated with committed JSON artifacts
+- **349 tests** — every optimization is benchmark-gated with committed JSON artifacts
 - **Minimal dependencies** — mlx, numpy, huggingface-hub, transformers (tokenizer only)
 
 ## Requirements
@@ -138,9 +138,9 @@ Run `mlx-qwen3-asr --help` for the full list of options.
 
 ## Performance on Apple Silicon
 
-Measured on 0.6B model, Apple M4 Pro, macOS 26.2. All numbers from controlled runs with benchmark JSON artifacts committed to the repo.
+Measured on Apple M4 Pro, macOS 26.2. All numbers from controlled runs with benchmark JSON artifacts committed to the repo. See [docs/BENCHMARKS.md](docs/BENCHMARKS.md) for the full breakdown.
 
-### Latency
+### Latency (0.6B)
 
 | Configuration | Short clip (~2.5s) | 10s clip | Real-time factor | vs fp16 |
 |---|---|---|---|---|
@@ -148,15 +148,36 @@ Measured on 0.6B model, Apple M4 Pro, macOS 26.2. All numbers from controlled ru
 | **8-bit** (q8, group 64) | 0.11s | 0.27s | 0.03x | 3.11x faster |
 | **4-bit** (q4, group 64) | 0.13s | 0.18s | 0.02x | **4.68x faster** |
 
-### Quality (LibriSpeech test-clean, 100 samples, speaker-balanced round-robin)
+### Quality (0.6B, LibriSpeech test-clean, 100 speaker-balanced samples)
 
-| Configuration | WER | CER | Mean eval latency | Eval RTF |
+| Configuration | WER | CER | Mean eval latency | vs fp16 Speed |
 |---|---|---|---|---|
-| fp16 | 2.29% | 0.59% | 1.09s | 0.121 |
-| 8-bit (g64) | 2.33% | 0.59% | 0.34s | 0.038 |
-| 4-bit (g64) | 2.72% | 0.88% | 0.30s | 0.034 |
+| fp16 | 2.29% | 0.59% | 1.09s | — |
+| 8-bit (g64) | 2.33% | 0.59% | 0.34s | 3.11x |
+| 4-bit (g64) | 2.72% | 0.88% | 0.30s | 4.68x |
 
-8-bit is near-fp16 quality (+0.04 absolute WER). 4-bit is fastest but shows measurable degradation (+0.43 absolute WER). Full matrix report: `docs/benchmarks/2026-02-14-quant-matrix-speaker100.md`. All benchmark artifacts are committed under `docs/benchmarks/` for reproducibility.
+8-bit is near-fp16 quality (+0.04pp WER). 4-bit trades +0.43pp WER for maximum speed.
+
+### Multilingual quality (FLEURS, 10 languages x 10 samples)
+
+| Model | Primary Error Rate | Mean Latency | Best Languages | Weakest |
+|---|---|---|---|---|
+| **0.6B** fp16 | 9.37% | 1.35s | Spanish 3.0%, English 4.6%, Chinese 4.4% | Arabic 21.5%, French 18.2% |
+| **1.7B** fp16 | **6.70%** | 3.86s | Spanish 0.7%, Japanese 3.6%, French 4.1% | Hindi 17.4%, Arabic 16.5% |
+
+The 1.7B delivers a 28% relative improvement, with the biggest gains on French (-14.1pp), Japanese (-4.9pp), and Arabic (-5.0pp). The 1.7B runs ~2.86x slower.
+
+### MLX vs PyTorch quality (0.6B, Multilingual-100)
+
+| Metric | MLX | PyTorch | Delta |
+|---|---:|---:|---:|
+| Primary error rate | 9.54% | 10.34% | -0.81pp |
+| WER | 16.00% | 16.69% | -0.70pp |
+| CER | 5.43% | 5.64% | -0.21pp |
+
+67% of samples produce identical text output. Remaining differences are minor lexical shifts, numeric surface forms (`10,000` vs `zehntausend`), or punctuation — not quality regressions.
+
+On long-form audio (75-90s clips), **MLX is 4.19x faster** than PyTorch on the same machine.
 
 ### Optimizations applied
 
@@ -164,10 +185,12 @@ Measured on 0.6B model, Apple M4 Pro, macOS 26.2. All numbers from controlled ru
 - **Direct grouped-query fused attention** via `mx.fast.scaled_dot_product_attention` (no explicit K/V head expansion)
 - **Hybrid encoder windowing** — dense block-diagonal mask for short audio, segmented per-window execution for long contexts (up to 4.2x faster on long audio)
 - **Cached mel filterbank and Hann window** — computed once, reused across calls
-- **Native WAV fast-path** — custom binary parser bypasses ffmpeg process startup for PCM/float WAV files
+- **Native WAV fast-path** — custom binary parser bypasses ffmpeg process startup for PCM/float WAV files (up to 25% faster on quantized short clips)
 - **Direct Qwen2Tokenizer loading** — skips AutoTokenizer dynamic dispatch, reduces cold-start by ~1.7x
 - **Cached model and tokenizer instances** — repeated `transcribe()` calls skip reload overhead
 - **4-bit / 8-bit quantization** — up to 4.7x speed gain with explicit per-profile quality reporting
+
+Full benchmark report: `docs/benchmarks/2026-02-14-quant-matrix-speaker100.md`. All 90+ benchmark artifacts are committed under `docs/benchmarks/` for reproducibility.
 
 ## Model quality
 
@@ -184,10 +207,12 @@ Official word error rates from the [Qwen3-ASR technical report](https://huggingf
 
 This implementation is validated against the official PyTorch model via multiple parity gates:
 
-- **Token-level greedy parity** — deterministic greedy decode produces matching output on reference fixtures
+- **MLX vs PyTorch head-to-head** — on 100 multilingual samples, MLX matches or exceeds PyTorch quality (9.54% vs 10.34% primary error rate)
+- **Token-level greedy parity** — 67% exact text match, 64% exact token match across 10 languages. Remaining differences are minor lexical/numeric surface form variations, not quality regressions
 - **Expanded parity suite** — tested across LibriSpeech test-clean, test-other, synthetic long mixes, and noise variants (SNR 10dB, 5dB)
-- **Multilingual parity** — infrastructure in place for manifest-driven cross-language comparison (English and Chinese confirmed, Japanese and German under investigation)
-- **Native aligner parity** — MLX forced aligner matches official `qwen-asr` backend with 100% text match rate and <6ms timing MAE on 50 LibriSpeech samples
+- **Long-form parity** — 10 multilingual clips (75-90s each) transcribed correctly with no chunking artifacts, 4.19x faster than PyTorch
+- **Mel spectrogram parity** — custom MLX mel matches HuggingFace WhisperFeatureExtractor with MAE < 3e-7
+- **Native aligner parity** — MLX forced aligner matches official `qwen-asr` backend with 100% text match rate, <6ms timing MAE, and 2.64x speed advantage on 50 LibriSpeech samples
 
 ## Model variants
 
@@ -380,7 +405,7 @@ Frozen dataclass:
 This project enforces parity with the official PyTorch implementation. No optimization lands without passing quality gates and committing benchmark artifacts.
 
 ```bash
-# Unit tests (310 tests, ~3s)
+# Unit tests (349 tests, ~3s)
 pytest -q
 
 # Fast quality gate
@@ -436,27 +461,30 @@ Key architectural details:
 ## Project structure
 
 ```
-mlx_qwen3_asr/           # 4,746 lines of source
-├── model.py              # Audio encoder + text decoder + KV cache (1,278 lines)
-├── audio.py              # Mel spectrogram + audio I/O (522 lines)
+mlx_qwen3_asr/           # 5,058 lines of source
+├── audio.py              # Mel spectrogram + audio I/O (562 lines)
 ├── forced_aligner.py     # Forced alignment + LIS correction (511 lines)
-├── generate.py           # Autoregressive + speculative decode (342 lines)
-├── transcribe.py         # High-level pipeline (277 lines)
-├── tokenizer.py          # Tokenizer wrapper + output parsing (262 lines)
-├── streaming.py          # Streaming state machine (252 lines)
+├── encoder.py            # Audio encoder (504 lines)
+├── decoder.py            # Text decoder + KV cache (464 lines)
+├── generate.py           # Autoregressive + speculative decode (350 lines)
+├── tokenizer.py          # Tokenizer wrapper + output parsing (347 lines)
+├── model.py              # Top-level model + audio-text fusion (336 lines)
+├── transcribe.py         # High-level pipeline (306 lines)
+├── streaming.py          # Streaming state machine (288 lines)
 ├── load_models.py        # Model loading + caching (253 lines)
 ├── config.py             # Dataclass configs (228 lines)
 ├── cli.py                # CLI entry point (201 lines)
 ├── mrope.py              # Interleaved MRoPE (167 lines)
 ├── writers.py            # Output format writers (121 lines)
+├── chunking.py           # Long audio splitting (104 lines)
 ├── session.py            # Session API (92 lines)
-├── chunking.py           # Long audio splitting (95 lines)
+├── attention.py          # Attention utilities (67 lines)
 └── convert.py            # Weight remapping (67 lines)
 
-tests/                    # 4,155 lines, 310 tests
+tests/                    # 4,873 lines, 349 tests
 scripts/                  # Benchmarks, evaluation, conversion, publishing
 docs/                     # Architecture, decisions, benchmarks, roadmap
-docs/benchmarks/          # 40+ committed JSON artifacts for reproducibility
+docs/benchmarks/          # 90+ committed JSON artifacts for reproducibility
 ```
 
 ## Development
@@ -465,7 +493,7 @@ docs/benchmarks/          # 40+ committed JSON artifacts for reproducibility
 git clone https://github.com/moona3k/mlx-qwen3-asr.git
 cd mlx-qwen3-asr
 pip install -e ".[dev]"
-pytest -q                 # 310 tests, ~3s
+pytest -q                 # 349 tests, ~3s
 ```
 
 ## Acknowledgments
