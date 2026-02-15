@@ -6,8 +6,8 @@ Comprehensive benchmark results for mlx-qwen3-asr on Apple Silicon. All numbers 
 
 | Metric | 0.6B fp16 | 0.6B 4-bit | 0.6B 8-bit | 1.7B fp16 |
 |---|---|---|---|---|
-| LibriSpeech test-clean WER | 2.29% | 2.72% | 2.33% | — |
-| LibriSpeech test-other WER | 4.20% | — | — | — |
+| LibriSpeech test-clean WER | 2.29% | 2.72% | 2.33% | 1.99% |
+| LibriSpeech test-other WER | 4.20% | — | — | 3.45% |
 | Multilingual primary | 9.37% | — | — | 6.70% |
 | Short clip latency (~2.5s) | 0.46s | 0.13s | 0.11s | — |
 | 10s clip latency | 0.83s | 0.18s | 0.27s | — |
@@ -16,16 +16,20 @@ Comprehensive benchmark results for mlx-qwen3-asr on Apple Silicon. All numbers 
 
 ---
 
-## English Quality (0.6B fp16, LibriSpeech, 100 samples/subset)
+## English Quality (LibriSpeech, 100 samples/subset)
 
-| Subset | WER | CER | Mean Latency | RTF |
-|---|---:|---:|---:|---:|
-| test-clean | 2.29% | 0.59% | 0.86s | 0.0957 |
-| test-other | 4.20% | 2.09% | 0.71s | 0.0985 |
+| Model | Subset | WER | CER | Mean Latency | RTF |
+|---|---|---:|---:|---:|---:|
+| 0.6B | test-clean | 2.29% | 0.59% | 0.86s | 0.0957 |
+| 0.6B | test-other | 4.20% | 2.09% | 0.71s | 0.0985 |
+| 1.7B | test-clean | 1.99% | 0.61% | 2.43s | 0.2708 |
+| 1.7B | test-other | 3.45% | 1.42% | 2.02s | 0.2814 |
 
 Artifacts:
 - `2026-02-15-librispeech-test-clean-100.json`
 - `2026-02-15-librispeech-test-other-100.json`
+- `2026-02-15-librispeech-test-clean-100-1p7b.json`
+- `2026-02-15-librispeech-test-other-100-1p7b.json`
 
 ---
 

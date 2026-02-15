@@ -1,10 +1,11 @@
 {
-  "suite": "quality-matrix-refresh-v1",
+  "suite": "quality-matrix-refresh-v2",
   "date": "2026-02-15",
   "machine": "Apple M4 Pro",
   "runs": {
-    "librispeech_test_clean_100": {
+    "librispeech_test_clean_100_0p6b": {
       "artifact": "docs/benchmarks/2026-02-15-librispeech-test-clean-100.json",
+      "model": "Qwen/Qwen3-ASR-0.6B",
       "subset": "test-clean",
       "samples": 100,
       "unique_speakers": 40,
@@ -13,8 +14,9 @@
       "mean_latency_sec": 0.8575929899996845,
       "rtf": 0.09573432502964126
     },
-    "librispeech_test_other_100": {
+    "librispeech_test_other_100_0p6b": {
       "artifact": "docs/benchmarks/2026-02-15-librispeech-test-other-100.json",
+      "model": "Qwen/Qwen3-ASR-0.6B",
       "subset": "test-other",
       "samples": 100,
       "unique_speakers": 33,
@@ -22,6 +24,28 @@
       "cer": 0.020948180815876516,
       "mean_latency_sec": 0.7078913437289884,
       "rtf": 0.09851184532504698
+    },
+    "librispeech_test_clean_100_1p7b": {
+      "artifact": "docs/benchmarks/2026-02-15-librispeech-test-clean-100-1p7b.json",
+      "model": "Qwen/Qwen3-ASR-1.7B",
+      "subset": "test-clean",
+      "samples": 100,
+      "unique_speakers": 40,
+      "wer": 0.01985325852395339,
+      "cer": 0.006054299498628323,
+      "mean_latency_sec": 2.4262467316788388,
+      "rtf": 0.2708453729463579
+    },
+    "librispeech_test_other_100_1p7b": {
+      "artifact": "docs/benchmarks/2026-02-15-librispeech-test-other-100-1p7b.json",
+      "model": "Qwen/Qwen3-ASR-1.7B",
+      "subset": "test-other",
+      "samples": 100,
+      "unique_speakers": 33,
+      "wer": 0.03451938396176314,
+      "cer": 0.0142104618400098,
+      "mean_latency_sec": 2.021835872451193,
+      "rtf": 0.28136349526516613
     },
     "multilingual100_0p6b": {
       "artifact": "docs/benchmarks/2026-02-15-manifest-quality-multilingual100-0p6b-refresh.json",
@@ -43,6 +67,10 @@
     }
   },
   "derived": {
+    "english_test_clean_wer_delta_1p7b_minus_0p6b": -0.0030211480362537756,
+    "english_test_other_wer_delta_1p7b_minus_0p6b": -0.007434944237918219,
+    "english_test_clean_latency_ratio_1p7b_vs_0p6b": 2.8291354523312178,
+    "english_test_other_latency_ratio_1p7b_vs_0p6b": 2.8561387144539507,
     "multilingual_primary_relative_improvement_1p7b_vs_0p6b": 0.28417266187050355,
     "multilingual_latency_ratio_1p7b_vs_0p6b": 2.859721603268538
   },

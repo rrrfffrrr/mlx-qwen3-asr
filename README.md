@@ -148,14 +148,16 @@ Measured on Apple M4 Pro, macOS 26.2. All numbers from controlled runs with benc
 | **8-bit** (q8, group 64) | 0.11s | 0.27s | 0.03x | 3.11x faster |
 | **4-bit** (q4, group 64) | 0.13s | 0.18s | 0.02x | **4.68x faster** |
 
-### English quality refresh (0.6B fp16, 100 speaker-balanced samples per subset)
+### English quality refresh (LibriSpeech, 100 speaker-balanced samples per subset)
 
-| Subset | WER | CER | Mean eval latency | RTF |
-|---|---|---|---|---|
-| test-clean | 2.29% | 0.59% | 0.86s | 0.0957 |
-| test-other | 4.20% | 2.09% | 0.71s | 0.0985 |
+| Model | Subset | WER | CER | Mean eval latency | RTF |
+|---|---|---|---|---|---|
+| 0.6B | test-clean | 2.29% | 0.59% | 0.86s | 0.0957 |
+| 0.6B | test-other | 4.20% | 2.09% | 0.71s | 0.0985 |
+| 1.7B | test-clean | 1.99% | 0.61% | 2.43s | 0.2708 |
+| 1.7B | test-other | 3.45% | 1.42% | 2.02s | 0.2814 |
 
-Artifacts: `docs/benchmarks/2026-02-15-librispeech-test-clean-100.json`, `docs/benchmarks/2026-02-15-librispeech-test-other-100.json`.
+Artifacts: `docs/benchmarks/2026-02-15-librispeech-test-clean-100.json`, `docs/benchmarks/2026-02-15-librispeech-test-other-100.json`, `docs/benchmarks/2026-02-15-librispeech-test-clean-100-1p7b.json`, `docs/benchmarks/2026-02-15-librispeech-test-other-100-1p7b.json`.
 
 ### Quantization quality (0.6B, LibriSpeech test-clean, 100 speaker-balanced samples)
 

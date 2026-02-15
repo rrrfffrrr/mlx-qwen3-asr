@@ -7,20 +7,32 @@ Machine: Apple M4 Pro
 ```bash
 uv run python scripts/eval_librispeech.py --model Qwen/Qwen3-ASR-0.6B --dtype float16 --subset test-clean --samples 100 --sampling speaker_round_robin --max-new-tokens 256 --json-output docs/benchmarks/2026-02-15-librispeech-test-clean-100.json
 uv run python scripts/eval_librispeech.py --model Qwen/Qwen3-ASR-0.6B --dtype float16 --subset test-other --samples 100 --sampling speaker_round_robin --max-new-tokens 256 --json-output docs/benchmarks/2026-02-15-librispeech-test-other-100.json
+uv run python scripts/eval_librispeech.py --model Qwen/Qwen3-ASR-1.7B --dtype float16 --subset test-clean --samples 100 --sampling speaker_round_robin --max-new-tokens 256 --json-output docs/benchmarks/2026-02-15-librispeech-test-clean-100-1p7b.json
+uv run python scripts/eval_librispeech.py --model Qwen/Qwen3-ASR-1.7B --dtype float16 --subset test-other --samples 100 --sampling speaker_round_robin --max-new-tokens 256 --json-output docs/benchmarks/2026-02-15-librispeech-test-other-100-1p7b.json
 uv run python scripts/eval_manifest_quality.py --manifest-jsonl docs/benchmarks/2026-02-14-fleurs-multilingual-100-manifest.jsonl --model Qwen/Qwen3-ASR-0.6B --dtype float16 --max-new-tokens 1024 --json-output docs/benchmarks/2026-02-15-manifest-quality-multilingual100-0p6b-refresh.json
 uv run python scripts/eval_manifest_quality.py --manifest-jsonl docs/benchmarks/2026-02-14-fleurs-multilingual-100-manifest.jsonl --model Qwen/Qwen3-ASR-1.7B --dtype float16 --max-new-tokens 1024 --json-output docs/benchmarks/2026-02-15-manifest-quality-multilingual100-1p7b-refresh.json
 ```
 
-## English Quality (0.6B)
+## English Quality (LibriSpeech, 100 speaker-balanced samples per subset)
 
-| Subset | Samples | Speakers | WER | CER | Mean latency (s) | RTF |
-|---|---:|---:|---:|---:|---:|---:|
-| test-clean | 100 | 40 | 2.29% | 0.59% | 0.8576 | 0.0957 |
-| test-other | 100 | 33 | 4.20% | 2.09% | 0.7079 | 0.0985 |
+| Model | Subset | WER | CER | Mean latency (s) | RTF |
+|---|---|---:|---:|---:|---:|
+| 0.6B | test-clean | 2.29% | 0.59% | 0.8576 | 0.0957 |
+| 0.6B | test-other | 4.20% | 2.09% | 0.7079 | 0.0985 |
+| 1.7B | test-clean | 1.99% | 0.61% | 2.4262 | 0.2708 |
+| 1.7B | test-other | 3.45% | 1.42% | 2.0218 | 0.2814 |
+
+Derived:
+- test-clean WER delta (1.7B - 0.6B): **-0.30pp**
+- test-other WER delta (1.7B - 0.6B): **-0.74pp**
+- test-clean latency ratio (1.7B / 0.6B): **2.83x**
+- test-other latency ratio (1.7B / 0.6B): **2.86x**
 
 Artifacts:
 - `docs/benchmarks/2026-02-15-librispeech-test-clean-100.json`
 - `docs/benchmarks/2026-02-15-librispeech-test-other-100.json`
+- `docs/benchmarks/2026-02-15-librispeech-test-clean-100-1p7b.json`
+- `docs/benchmarks/2026-02-15-librispeech-test-other-100-1p7b.json`
 
 ## Multilingual Quality (FLEURS manifest, 100 samples)
 
@@ -45,5 +57,5 @@ Artifacts:
 
 ## Notes
 
-- This refresh extends the English lane from `test-clean` only to `test-clean + test-other`.
-- These numbers should be treated as benchmark checkpoints for this commit state, not universal claims across all domains.
+- This refresh covers both English subsets (`test-clean`, `test-other`) for 0.6B and 1.7B.
+- These numbers are checkpoint metrics for this commit state, not universal claims across all domains.
