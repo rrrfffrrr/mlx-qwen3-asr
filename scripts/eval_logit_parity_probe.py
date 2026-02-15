@@ -95,10 +95,13 @@ def _trim_trailing_eos(tokens: list[int], step_infos: list[dict[str, Any]]) -> N
 
 
 def _topk_info(logits: mx.array, k: int) -> dict[str, Any]:
-    flat = logits.reshape(-1)
-    values, ids = mx.topk(flat, k=min(k, flat.shape[0]))
-    top_ids = [int(x) for x in ids.tolist()]
-    top_vals = [float(x) for x in values.tolist()]
+    # Use NumPy top-k for diagnostics portability across MLX versions.
+    flat_np = np.asarray(logits.reshape(-1), dtype=np.float32)
+    kk = max(1, min(k, int(flat_np.shape[0])))
+    top_ids_np = np.argpartition(flat_np, -kk)[-kk:]
+    top_ids_np = top_ids_np[np.argsort(flat_np[top_ids_np])[::-1]]
+    top_ids = [int(x) for x in top_ids_np.tolist()]
+    top_vals = [float(flat_np[i]) for i in top_ids]
     margin = top_vals[0] - top_vals[1] if len(top_vals) >= 2 else float("inf")
     return {
         "top_token_id": top_ids[0] if top_ids else -1,
@@ -258,13 +261,17 @@ def main() -> int:
                 **inputs,
                 max_new_tokens=args.max_new_tokens,
                 do_sample=False,
-                return_dict_in_generate=True,
                 output_scores=True,
             )
 
         prompt_len = int(inputs["input_ids"].shape[1])
         ref_tokens = [int(x) for x in ref_out.sequences[0, prompt_len:].tolist()]
         ref_steps = []
+        if not hasattr(ref_out, "scores") or ref_out.scores is None:
+            raise RuntimeError(
+                "Reference generation did not return score tensors. "
+                "This probe requires `scores` to compute top-k margin diagnostics."
+            )
         for score in ref_out.scores:
             values, ids = torch.topk(score[0], k=min(args.topk, score.shape[-1]))
             top_ids = [int(x) for x in ids.tolist()]

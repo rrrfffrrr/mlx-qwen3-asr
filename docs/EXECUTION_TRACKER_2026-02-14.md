@@ -728,3 +728,30 @@ Added machine/human-readable checkpoint comparison:
 Purpose:
 - keep decision history explicit before moving to deeper multilingual work
   (likely model-path parity investigation rather than frontend/postprocess only).
+
+### 40) Logit-level mismatch probe (multilingual100 parity gaps)
+
+Added a dedicated diagnostic script:
+
+- `scripts/eval_logit_parity_probe.py`
+
+Purpose:
+- probe multilingual parity mismatch rows at the first mismatch position and
+  compare MLX vs reference top-k logits/margins to distinguish:
+  - near-tie decode flips (argmax boundary behavior),
+  - stronger logit/path divergence.
+
+Artifacts:
+- `docs/benchmarks/2026-02-15-logit-parity-probe-multilingual100-mismatches.json`
+- `docs/benchmarks/2026-02-15-logit-parity-probe-multilingual100-mismatches.md`
+
+Observed on current multilingual-100 mismatch rows (`n=36`):
+- near-tie rows (`ref_margin<=0.5` OR `mlx_margin<=0.5`): `31/36` (`86.1%`)
+- strict top1/top2 cross-swaps: `30/36` (`83.3%`)
+- only `5/36` rows remained non-near-tie at probe position.
+
+Interpretation:
+- most mismatches are top-2 rank flips at narrow margins rather than broad
+  candidate-set divergence; this supports prioritizing targeted model-path
+  parity investigation on the small non-near subset before making larger
+  decoding changes.
