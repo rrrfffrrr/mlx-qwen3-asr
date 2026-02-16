@@ -56,7 +56,7 @@ def main() -> int:
 
     text = readme.read_text(encoding="utf-8")
     bullet_pat = (
-        r"- \*\*\d+ tests\*\* — every optimization is benchmark-gated with "
+        r"- \*\*[0-9,+ ]+ tests\*\* — every optimization is benchmark-gated with "
         r"committed JSON artifacts"
     )
     bullet_rep = (

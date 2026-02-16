@@ -28,7 +28,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - **Speculative decoding** — experimental opt-in path (0.6B drafts for 1.7B target), parity-verified
 - **Streaming** — KV-cache streaming with linear complexity, context trimming, and tail refinement
 - **Native WAV fast-path** — custom binary WAV parser bypasses ffmpeg for PCM/float WAV files
-- **400+ tests** — every optimization is benchmark-gated with committed JSON artifacts
+- **462 tests** — every optimization is benchmark-gated with committed JSON artifacts
 - **Minimal dependencies** — mlx, numpy, regex, huggingface-hub
 
 ## Requirements
@@ -602,7 +602,7 @@ Frozen dataclass:
 This project enforces parity with the official PyTorch implementation. No optimization lands without passing quality gates and committing benchmark artifacts.
 
 ```bash
-# Unit tests (441 tests)
+# Unit tests (462 tests)
 pytest -q
 
 # Fast quality gate
@@ -647,7 +647,7 @@ Chat-template prompt:
 
   → Token embedding (151,936 vocab)
   → Replace audio_pad positions with encoded audio features
-  → Qwen3 text decoder (28 or 32 layers, interleaved MRoPE, SwiGLU, RMSNorm)
+  → Qwen3 text decoder (28 layers, interleaved MRoPE, SwiGLU, RMSNorm)
   → Autoregressive decode with preallocated KV cache
   → Parse output: "language English<asr_text>transcribed text here"
 ```
@@ -660,7 +660,7 @@ Key architectural details:
 ## Project structure
 
 ```
-mlx_qwen3_asr/           # 7,556 lines of source
+mlx_qwen3_asr/           # 7,602 lines of source
 ├── transcribe.py         # High-level pipeline + batch/async + diarization (739 lines)
 ├── cli.py                # CLI entry point and UX guardrails (664 lines)
 ├── streaming.py          # KV-cache streaming + context trimming (624 lines)
@@ -683,7 +683,7 @@ mlx_qwen3_asr/           # 7,556 lines of source
 ├── eval_metrics.py       # WER/CER/BERTScore helpers (65 lines)
 └── cache_utils.py        # KV cache utilities (57 lines)
 
-tests/                    # 6,822 lines, 441 tests
+tests/                    # 7,391 lines, 462 tests
 scripts/                  # Benchmarks, evaluation, conversion, publishing
 docs/                     # Architecture, decisions, benchmarks, roadmap
 docs/benchmarks/          # 160+ committed artifacts for reproducibility
@@ -695,7 +695,7 @@ docs/benchmarks/          # 160+ committed artifacts for reproducibility
 git clone https://github.com/moona3k/mlx-qwen3-asr.git
 cd mlx-qwen3-asr
 pip install -e ".[dev]"
-pytest -q                 # 441 tests
+pytest -q                 # 462 tests
 ```
 
 ## Acknowledgments
