@@ -213,25 +213,21 @@ PyPI account: moona3k@gmail.com. Token scope: `mlx-qwen3-asr` project. Pure Pyth
 | `docs/COMPARISON.md` | Comparison with alternatives (mlx-audio, whisper, etc.) |
 | `docs/RESEARCH.md` | Research findings, model analysis |
 | `docs/BENCHMARKING.md` | Runtime measurement protocol and methodology |
-| `docs/memory/README.md` | Memory protocol for append-only events and compaction |
-| `docs/memory/operating-memory.md` | Compacted retrieval memory for active execution |
+| `docs/memory/operating-memory.md` | Agent memory front door (protocol + compacted guidance) |
 | `docs/memory/events/` | Append-only implementation memory events |
 
 ## Continuous Learning
 
-For non-trivial work, append an event in `docs/memory/events/YYYY-MM.md`.
+Start memory workflow at `docs/memory/operating-memory.md` (single front door).
 
 Guidance:
 
-1. Two-track model:
-   - append-only events in `docs/memory/events/`,
-   - compacted retrieval in `docs/memory/operating-memory.md`.
+1. For non-trivial work, append an event in `docs/memory/events/YYYY-MM.md`.
 2. Minimum bar for event entries: include `Decision`, `Reuse next time`, and
    `Evidence`.
-3. Keep notes concise and high signal; prioritize reusable patterns.
+3. Update `docs/memory/operating-memory.md` only when active guidance changes.
 4. Include failed paths/root cause when the miss is meaningful.
-5. If a pattern repeats, promote it to `Distilled Learnings` in
-   `docs/memory/operating-memory.md`.
+5. If a pattern repeats, promote it to `Distilled Learnings`.
 
 Optional fields when useful: `Scope`, `What worked`, `What did not work`,
 `Risk left`, `Revisit trigger`, `ROI`.

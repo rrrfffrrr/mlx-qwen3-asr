@@ -1,6 +1,43 @@
 # Operating Memory
 
-Compacted retrieval layer for current agent execution.
+Primary memory entry point for agents.
+
+This file is intentionally the front door: it contains protocol and current
+compacted memory. Append-only history lives in `events/`.
+
+## Protocol (Stable Rules)
+
+### Two Tracks
+
+1. `events/` is append-only and immutable.
+2. `operating-memory.md` is compacted and mutable.
+
+### Event Rules
+
+1. Append events in `events/YYYY-MM.md` with IDs: `MEM-YYYY-MM-DD-NNN`.
+2. Never rewrite prior event content; append follow-up corrections.
+3. Minimum bar per event: `Decision`, `Reuse next time`, `Evidence`.
+
+### Compaction Rules
+
+1. Every compacted memory item must reference one or more event IDs.
+2. Keep compacted guidance short, actionable, and current.
+3. Promote repeated high-value patterns into `Distilled Learnings`.
+
+### Promotion Rule
+
+Promote to distilled learnings when:
+
+1. A pattern appears at least twice, or
+2. It prevented a costly miss/regression.
+
+### Agent Update Flow
+
+1. For non-trivial work, append an event first.
+2. Update compacted memory only if active guidance changed.
+3. Keep references (`refs`) accurate.
+
+## Current Operating Memory
 
 ## Active Defaults
 
