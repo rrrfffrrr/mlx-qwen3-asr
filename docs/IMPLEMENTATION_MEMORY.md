@@ -1,4 +1,4 @@
-# Implementation Learnings
+# Implementation Memory (Learning Log)
 
 Purpose: capture concise, high-signal implementation memory for future coding
 agents.
@@ -9,10 +9,30 @@ agents.
 2. Prefer reusable heuristics over timeline narration.
 3. Keep entries concise and evidence-backed.
 4. If no material failures occurred, state that explicitly.
+5. Preserve `Reuse next time` as the core memory payload.
 
-## Retrospective Card
+## Two Layers
 
-### Core Fields (required)
+1. `Memory entries` (default): short per-change notes.
+2. `Distilled learnings` (curated): reusable principles promoted from repeated
+   memory patterns.
+
+Promotion rule:
+
+1. Promote when a pattern repeats at least twice or clearly prevented a costly
+   miss.
+
+## Recommended Format
+
+Retrospective Card is preferred, but concise free-form notes are valid.
+
+### Minimum Bar (always include)
+
+1. `Decision`: what was kept and why.
+2. `Reuse next time`: command/lane/path/pattern to copy directly.
+3. `Evidence`: tests/artifacts/benchmarks/commits proving the result.
+
+### Card Fields (recommended)
 
 1. `Scope`: what changed and where.
 2. `Decision`: what was kept and why (with tradeoff).
@@ -31,12 +51,12 @@ agents.
 
 ```md
 ### YYYY-MM-DD - <Change Slice>
-- Scope: <what changed and where>
+- Scope: <optional, what changed and where>
 - Decision:
   - <what we kept, why, and primary tradeoff>
-- What worked:
+- What worked: <optional>
   - <high-signal command/pattern/result>
-- What did not work:
+- What did not work: <optional>
   - <failed path/assumption + root cause>
 - Reuse next time:
   - <command/lane/path/pattern>
@@ -47,17 +67,22 @@ agents.
 - ROI: <optional high|medium|low>
 ```
 
+## Distilled Learnings
+
+1. For process-policy updates, patch both `CLAUDE.md` and this memory file in
+   the same commit to avoid drift.
+
 ## Entries
 
-### 2026-02-16 - Standardize learnings format for future agents
+### 2026-02-16 - Standardize memory format for future agents
 - Scope: Added Retrospective Card policy in `CLAUDE.md` and created this
   canonical log file.
 - Decision:
-  - Keep a single implementation learnings file with required core fields;
-    tradeoff is small process overhead in exchange for better cross-agent
+  - Keep a single implementation memory file with a flexible default card
+    and minimum bar; tradeoff is small process overhead for better cross-agent
     continuity and faster onboarding.
 - What worked:
-  - Defining required vs optional fields preserved flexibility without losing
+  - Defining minimum-bar vs optional fields preserved flexibility without losing
     consistency.
   - Making `Reuse next time` mandatory forced extraction of actionable insight.
 - What did not work:
@@ -67,5 +92,5 @@ agents.
   - When changing process policy, update both `CLAUDE.md` and this log in the
     same commit.
 - Evidence:
-  - Commit touching `CLAUDE.md` and `docs/IMPLEMENTATION_LEARNINGS.md`
+  - Commit touching `CLAUDE.md` and `docs/IMPLEMENTATION_MEMORY.md`
 - ROI: high

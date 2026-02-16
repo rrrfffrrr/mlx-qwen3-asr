@@ -213,23 +213,24 @@ PyPI account: moona3k@gmail.com. Token scope: `mlx-qwen3-asr` project. Pure Pyth
 | `docs/COMPARISON.md` | Comparison with alternatives (mlx-audio, whisper, etc.) |
 | `docs/RESEARCH.md` | Research findings, model analysis |
 | `docs/BENCHMARKING.md` | Runtime measurement protocol and methodology |
-| `docs/IMPLEMENTATION_LEARNINGS.md` | Retrospective cards with reusable implementation heuristics |
+| `docs/IMPLEMENTATION_MEMORY.md` | Retrospective cards with reusable implementation memory |
 
 ## Continuous Learning
 
 After non-trivial work, append a Retrospective Card in
-`docs/IMPLEMENTATION_LEARNINGS.md`.
+`docs/IMPLEMENTATION_MEMORY.md`.
 
-Core card fields (required):
+Guidance:
 
-1. `Scope`: what changed and where.
-2. `Decision`: what was kept and why (include tradeoff).
-3. `What worked`: highest-signal patterns/commands (max 3 bullets).
-4. `What did not work`: failed paths or false assumptions with root cause.
-5. `Reuse next time`: exact command, test lane, file path, or pattern to copy.
-6. `Evidence`: tests/artifacts/benchmarks/commits proving the outcome.
+1. Retrospective Card is the preferred format, not a rigid schema.
+2. Minimum bar: include `Decision`, `Reuse next time`, and `Evidence`.
+3. Keep notes concise and high signal; prioritize reusable patterns.
+4. Include failed paths/root cause when the miss is meaningful.
+5. If a pattern repeats, promote it to the `Distilled Learnings` section in
+   `docs/IMPLEMENTATION_MEMORY.md`.
 
-Optional fields (use when relevant): `Risk left`, `Revisit trigger`, `ROI`.
+Optional fields when useful: `Scope`, `What worked`, `What did not work`,
+`Risk left`, `Revisit trigger`, `ROI`.
 
 Cross-session learnings still go in `MEMORY.md` (auto-loaded). Decision
 rationale belongs in commit messages and `docs/DECISIONS.md`.
