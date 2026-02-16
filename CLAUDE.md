@@ -213,10 +213,26 @@ PyPI account: moona3k@gmail.com. Token scope: `mlx-qwen3-asr` project. Pure Pyth
 | `docs/COMPARISON.md` | Comparison with alternatives (mlx-audio, whisper, etc.) |
 | `docs/RESEARCH.md` | Research findings, model analysis |
 | `docs/BENCHMARKING.md` | Runtime measurement protocol and methodology |
+| `docs/IMPLEMENTATION_LEARNINGS.md` | Retrospective cards with reusable implementation heuristics |
 
 ## Continuous Learning
 
-After non-trivial work, record gotchas, effective patterns, and failed approaches. Cross-session learnings go in `MEMORY.md` (auto-loaded). Codebase conventions go here. Decision rationale goes in commit messages and `docs/DECISIONS.md`.
+After non-trivial work, append a Retrospective Card in
+`docs/IMPLEMENTATION_LEARNINGS.md`.
+
+Core card fields (required):
+
+1. `Scope`: what changed and where.
+2. `Decision`: what was kept and why (include tradeoff).
+3. `What worked`: highest-signal patterns/commands (max 3 bullets).
+4. `What did not work`: failed paths or false assumptions with root cause.
+5. `Reuse next time`: exact command, test lane, file path, or pattern to copy.
+6. `Evidence`: tests/artifacts/benchmarks/commits proving the outcome.
+
+Optional fields (use when relevant): `Risk left`, `Revisit trigger`, `ROI`.
+
+Cross-session learnings still go in `MEMORY.md` (auto-loaded). Decision
+rationale belongs in commit messages and `docs/DECISIONS.md`.
 
 **Before touching model code**: read `docs/ARCHITECTURE.md` and check the official Qwen3-ASR repo for reference implementation.
 
