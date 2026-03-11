@@ -144,6 +144,39 @@ def test_session_transcribe_supports_draft_model(monkeypatch):
     assert calls["num_draft_tokens"] == 7
 
 
+def test_session_transcribe_forwards_context(monkeypatch):
+    class _DummyTokenizer:
+        def __init__(self, path):  # noqa: ANN001
+            self.path = path
+
+    class _DummyModel:
+        pass
+
+    calls = {}
+
+    monkeypatch.setattr(sessmod, "Tokenizer", _DummyTokenizer)
+    monkeypatch.setattr(sessmod, "load_model", lambda model, dtype: (_DummyModel(), object()))
+    monkeypatch.setattr(sessmod, "_resolve_path", lambda model: "/tmp/resolved-model")
+    monkeypatch.setattr(sessmod, "_to_audio_np", lambda audio: np.zeros(160, dtype=np.float32))
+    monkeypatch.setattr(sessmod, "_resolve_aligner", lambda rt, fa: None)
+    monkeypatch.setattr(sessmod, "_resolve_draft_model", lambda **kwargs: None)
+
+    def fake_transcribe_loaded_components(**kwargs):  # noqa: ANN003
+        calls.update(kwargs)
+        return TranscriptionResult(text="ok", language="English")
+
+    monkeypatch.setattr(sessmod, "_transcribe_loaded_components", fake_transcribe_loaded_components)
+
+    session = sessmod.Session("repo/a", dtype=mx.float16)
+    out = session.transcribe(
+        np.zeros(160, dtype=np.float32),
+        context="交易 停滞",
+    )
+
+    assert out.text == "ok"
+    assert calls["context"] == "交易 停滞"
+
+
 def test_session_with_preloaded_model_requires_tokenizer_metadata():
     class _DummyModel:
         pass
@@ -206,6 +239,33 @@ def test_session_init_streaming_forwards_session_defaults(monkeypatch):
     assert calls["max_new_tokens"] == 77
     assert calls["finalization_mode"] == "latency"
     assert calls["enable_tail_refine"] is None
+
+
+def test_session_init_streaming_forwards_context(monkeypatch):
+    class _DummyTokenizer:
+        def __init__(self, path):  # noqa: ANN001
+            self.path = path
+
+    class _DummyModel:
+        pass
+
+    calls = {}
+
+    monkeypatch.setattr(sessmod, "Tokenizer", _DummyTokenizer)
+    monkeypatch.setattr(sessmod, "load_model", lambda model, dtype: (_DummyModel(), object()))
+    monkeypatch.setattr(sessmod, "_resolve_path", lambda model: "/tmp/resolved-model")
+
+    def fake_streaming_init(**kwargs):  # noqa: ANN003
+        calls.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(sessmod.streaming_mod, "init_streaming", fake_streaming_init)
+
+    session = sessmod.Session("repo/a", dtype=mx.float16)
+    state = session.init_streaming(context="earnings EBITDA")
+
+    assert state is not None
+    assert calls["context"] == "earnings EBITDA"
 
 
 def test_session_streaming_methods_use_loaded_model(monkeypatch):

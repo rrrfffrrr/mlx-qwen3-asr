@@ -280,3 +280,18 @@ is a clear funded plan to pursue native model-based diarization.
 - Reduces maintenance burden and cognitive overhead.
 - Avoids dead-code drift and false signals about supported runtime paths.
 - Keeps code and docs aligned with actual product direction.
+
+## Decision 23: Match Official Qwen3-ASR `context` Prompt Contract
+
+**Choice:** Expose `context` across public transcription and streaming APIs,
+and render it as the entire system-message content with default `""`.
+**Alternatives:** (1) keep the historical hardcoded helper prompt, (2) add a
+local-only prompt feature that diverges from upstream batch/streaming semantics.
+
+**Rationale:**
+- The official Qwen3-ASR API exposes `context` for domain-vocabulary biasing in
+  both offline and streaming flows.
+- Defaulting to empty system content matches the shipped upstream chat template
+  and avoids local prompt drift.
+- Keeping one prompt contract across Python API, Session API, streaming, and
+  CLI reduces surprise and keeps parity reasoning straightforward.

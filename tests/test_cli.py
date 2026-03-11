@@ -197,6 +197,81 @@ def test_cli_streaming_mode_uses_streaming_pipeline(monkeypatch, capsys, tmp_pat
     assert calls["finish"] == 1
 
 
+def test_cli_offline_forwards_context(monkeypatch, tmp_path):
+    cli = __import__("mlx_qwen3_asr.cli", fromlist=["main"])
+    transcribe_mod = importlib.import_module("mlx_qwen3_asr.transcribe")
+    writers_mod = importlib.import_module("mlx_qwen3_asr.writers")
+
+    audio_path = tmp_path / "audio.wav"
+    audio_path.write_bytes(b"RIFF")
+    calls = {}
+
+    class _DummyResult:
+        text = "offline text"
+        language = "English"
+        segments = None
+        chunks = [{"start": 0.0, "end": 1.0}]
+
+    def _fake_transcribe(**kwargs):  # noqa: ANN003
+        calls.update(kwargs)
+        return _DummyResult()
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "mlx-qwen3-asr",
+            "--context",
+            "交易 停滞",
+            str(audio_path),
+        ],
+    )
+    monkeypatch.setattr(transcribe_mod, "transcribe", _fake_transcribe)
+    monkeypatch.setattr(writers_mod, "get_writer", lambda fmt: (lambda result, out_path: None))
+
+    cli.main()
+    assert calls["context"] == "交易 停滞"
+
+
+def test_cli_streaming_forwards_context(monkeypatch, tmp_path):
+    cli = __import__("mlx_qwen3_asr.cli", fromlist=["main"])
+    audio_mod = importlib.import_module("mlx_qwen3_asr.audio")
+    stream_mod = importlib.import_module("mlx_qwen3_asr.streaming")
+    writers_mod = importlib.import_module("mlx_qwen3_asr.writers")
+
+    audio_path = tmp_path / "audio.wav"
+    audio_path.write_bytes(b"RIFF")
+    calls = {}
+
+    class _DummyState:
+        text = "stream text"
+        language = "English"
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "mlx-qwen3-asr",
+            "--streaming",
+            "--context",
+            "earnings EBITDA",
+            str(audio_path),
+        ],
+    )
+    monkeypatch.setattr(audio_mod, "load_audio", lambda path: np.zeros(12, dtype=np.float32))
+    monkeypatch.setattr(
+        stream_mod,
+        "init_streaming",
+        lambda **kwargs: calls.update(kwargs) or _DummyState(),
+    )
+    monkeypatch.setattr(stream_mod, "feed_audio", lambda chunk, state: state)
+    monkeypatch.setattr(stream_mod, "finish_streaming", lambda state: state)
+    monkeypatch.setattr(writers_mod, "get_writer", lambda fmt: (lambda result, out_path: None))
+
+    cli.main()
+    assert calls["context"] == "earnings EBITDA"
+
+
 def test_cli_stdout_only_does_not_write_files(monkeypatch, capsys, tmp_path):
     cli = __import__("mlx_qwen3_asr.cli", fromlist=["main"])
     transcribe_mod = importlib.import_module("mlx_qwen3_asr.transcribe")
