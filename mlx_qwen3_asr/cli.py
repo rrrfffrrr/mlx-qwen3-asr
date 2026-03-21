@@ -298,12 +298,12 @@ def _parse_serve_args(argv: list[str]) -> None:
         help="Max submissions per minute per key (default: 60)",
     )
     parser.add_argument(
-        "--max-file-size", type=int, default=200,
-        help="Max upload size in MB (default: 200)",
+        "--max-file-size", type=int, default=2048,
+        help="Max upload size in MB (default: 2048 / 2 GB)",
     )
     parser.add_argument(
-        "--max-duration", type=int, default=1800,
-        help="Max audio duration in seconds (default: 1800)",
+        "--max-duration", type=int, default=28800,
+        help="Max audio duration in seconds (default: 28800 / 8 hours)",
     )
     parser.add_argument(
         "--max-queue-depth", type=int, default=10,

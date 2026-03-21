@@ -96,8 +96,8 @@ async `/transcribe` + polling flow instead.
 | `--api-key` | — (required) | API key(s), comma-separated |
 | `--model` | `Qwen/Qwen3-ASR-0.6B` | Model to load |
 | `--rate-limit` | `60` | Max submissions per minute per key |
-| `--max-file-size` | `200` | Max upload size in MB |
-| `--max-duration` | `1800` | Max audio duration in seconds |
+| `--max-file-size` | `2048` | Max upload size in MB (2 GB) |
+| `--max-duration` | `28800` | Max audio duration in seconds (8 hours) |
 | `--max-queue-depth` | `10` | Max queued jobs before 503 |
 | `--job-ttl` | `3600` | Seconds to keep completed jobs |
 

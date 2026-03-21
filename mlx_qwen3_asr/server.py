@@ -67,8 +67,8 @@ class ServerConfig:
     model: str = "Qwen/Qwen3-ASR-0.6B"
     dtype: str = "float16"
     rate_limit: int = 60
-    max_file_size_mb: int = 200
-    max_duration_sec: int = 1800
+    max_file_size_mb: int = 2048
+    max_duration_sec: int = 28800
     max_queue_depth: int = 10
     job_ttl_sec: int = 3600
 

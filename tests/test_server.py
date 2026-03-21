@@ -186,8 +186,8 @@ class TestServerConfig:
         assert config.host == "0.0.0.0"
         assert config.port == 8765
         assert config.rate_limit == 60
-        assert config.max_file_size_mb == 200
-        assert config.max_duration_sec == 1800
+        assert config.max_file_size_mb == 2048
+        assert config.max_duration_sec == 28800
         assert config.max_queue_depth == 10
         assert config.job_ttl_sec == 3600
 

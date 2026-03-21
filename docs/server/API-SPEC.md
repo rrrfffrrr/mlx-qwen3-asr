@@ -100,8 +100,8 @@ Submit a transcription job. Returns immediately with a job ID.
 | `400` | No audio file provided, or unsupported format |
 | `401` | Missing auth token |
 | `403` | Invalid auth token |
-| `413` | File too large (default max: 200 MB) |
-| `422` | Audio duration exceeds max allowed (default: 30 minutes) |
+| `413` | File too large (default max: 2 GB) |
+| `422` | Audio duration exceeds max allowed (default: 8 hours) |
 | `429` | Rate limit exceeded |
 | `503` | Queue full — server is at capacity |
 
@@ -332,8 +332,8 @@ mlx-qwen3-asr serve \
   --api-key mykey123 \
   --model Qwen/Qwen3-ASR-1.7B \
   --rate-limit 30 \
-  --max-file-size 200 \
-  --max-duration 1800 \
+  --max-file-size 2048 \
+  --max-duration 28800 \
   --max-queue-depth 10 \
   --job-ttl 3600 \
   --host 0.0.0.0
@@ -424,8 +424,8 @@ for word in result.words:
 | API key(s) | — (required) | `--api-key` | `MLX_ASR_API_KEY` |
 | Model | `Qwen/Qwen3-ASR-0.6B` | `--model` | — |
 | Rate limit | `60` req/min | `--rate-limit` | — |
-| Max file size | `200` MB | `--max-file-size` | — |
-| Max audio duration | `1800` seconds (30 min) | `--max-duration` | — |
+| Max file size | `2048` MB (2 GB) | `--max-file-size` | — |
+| Max audio duration | `28800` seconds (8 hours) | `--max-duration` | — |
 | Max queue depth | `10` | `--max-queue-depth` | — |
 | Job TTL | `3600` seconds | `--job-ttl` | — |
 
