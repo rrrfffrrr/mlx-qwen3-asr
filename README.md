@@ -24,6 +24,7 @@ This project rewrites every layer for MLX so the same model runs natively on M1/
 - **Speaker diarization (optional)** — offline speaker-labeled outputs via `pyannote` integration (`--diarize`)
 - **4-bit and 8-bit quantization** — up to 4.7x speedup with measured quality reporting on 100 speaker-balanced samples
 - **Multiple output formats** — txt, json, srt, vtt, tsv
+- **Built-in HTTP server** — `mlx-qwen3-asr serve` exposes the pipeline over HTTP with async jobs, OpenAI API compatibility, and Bearer token auth
 - **Session API** — explicit model/tokenizer ownership with no hidden global state
 - **Speculative decoding** — experimental opt-in path (0.6B drafts for 1.7B target), parity-verified
 - **Streaming** — KV-cache streaming with linear complexity, context trimming, and tail refinement
@@ -62,6 +63,12 @@ Install with optional microphone capture support:
 
 ```bash
 pip install "mlx-qwen3-asr[mic]"
+```
+
+Install with HTTP server support:
+
+```bash
+pip install "mlx-qwen3-asr[serve]"
 ```
 
 Install with diarization extras:
@@ -191,6 +198,45 @@ mlx-qwen3-asr --doctor
 ```
 
 Run `mlx-qwen3-asr --help` for the full list of options.
+
+### HTTP server
+
+Serve transcriptions over HTTP. Two endpoint styles: an async job API and an OpenAI-compatible synchronous endpoint.
+
+```bash
+pip install "mlx-qwen3-asr[serve]"
+mlx-qwen3-asr serve --api-key $(openssl rand -hex 16)
+```
+
+Submit audio and poll for results:
+
+```bash
+# Submit
+curl -X POST http://localhost:8765/transcribe \
+  -H "Authorization: Bearer YOUR_KEY" \
+  -F "audio=@recording.wav"
+
+# Poll
+curl http://localhost:8765/jobs/JOB_ID \
+  -H "Authorization: Bearer YOUR_KEY"
+```
+
+Or use the OpenAI-compatible endpoint with existing SDK code:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key="YOUR_KEY", base_url="http://localhost:8765/v1")
+result = client.audio.transcriptions.create(
+    model="Qwen/Qwen3-ASR-0.6B",
+    file=open("recording.wav", "rb"),
+)
+print(result.text)
+```
+
+The async API is better for long audio (no HTTP timeout risk). The OpenAI endpoint blocks until done — simpler for short clips and SDK integration.
+
+See [docs/server/](docs/server/) for the full API spec, deployment guide, and architecture decision record.
 
 ## Performance on Apple Silicon
 
@@ -713,6 +759,7 @@ mlx_qwen3_asr/           # 7,602 lines of source
 ├── generate.py           # Autoregressive + speculative decode (350 lines)
 ├── load_models.py        # Model loading + caching (256 lines)
 ├── config.py             # Dataclass configs (228 lines)
+├── server.py             # HTTP server + OpenAI compat (697 lines)
 ├── session.py            # Session API (224 lines)
 ├── writers.py            # Output format writers (221 lines)
 ├── mrope.py              # Interleaved MRoPE (167 lines)
