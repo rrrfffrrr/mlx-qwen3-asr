@@ -423,8 +423,8 @@ def main():
     parser.add_argument(
         "--max-new-tokens",
         type=int,
-        default=1024,
-        help="Maximum tokens to generate (default: 1024)",
+        default=4096,
+        help="Maximum tokens to generate per chunk (default: 4096)",
     )
     parser.add_argument(
         "--draft-model",

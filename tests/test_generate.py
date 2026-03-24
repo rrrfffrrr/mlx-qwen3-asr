@@ -24,7 +24,7 @@ class TestGenerationConfig:
 
     def test_default_max_new_tokens(self):
         cfg = GenerationConfig()
-        assert cfg.max_new_tokens == 1024
+        assert cfg.max_new_tokens == 4096
 
     def test_default_temperature(self):
         cfg = GenerationConfig()

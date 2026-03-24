@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-MAX_CHUNK_SECONDS = 1200.0  # 20 minutes max per chunk
+MAX_CHUNK_SECONDS = 30.0  # 30 seconds per chunk (industry standard)
 MIN_CHUNK_SECONDS = 0.5     # Minimum valid audio length
 
 

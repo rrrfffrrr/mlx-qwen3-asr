@@ -70,7 +70,7 @@ class StreamingState:
     chunk_size_samples: int = 32000  # 2 seconds at 16kHz
     max_context_samples: int = 480000  # 30 seconds at 16kHz
     stable_text: str = ""
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 4096
     finalization_mode: str = "accuracy"
     enable_tail_refine: bool = True
     endpointing_mode: str = "fixed"
@@ -99,7 +99,7 @@ def init_streaming(
     max_context_sec: float = 30.0,
     sample_rate: int = 16000,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     finalization_mode: str = "accuracy",
     enable_tail_refine: Optional[bool] = None,
     endpointing_mode: str = "fixed",

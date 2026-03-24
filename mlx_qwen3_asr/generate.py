@@ -16,7 +16,7 @@ REPETITION_THRESHOLD = 20
 @dataclass
 class GenerationConfig:
     """Configuration for text generation."""
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 4096
     temperature: float = 0.0  # greedy by default
     eos_token_ids: list[int] = field(default_factory=lambda: [151643, 151645])
     eval_interval: int = 1

@@ -87,7 +87,7 @@ class TranscribeOptions:
     return_chunks: bool = False
     forced_aligner: Optional[Union[str, ForcedAligner]] = None
     dtype: mx.Dtype = mx.float16
-    max_new_tokens: int = 1024
+    max_new_tokens: int = 4096
     num_draft_tokens: int = 4
     verbose: bool = False
     on_progress: Optional[ProgressCallback] = None
@@ -114,7 +114,7 @@ def _build_transcribe_options(
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     num_draft_tokens: int = 4,
     verbose: bool = False,
     on_progress: Optional[ProgressCallback] = None,
@@ -207,7 +207,7 @@ def transcribe(
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     num_draft_tokens: int = 4,
     verbose: bool = False,
     on_progress: Optional[ProgressCallback] = None,
@@ -319,7 +319,7 @@ async def transcribe_async(
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     num_draft_tokens: int = 4,
     verbose: bool = False,
     on_progress: Optional[ProgressCallback] = None,
@@ -365,7 +365,7 @@ def transcribe_batch(
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     num_draft_tokens: int = 4,
     verbose: bool = False,
     on_progress: Optional[ProgressCallback] = None,
@@ -478,7 +478,7 @@ async def transcribe_batch_async(
     return_chunks: bool = False,
     forced_aligner: Optional[Union[str, ForcedAligner]] = None,
     dtype: mx.Dtype = mx.float16,
-    max_new_tokens: int = 1024,
+    max_new_tokens: int = 4096,
     num_draft_tokens: int = 4,
     verbose: bool = False,
     on_progress: Optional[ProgressCallback] = None,
