@@ -277,14 +277,6 @@ def _load_pyannote_pipeline() -> object:
             "PYANNOTE_MODEL_ID."
         ) from exc
 
-    # Use MPS (Metal) acceleration on Apple Silicon if available
-    try:
-        import torch
-        if torch.backends.mps.is_available():
-            pipeline = pipeline.to(torch.device("mps"))
-    except Exception:
-        pass  # Fall back to CPU silently
-
     _PYANNOTE_PIPELINE_CACHE[key] = pipeline
     return pipeline
 
