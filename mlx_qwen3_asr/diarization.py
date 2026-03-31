@@ -266,7 +266,7 @@ def _load_pyannote_pipeline() -> object:
 
     kwargs: dict[str, Any] = {}
     if token:
-        kwargs["use_auth_token"] = token
+        kwargs["token"] = token
     try:
         pipeline = Pipeline.from_pretrained(model_id, **kwargs)
     except Exception as exc:
